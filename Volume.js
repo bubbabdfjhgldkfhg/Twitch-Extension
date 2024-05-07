@@ -2,6 +2,8 @@
 // @name         Volume
 // @version      0.1
 // @description  Automatically set volume based on channel specific settings on Twitch
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @match        *://*.twitch.tv/*
 // @grant        none
 // ==/UserScript==
