@@ -2,6 +2,8 @@
 // @name         Shuffle
 // @version      0.1
 // @description  Adds a shuffle button to the Twitch video player
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @match        *://*.twitch.tv/*
 // @exclude      *://*.twitch.tv/videos/*
 // @grant        none
