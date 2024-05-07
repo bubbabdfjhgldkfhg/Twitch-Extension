@@ -126,7 +126,7 @@
             let altAttr = element.getAttribute('alt');
             if (!altAttr.match(/Subscriber|Founder|Verified|Broadcaster|VIP|Moderator|Bot/)) {
                 element.remove();
-                break;
+                continue;
             }
 
             // Highlight Mod/VIP/Broadcaster names so ugly badges can be hidden
