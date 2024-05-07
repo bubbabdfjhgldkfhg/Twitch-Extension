@@ -2,6 +2,8 @@
 // @name         Chat
 // @version      1.0
 // @description  Cleanup clutter from twitch chat
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @match        *://*.twitch.tv/*
 // @exclude      *://*.twitch.tv/videos/*
 // @grant        none
