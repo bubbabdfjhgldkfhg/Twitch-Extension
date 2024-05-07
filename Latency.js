@@ -2,6 +2,8 @@
 // @name         Latency
 // @version      0.1
 // @description  Manually set desired latency & graph video stats
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @match        *://*.twitch.tv/*
 // @exclude      *://*.twitch.tv/videos/*
 // @grant        none
