@@ -161,8 +161,8 @@
     }
 
     function hasUnwantedEmote(message) {
-      // Under construction
-      return;
+        // Under construction
+        return;
     }
 
     async function hideDuplicateEmotes(message) {
