@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Volume
-// @version      0.1
+// @version      0.2
 // @description  Automatically set channel specific volume on Twitch
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
@@ -103,31 +103,15 @@
         return observer;
     }
 
-    // Detect when the volume slider is added to the DOM, self destruct when found
-    const pageObserver = new MutationObserver(mutations => {
-        mutations.forEach(mutation => {
-            mutation.addedNodes.forEach(node => {
-                if (node.nodeType === 1) {
-                    const slider = node.querySelector('[data-a-target="player-volume-slider"]');
-                    if (slider) {
-                        pageObserver.disconnect();
-                        sliderObserver(slider);
-                        handlePathChange();
-                    }
-                }
-            });
-        });
-    });
-
-    // Check if volume slider already loaded, create observer otherwise
-    let slider = document.querySelector('[data-a-target="player-volume-slider"]')
-    if (slider) {
-        handlePathChange();
-        observer = sliderObserver(slider);
-        observer.targetElement = slider;
-    } else {
-        pageObserver.observe(document.body, { childList: true, subtree: true });
-    }
+    setInterval(function() {
+        let slider = document.querySelector('[data-a-target="player-volume-slider"]')
+        if (slider && observer?.targetElement != slider) {
+            console.log('Found new volume slider');
+            handlePathChange();
+            observer = sliderObserver(slider);
+            observer.targetElement = slider;
+        }
+    }, 100);
 
     // Enhance navigation handling by overriding history methods. Adds a call to handlePathChange.
     (function(history){
@@ -144,3 +128,4 @@
     })(window.history);
     window.addEventListener('popstate', handlePathChange);
 })();
+
