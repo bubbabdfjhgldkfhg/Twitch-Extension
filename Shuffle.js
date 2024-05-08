@@ -79,8 +79,6 @@ const svgPaths = {
             return;
         }
 
-        console.log('Snoozing');
-
         // Remove channel from snooze list if it's already there
         if (snoozedList.includes(window.location.pathname)) {
             snoozedList = snoozedList.filter(item => item !== window.location.pathname);
@@ -192,20 +190,17 @@ const svgPaths = {
 
         if (autoRotateEnabled) {
             if (action == 'disable' || action == 'toggle') {
-                console.log('Disabling auto rotate');
                 autoRotateEnabled = false;
-                clearInterval(rotationTimerId);
-                rotationTimerId = null;
+                resetChannelRotationTimer();
                 // Change color back to white
                 continuousButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', 'white'));
             }
         }
         else if (!autoRotateEnabled) {
             if (action == 'enable' || action == 'toggle') {
-                console.log('Enabling auto rotate');
                 autoRotateEnabled = true;
                 clickRandomChannel(); // Run immediately, then start timer.
-                rotationTimerId = setInterval(() => clickRandomChannel(), rotationTimer); // Store the interval ID
+                resetChannelRotationTimer();
                 // Change color to purple
                 continuousButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', '#b380ff'));
             }
@@ -213,9 +208,9 @@ const svgPaths = {
     }
 
     function resetChannelRotationTimer() {
+        clearInterval(rotationTimerId);
+        rotationTimerId = null;
         if (autoRotateEnabled) {
-            console.log('Resetting channel rotation timer');
-            clearInterval(rotationTimerId);
             rotationTimerId = setInterval(() => clickRandomChannel(), rotationTimer);
         }
     }
@@ -338,12 +333,10 @@ const svgPaths = {
                 channelRotationTimer('disable');
                 break;
             case '.': // Forward
-                console.log('Going forward early');
                 clickRandomChannel();
                 channelRotationTimer('enable');
                 break;
             case ',': // Back
-                console.log('Going back');
                 window.history.back();
                 channelRotationTimer('disable');
                 break;
