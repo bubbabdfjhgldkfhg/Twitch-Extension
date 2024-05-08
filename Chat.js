@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Chat
-// @version      0.1
+// @version      0.2
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -209,7 +209,7 @@
         let textElement = message.querySelector('.text-fragment');
         let text = textElement ? textElement.textContent : '';
 
-        if (username.includes(currentUser || streamer) || text?.includes(currentUser)) return;
+        if (username.includes(currentUser || streamer) || text.includes(currentUser)) return;
 
         if (isSideConversation(message) || hasUnwantedEmote(message)) {
             message.style.display = 'none';
@@ -251,21 +251,23 @@
         return observer;
     }
 
-    function lookForChat() {
+    setInterval(function() {
         let chatContainer = document.querySelector('.chat-shell')
-        if (chatContainer) {
+        if (chatContainer && observer?.targetElement != chatContainer) {
+            // console.log('Found new chat container');
             chatShellFound(chatContainer);
-        } else {
-            setTimeout(lookForChat, 100);
         }
+    }, 100);
 
-    }
-
-    lookForChat();
-
-    // Set initial appearance and create message observer
     function chatShellFound(chatContainer) {
+        // Set initial appearance for anything that already loaded
         chatWindowOpacity();
+        chatContainer.querySelectorAll('.chat-line__message').forEach(message => newMessageHandler(message));
+        let chatInput = chatContainer.querySelector('.chat-input');
+        if (chatInput) {
+            applyChatInputStyles(chatInput);
+        }
+        // Create long-term observer
         observer = chatObserver(chatContainer);
         observer.targetElement = chatContainer;
     }
