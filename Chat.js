@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Chat
-// @version      0.2
+// @version      0.3
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -268,8 +268,8 @@
             applyChatInputStyles(chatInput);
         }
         // Create long-term observer
+        observer?.disconnect();
         observer = chatObserver(chatContainer);
         observer.targetElement = chatContainer;
     }
 })();
-
