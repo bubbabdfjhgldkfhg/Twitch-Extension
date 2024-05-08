@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Volume
-// @version      0.2
+// @version      0.3
 // @description  Automatically set channel specific volume on Twitch
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
@@ -108,6 +108,7 @@
         if (slider && observer?.targetElement != slider) {
             console.log('Found new volume slider');
             handlePathChange();
+            observer?.disconnect();
             observer = sliderObserver(slider);
             observer.targetElement = slider;
         }
@@ -128,4 +129,3 @@
     })(window.history);
     window.addEventListener('popstate', handlePathChange);
 })();
-
