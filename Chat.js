@@ -251,36 +251,23 @@
         return observer;
     }
 
-    // Detect when the chat shell is added to the DOM, self destruct when found
-    let pageObserver = new MutationObserver(mutations => {
-        mutations.forEach(mutation => {
-            mutation.addedNodes.forEach(node => {
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    let chatContainer = node.querySelector('.chat-shell');
-                    if (chatContainer) {
-                        pageObserver.disconnect();
-                        // console.log('Chat shell was found by the observer');
-                        chatShellFound(chatContainer);
-                    }
-                }
-            });
-        });
-    });
+    function lookForChat() {
+        let chatContainer = document.querySelector('.chat-shell')
+        if (chatContainer) {
+            chatShellFound(chatContainer);
+        } else {
+            setTimeout(lookForChat, 100);
+        }
 
-    // Check if chatShell already loaded, create observer otherwise
-    let chatContainer = document.querySelector('.chat-shell')
-    if (chatContainer) {
-        // console.log('Chat shell was found early');
-        chatShellFound(chatContainer);
-    } else {
-        pageObserver.observe(document.body, { childList: true, subtree: true });
     }
+
+    lookForChat();
 
     // Set initial appearance and create message observer
     function chatShellFound(chatContainer) {
-        chatContainer.querySelectorAll('.chat-line__message').forEach(message => newMessageHandler(message));
         chatWindowOpacity();
         observer = chatObserver(chatContainer);
         observer.targetElement = chatContainer;
     }
 })();
+
