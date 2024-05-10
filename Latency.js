@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Latency
-// @version      0.1
+// @version      0.2
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -21,13 +21,50 @@
     let targetLatency;
 
     let desiredPlaybackRate = 1.0;
-    let latencyTextElement;
-    let targetLatencyElement;
-    let streamStatsGraph;
     let latency;
     let bufferSize;
     let observer;
     let videoPlayer;
+
+    let screenElement = {
+        videoContainer: {
+            node: null,
+            className: 'video-player__overlay'
+        },
+        currentLatency: {
+            node: null,
+            className: 'current-latency-text',
+            topValue: 'max(0px, calc((100vh - 56.25vw) / 2))',
+            opacity: {
+                default: '.4',
+                current: '.4',
+                peak: '1'
+            }
+        },
+        targetLatency: {
+            node: null,
+            className: 'target-latency-text',
+            topValue: 'max(20px, calc((100vh - 56.25vw) / 2) + 18px)',
+            opacity: {
+                timer: null,
+                duration: 1500,
+                default: '0',
+                current: '0',
+                peak: '1'
+            }
+        },
+        graph: {
+            node: null,
+            className: 'stream-stats-graph',
+            opacity: {
+                timer: null,
+                duration: 4000,
+                default: '0',
+                current: '0',
+                peak: '1'
+            }
+        }
+    }
 
     let time = new Date().toLocaleTimeString();
     let currentTime = new Date();
@@ -44,7 +81,7 @@
     // Create and append the canvas element
     const canvas = document.createElement('canvas');
     canvas.width = '210px';
-    canvas.height = '35px';
+    canvas.height = '40px';
 
     // Setup Chart.js
     const ctx = canvas.getContext('2d');
@@ -97,7 +134,7 @@
             scales: {
                 'latency': {
                     beginAtZero: false,
-                    min: 0.5,
+                    min: 0.33, // Twitch seems to consider 0.33 sec buffer as 0
                     display: false,
                 },
                 'frames': {
@@ -123,8 +160,7 @@
 
     function setSpeed(newRate) {
         if (desiredPlaybackRate == newRate) return;
-
-        // console.log(`Speed: ${newRate}`);
+        // console.log('Speed:',newRate);
         desiredPlaybackRate = newRate;
         applyPlaybackRateToAllMedia();
     }
@@ -181,66 +217,95 @@
             latencyTargetNormal += delta;
             targetLatency = latencyTargetNormal;
         }
-        showTargetLatency();
+        updateLatencyTextElement('target-latency-text', `${targetLatency.toFixed(2)} sec`);
+        temporarilyShowElement(screenElement.targetLatency);
     }
 
-    function showCurrentLatency() {
-        if (isNaN(graphValues.smoothedLatency) || !graphValues.smoothedLatency) return;
+    function temporarilyShowElement(nodeToShow) {
+        if (!nodeToShow.node) return;
 
-        let videoContainer = document.querySelector('.video-player__overlay');
-        latencyTextElement = videoContainer.querySelector('.custom-latency-text');
-        if (latencyTextElement) {
-            latencyTextElement.innerText = `${graphValues.smoothedLatency.toFixed(2)} sec`;
-            return;
+        nodeToShow.node.style.opacity = nodeToShow.opacity.peak;
+        if (nodeToShow.opacity.timer) {
+            clearTimeout(nodeToShow.opacity.timer);
         }
+        nodeToShow.opacity.timer = setTimeout(function(){
+            nodeToShow.node.style.opacity = nodeToShow.opacity.current;
+        }, nodeToShow.opacity.duration);
+    }
 
-        latencyTextElement = document.createElement('div');
-        latencyTextElement.classList.add('custom-latency-text');
-        latencyTextElement.setAttribute(
+    function attachMouseHoverListeners(newElement) {
+        newElement.addEventListener('mouseenter', function() {
+            screenElement.currentLatency.opacity.current = screenElement.currentLatency.opacity.peak;
+            screenElement.targetLatency.opacity.current = screenElement.currentLatency.opacity.peak;
+            screenElement.graph.opacity.current = screenElement.graph.opacity.peak;
+            try {
+                screenElement.currentLatency.node.style.opacity = screenElement.currentLatency.opacity.peak;
+                screenElement.targetLatency.node.style.opacity = screenElement.targetLatency.opacity.peak;
+                screenElement.graph.node.style.opacity = screenElement.graph.opacity.peak;
+            } catch {
+                console.log('Couldnt set opacity');
+            }
+        });
+        newElement.addEventListener('mouseleave', function() {
+            screenElement.currentLatency.opacity.current = screenElement.currentLatency.opacity.default;
+            screenElement.targetLatency.opacity.current = screenElement.targetLatency.opacity.default;
+            screenElement.graph.opacity.current = screenElement.graph.opacity.default;
+            try {
+                screenElement.currentLatency.node.style.opacity = screenElement.currentLatency.opacity.default;
+                screenElement.targetLatency.node.style.opacity = screenElement.targetLatency.opacity.default;
+                screenElement.graph.node.style.opacity = screenElement.graph.opacity.default;
+            } catch {
+                console.log('Couldnt set opacity');
+            }
+        });
+    }
+
+    // Function to create a new latency text element with the specified class name and top value
+    function createLatencyTextElement(className, opacity, topValue) {
+        let newElement = document.querySelector(`.${className}`);
+        if (newElement) return newElement;
+
+        newElement = document.createElement('div');
+        newElement.classList.add(className);
+        newElement.setAttribute(
             'style',
             `transition: color 0.5s, opacity 0.5s !important;
              position: absolute;
              right: 0;
-             top: max(0px, calc((100vh - 56.25vw) / 2));
+             top: ${topValue};
              text-align: right;
              color: white;
-             padding-top: 0.5rem;
              padding-right: 0.5rem;
              font-size: 1.3rem;
-             opacity: 0.4;`
-        );
-        videoContainer.appendChild(latencyTextElement);
-        // Show stats graph when hovered
-        latencyTextElement.addEventListener('mouseenter', function() {
-            streamStatsGraph.style.opacity = '.7';
-        });
-        latencyTextElement.addEventListener('mouseleave', function() {
-            streamStatsGraph.style.opacity = '0';
-        });
+             opacity: ${opacity};`
+        ); // padding-top: 0.5rem;
+        screenElement.videoContainer.node = document.querySelector(`.${screenElement.videoContainer.className}`);
+        screenElement.videoContainer.node.appendChild(newElement);
+
+        attachMouseHoverListeners(newElement);
+
+        return newElement;
     }
 
-    function showTargetLatency() {
-        // Remove the existing target latency element if it exists
-        document.getElementById('buffer-values-row')?.remove();
-
-        if (!latencyTextElement) {
-            console.error('Custom latency text element not found');
-            return;
+    // Function to update an existing latency text element with new inner text
+    function updateLatencyTextElement(className, innerText) {
+        const latencyElement = document.querySelector(`.${className}`);
+        if (latencyElement) {
+            latencyElement.innerText = innerText;
         }
-        let targetLatencyElement = document.createElement('div');
-        targetLatencyElement.id = 'buffer-values-row';
-        targetLatencyElement.innerText = `${targetLatency.toFixed(2)} sec`;
-        latencyTextElement.appendChild(targetLatencyElement);
     }
 
     // Plot the video stats values
     function appendGraph() {
-        let videoContainer = document.querySelector('.video-player__overlay');
-        streamStatsGraph = videoContainer.querySelector('.stream-stats-graph');
+        if (!screenElement.videoContainer.node) {
+            screenElement.videoContainer.node = document.querySelector(`.${screenElement.videoContainer.className}`)
+        }
+        let videoContainer = screenElement.videoContainer.node;
+        let streamStatsGraph = videoContainer.querySelector(`.${screenElement.graph.className}`);
         if (streamStatsGraph) return;
 
         streamStatsGraph = document.createElement('div');
-        streamStatsGraph.classList.add('stream-stats-graph');
+        streamStatsGraph.classList.add(screenElement.graph.className);
         streamStatsGraph.setAttribute(
             'style',
             `transition: opacity 0.5s !important;
@@ -249,24 +314,20 @@
              top: max(0px, calc((100vh - 56.25vw) / 2));
              opacity: 0;
              width: 210px;
-             height: 35px;
+             height: 40px;
              text-align: -webkit-right;`
         );
         videoContainer.appendChild(streamStatsGraph);
         streamStatsGraph.appendChild(canvas);
         // Show stats graph when hovered
-        streamStatsGraph.addEventListener('mouseenter', function() {
-            streamStatsGraph.style.opacity = '.7';
-        });
-        streamStatsGraph.addEventListener('mouseleave', function() {
-            streamStatsGraph.style.opacity = '0';
-        });
-
+        attachMouseHoverListeners(streamStatsGraph);
         // Fill new graph with empty data so it doesnt stretch across the screen
         chart.data.datasets.forEach(dataset => {
             dataset.data = Array(maxDataPoints).fill(null)
         });
         chart.data.labels = Array(maxDataPoints).fill(null);
+        // Add node to config
+        screenElement.graph.node = streamStatsGraph;
     }
 
     function updateGraph() {
@@ -285,33 +346,24 @@
 
     function handleLatencyChange() {
         // Ignore 0 and duplicate values
-        if (!latency || latency == previousLatencyValues[1]) return;
+        if (!latency || isNaN(latency) || latency == previousLatencyValues[1]) return;
         // Smooth latency bounce by averaging latest 2 values
         previousLatencyValues.push(latency);
         if (previousLatencyValues.length > 2) previousLatencyValues.shift();
         graphValues.smoothedLatency = (previousLatencyValues[0] + previousLatencyValues[1]) / 2;
-        // Update the onscreen latency value
-        showCurrentLatency();
-        // Set boundaries for acceptable jitter
-        let [lowerLimit, upperLimit] = [targetLatency - range, targetLatency + range];
-        // Determine how far off we are from the target
-        let latencyDelta = 0;
-        if (graphValues.smoothedLatency > upperLimit) {
-            latencyDelta = graphValues.smoothedLatency - upperLimit;
-        } else if (graphValues.smoothedLatency < lowerLimit) {
-            latencyDelta = graphValues.smoothedLatency - lowerLimit;
-        }
-        // Modify playback rate
-        if (latencyDelta) { // Calculates a playback speed from (latencyDelta/7.5) + 1; constrained from 0.75 - 1.5
-            setSpeed(Math.min(Math.max(parseFloat(((latencyDelta / 7.5) + 1).toFixed(2)), 0.75), 1.5));
-        } else {
-            setSpeed(1);
-        }
     }
 
     function handleBufferSizeChange() {
         // Ignore 0, impossibly high values, and duplicate values
-        if (!bufferSize || bufferSize > graphValues.smoothedLatency || bufferSize == previousBufferValues[1]) {
+        // if (!bufferSize || bufferSize > graphValues.smoothedLatency || bufferSize == previousBufferValues[1]) {
+        //     return;
+        // }
+        if (!bufferSize || isNaN(bufferSize) || bufferSize == previousBufferValues[1]) {
+            return;
+        }
+        // Temporary solution to big spikes
+        if (bufferSize > 10) {
+            // console.log('Ignoring bufferSize:', bufferSize);
             return;
         }
         // Smooth buffer size bounce by averaging latest 2 values
@@ -320,23 +372,52 @@
         graphValues.smoothedBufferSize = (previousBufferValues[0] + previousBufferValues[1]) / 2;
     }
 
-    function handlePageChange() {
-        setSpeed(1);
-        previousLatencyValues = [targetLatency];
+    function evaluateSpeedAdjustment() {
+        let [lowerLimit, upperLimit] = [targetLatency - range, targetLatency + range];
+        let latencyEstimate = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
+
+        if (!latencyEstimate || isNaN(latencyEstimate)) return;
+
+        // Determine how far off we are from the target
+        let latencyDelta = 0;
+        if (latencyEstimate > upperLimit) {
+            latencyDelta = latencyEstimate - upperLimit;
+        } else if (latencyEstimate < lowerLimit) {
+            latencyDelta = latencyEstimate - lowerLimit;
+        }
+
+        // Modify playback rate
+        if (latencyDelta) { // Calculates a playback speed from (latencyDelta/7.5) + 1; constrained from 0.75 - 1.5
+            setSpeed(Math.min(Math.max(parseFloat(((latencyDelta / 7.5) + 1).toFixed(2)), 0.75), 1.5));
+        } else {
+            setSpeed(1);
+        }
     }
 
-    function setLatencyTextColor() {
-        if (!latencyTextElement || !bufferSize || !latency) return;
+    function handlePageChange() {
+        setSpeed(1);
+        // previousLatencyValues = [targetLatency];
+        // graphValues.smoothedLatency = [];
+        // graphValues.smoothedBufferSize = [];
+    }
+
+    function setLatencyTextColor(latencyTextElement) {
+        if (!latencyTextElement.node || !bufferSize || !latency) {
+            // console.log('Missing: latencyTextElement || bufferSize || latency');
+            return;
+        }
 
         if (bufferSize > latency) {
-            latencyTextElement.style.color = 'orange';
-            latencyTextElement.style.opacity = .8;
+            latencyTextElement.node.style.color = 'orange';
+            latencyTextElement.node.style.opacity = '1';
         } else if (bufferSize < 0.75) {
-            latencyTextElement.style.color = 'red';
-            latencyTextElement.style.opacity = .8;
+            latencyTextElement.node.style.color = 'red';
+            latencyTextElement.node.style.opacity = '1';
+            temporarilyShowElement(screenElement.graph);
         } else {
-            latencyTextElement.style.color = 'white';
-            latencyTextElement.style.opacity = .4;
+            latencyTextElement.node.style.color = 'white';
+            // Go to back to whatever opacity it was before
+            latencyTextElement.node.style.opacity = latencyTextElement.opacity.current;
         }
     }
 
@@ -377,6 +458,16 @@
             videoPlayer = findReactNode(findReactRootNode(), node => node.setPlayerActive && node.props && node.props.mediaPlayerInstance);
             videoPlayer = videoPlayer?.props?.mediaPlayerInstance;
         }
+        screenElement.currentLatency.node = createLatencyTextElement(
+            screenElement.currentLatency.className,
+            screenElement.currentLatency.opacity.default,
+            screenElement.currentLatency.topValue);
+        screenElement.targetLatency.node = createLatencyTextElement(
+            screenElement.targetLatency.className,
+            screenElement.targetLatency.opacity.default,
+            screenElement.targetLatency.topValue
+        );
+        updateLatencyTextElement(screenElement.targetLatency.className, `${targetLatency?.toFixed(2)} sec`);
 
         targetLatency = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
         latency = videoPlayer?.getLiveLatency();
@@ -384,9 +475,14 @@
         graphValues.latestBitrate = videoPlayer?.getVideoBitRate();
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
 
-        setLatencyTextColor();
         handleLatencyChange();
         handleBufferSizeChange();
+
+        let textToShow = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
+        updateLatencyTextElement(screenElement.currentLatency.className, `${textToShow.toFixed(2)} sec`);
+        setLatencyTextColor(screenElement.currentLatency);
+
+        evaluateSpeedAdjustment();
         appendGraph();
         updateGraph();
     }, 500);
