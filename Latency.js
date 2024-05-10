@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Latency
-// @version      0.2
+// @version      0.3
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -14,179 +14,89 @@
 (function() {
     'use strict';
 
-    const range = .14; // Latency jitter to ignore
-    const maxDataPoints = 90; // Data history length for the graph
-    let latencyTargetLow = 1.25; // Low latency default
-    let latencyTargetNormal = 4.25 // Normal latency default
-    let targetLatency;
+    const LATENCY_IGNORE_RANGE = 0.14; // Latency jitter to ignore
+    const MAX_DATA_POINTS = 90; // Data history length for the graph
+    const GRAPH_WIDTH = '210px';
+    const GRAPH_HEIGHT = '40px';
 
-    let desiredPlaybackRate = 1.0;
-    let latency;
-    let bufferSize;
-    let observer;
+    let latencyTargetLow = 1.25; // Low latency default
+    let latencyTargetNormal = 4.25; // Normal latency default
+    let TARGET_LATENCY;
+
+    let playbackRate = 1.0;
     let videoPlayer;
 
     let screenElement = {
-        videoContainer: {
-            node: null,
-            className: 'video-player__overlay'
-        },
+        videoContainer: { node: null, className: 'video-player__overlay' },
         currentLatency: {
-            node: null,
-            className: 'current-latency-text',
+            node: null, className: 'current-latency-text',
             topValue: 'max(0px, calc((100vh - 56.25vw) / 2))',
-            opacity: {
-                default: '.4',
-                current: '.4',
-                peak: '1'
-            }
+            opacity: { default: '.4', current: '.4', peak: '1' }
         },
         targetLatency: {
-            node: null,
-            className: 'target-latency-text',
+            node: null, className: 'target-latency-text',
             topValue: 'max(20px, calc((100vh - 56.25vw) / 2) + 18px)',
-            opacity: {
-                timer: null,
-                duration: 1500,
-                default: '0',
-                current: '0',
-                peak: '1'
-            }
+            opacity: { timer: null, duration: 1500, default: '0', current: '0', peak: '1' }
         },
         graph: {
-            node: null,
-            className: 'stream-stats-graph',
-            opacity: {
-                timer: null,
-                duration: 4000,
-                default: '0',
-                current: '0',
-                peak: '1'
-            }
+            node: null, className: 'stream-stats-graph',
+            opacity: { timer: null, duration: 4000, default: '0', current: '0', peak: '1' }
         }
     }
 
-    let time = new Date().toLocaleTimeString();
-    let currentTime = new Date();
+    let latencyData = { latest: null, prev: [] };
+    let bufferData = { latest: null, prev: [] };
 
-    let previousLatencyValues = [];
-    let previousBufferValues = [];
-    const graphValues = {
-        smoothedLatency: null,
-        smoothedBufferSize: null,
-        latestFps: null,
-        latestBitrate: null
-    }
+    const graphValues = { smoothedLatency: null, smoothedBufferSize: null, latestFps: null, latestBitrate: null };
 
-    // Create and append the canvas element
+    // Graph setup
     const canvas = document.createElement('canvas');
-    canvas.width = '210px';
-    canvas.height = '40px';
+    canvas.width = GRAPH_WIDTH;
+    canvas.height = GRAPH_HEIGHT;
 
-    // Setup Chart.js
     const ctx = canvas.getContext('2d');
     const chart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: [],
-            datasets: [{
-                label: 'Latency',
-                borderColor: 'orange',
-                borderWidth: 2,
-                data: [],
-                pointRadius: 0,
-                yAxisID: 'latency'
-            }, {
-                label: 'Buffer Size',
-                borderColor: 'red',
-                borderWidth: 2,
-                data: [],
-                pointRadius: 0,
-                yAxisID: 'latency'
-            }, {
-                label: 'FPS',
-                borderColor: 'yellow',
-                borderWidth: 2,
-                data: [],
-                pointRadius: 0,
-                yAxisID: 'frames'
-            }, {
-                label: 'Bitrate',
-                borderColor: 'white',
-                borderWidth: 2,
-                data: [],
-                pointRadius: 0,
-                yAxisID: 'bitrate'
-            }]
+            datasets: [
+                { label: 'Latency', borderColor: 'orange', borderWidth: 2, data: [], pointRadius: 0, yAxisID: 'latency' },
+                { label: 'Buffer Size', borderColor: 'red', borderWidth: 2, data: [], pointRadius: 0, yAxisID: 'latency' },
+                { label: 'FPS', borderColor: 'yellow', borderWidth: 2, data: [], pointRadius: 0, yAxisID: 'frames' },
+                { label: 'Bitrate', borderColor: 'white', borderWidth: 2, data: [], pointRadius: 0, yAxisID: 'bitrate' }
+            ]
         },
         options: {
             animation: {
-                duration: 1000, // Duration for the overall animation
-                x: {
-                    type: 'number',
-                    easing: 'linear',
-                    duration: 1000
-                },
-                y: {
-                    duration: 0
-                }
+                duration: 500,
+                x: {type: 'number', easing: 'linear', duration: 500},
+                y: {duration: 0}
             },
             scales: {
-                'latency': {
-                    beginAtZero: false,
-                    min: 0.33, // Twitch seems to consider 0.33 sec buffer as 0
-                    display: false,
-                },
-                'frames': {
-                    beginAtZero: true,
-                    display: false,
-                },
-                'bitrate': {
-                    type: 'logarithmic',
-                    beginAtZero: true,
-                    display: false,
-                },
-                x: {
-                    display: false
-                }
+                'latency': {beginAtZero: false, min: 0.33, display: false},
+                'frames': {beginAtZero: true, display: false},
+                'bitrate': {type: 'logarithmic', beginAtZero: true, display: false},
+                x: {display: false}
             },
-            plugins: {
-                legend: {
-                    display: false
-                }
-            }
+            plugins: { legend: { display: false } }
         }
     });
 
     function setSpeed(newRate) {
-        if (desiredPlaybackRate == newRate) return;
-        // console.log('Speed:',newRate);
-        desiredPlaybackRate = newRate;
-        applyPlaybackRateToAllMedia();
-    }
+        if (playbackRate == newRate) return;
 
-    // Ensures overridePlaybackRate is applied to every media element
-    function applyPlaybackRateToAllMedia() {
+        playbackRate = newRate;
         const mediaElements = document.querySelectorAll('video, audio');
         mediaElements.forEach(media => {
             if (!media._rateControlApplied) {
-                overridePlaybackRate(media);
+                const nativeSetter = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'playbackRate').set;
+                Object.defineProperty(media, 'playbackRate', {
+                    set: () => nativeSetter.call(media, playbackRate),
+                    get: () => playbackRate
+                });
                 media._rateControlApplied = true;
             }
-            media.playbackRate = desiredPlaybackRate;
-        });
-    }
-
-    // Hijacks the native "playbackRate =" function because Twitch will try to abuse it
-    function overridePlaybackRate(media) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'playbackRate').set;
-        Object.defineProperty(media, 'playbackRate', {
-            set: function(rate) {
-                nativeSetter.call(this, desiredPlaybackRate);
-            },
-            get: function() {
-                return desiredPlaybackRate;
-            }
+            media.playbackRate = playbackRate;
         });
     }
 
@@ -201,40 +111,35 @@
                 break;
             case ']':
                 event.preventDefault();
-                if (targetLatency > 0.75) {
-                    changeTargetLatency(-0.25);
-                }
+                if (TARGET_LATENCY > 0.75) changeTargetLatency(-0.25);
                 break;
         }
     });
 
     function changeTargetLatency(delta) {
         // Sketchy way to store latency preferences because they keep getting reset when the video stats randomly flashes the latency to Normal
-        if (targetLatency === latencyTargetLow) {
+        if (TARGET_LATENCY === latencyTargetLow) {
             latencyTargetLow += delta;
-            targetLatency = latencyTargetLow;
+            TARGET_LATENCY = latencyTargetLow;
         } else {
             latencyTargetNormal += delta;
-            targetLatency = latencyTargetNormal;
+            TARGET_LATENCY = latencyTargetNormal;
         }
-        updateLatencyTextElement('target-latency-text', `${targetLatency.toFixed(2)} sec`);
+        updateLatencyTextElement('target-latency-text', `${TARGET_LATENCY.toFixed(2)} sec`);
         temporarilyShowElement(screenElement.targetLatency);
     }
 
-    function temporarilyShowElement(nodeToShow) {
-        if (!nodeToShow.node) return;
-
-        nodeToShow.node.style.opacity = nodeToShow.opacity.peak;
-        if (nodeToShow.opacity.timer) {
-            clearTimeout(nodeToShow.opacity.timer);
-        }
-        nodeToShow.opacity.timer = setTimeout(function(){
-            nodeToShow.node.style.opacity = nodeToShow.opacity.current;
-        }, nodeToShow.opacity.duration);
+    function temporarilyShowElement(element) {
+        if (!element.node) return;
+        element.node.style.opacity = element.opacity.peak;
+        if (element.opacity.timer) clearTimeout(element.opacity.timer);
+        element.opacity.timer = setTimeout(() => {
+            element.node.style.opacity = element.opacity.current;
+        }, element.opacity.duration);
     }
 
-    function attachMouseHoverListeners(newElement) {
-        newElement.addEventListener('mouseenter', function() {
+    function attachMouseHoverListeners(element) {
+        element.addEventListener('mouseenter', () => {
             screenElement.currentLatency.opacity.current = screenElement.currentLatency.opacity.peak;
             screenElement.targetLatency.opacity.current = screenElement.currentLatency.opacity.peak;
             screenElement.graph.opacity.current = screenElement.graph.opacity.peak;
@@ -242,11 +147,12 @@
                 screenElement.currentLatency.node.style.opacity = screenElement.currentLatency.opacity.peak;
                 screenElement.targetLatency.node.style.opacity = screenElement.targetLatency.opacity.peak;
                 screenElement.graph.node.style.opacity = screenElement.graph.opacity.peak;
-            } catch {
-                console.log('Couldnt set opacity');
+            } catch (e) {
+                console.log('Couldn\'t set opacity:', e);
             }
         });
-        newElement.addEventListener('mouseleave', function() {
+
+        element.addEventListener('mouseleave', () => {
             screenElement.currentLatency.opacity.current = screenElement.currentLatency.opacity.default;
             screenElement.targetLatency.opacity.current = screenElement.targetLatency.opacity.default;
             screenElement.graph.opacity.current = screenElement.graph.opacity.default;
@@ -254,8 +160,8 @@
                 screenElement.currentLatency.node.style.opacity = screenElement.currentLatency.opacity.default;
                 screenElement.targetLatency.node.style.opacity = screenElement.targetLatency.opacity.default;
                 screenElement.graph.node.style.opacity = screenElement.graph.opacity.default;
-            } catch {
-                console.log('Couldnt set opacity');
+            } catch (e) {
+                console.log('Couldn\'t set opacity:', e);
             }
         });
     }
@@ -290,9 +196,7 @@
     // Function to update an existing latency text element with new inner text
     function updateLatencyTextElement(className, innerText) {
         const latencyElement = document.querySelector(`.${className}`);
-        if (latencyElement) {
-            latencyElement.innerText = innerText;
-        }
+        if (latencyElement) latencyElement.innerText = innerText;
     }
 
     // Plot the video stats values
@@ -313,8 +217,8 @@
              right: 65px;
              top: max(0px, calc((100vh - 56.25vw) / 2));
              opacity: 0;
-             width: 210px;
-             height: 40px;
+             width: ${GRAPH_WIDTH};
+             height: ${GRAPH_HEIGHT};
              text-align: -webkit-right;`
         );
         videoContainer.appendChild(streamStatsGraph);
@@ -323,20 +227,20 @@
         attachMouseHoverListeners(streamStatsGraph);
         // Fill new graph with empty data so it doesnt stretch across the screen
         chart.data.datasets.forEach(dataset => {
-            dataset.data = Array(maxDataPoints).fill(null)
+            dataset.data = Array(MAX_DATA_POINTS).fill(null)
         });
-        chart.data.labels = Array(maxDataPoints).fill(null);
+        chart.data.labels = Array(MAX_DATA_POINTS).fill(null);
         // Add node to config
         screenElement.graph.node = streamStatsGraph;
     }
 
     function updateGraph() {
-        if (chart.data.labels.length >= maxDataPoints) {
+        if (chart.data.labels.length >= MAX_DATA_POINTS) {
             chart.data.datasets.forEach(dataset => dataset.data.shift());
             chart.data.labels.shift();
         }
 
-        chart.data.labels.push(time);
+        chart.data.labels.push(new Date().toLocaleTimeString());
         chart.data.datasets[0].data.push(graphValues.smoothedLatency);
         chart.data.datasets[1].data.push(graphValues.smoothedBufferSize);
         chart.data.datasets[2].data.push(graphValues.latestFps);
@@ -345,40 +249,31 @@
     }
 
     function handleLatencyChange() {
-        // Ignore 0 and duplicate values
-        if (!latency || isNaN(latency) || latency == previousLatencyValues[1]) return;
+        if (!latencyData.latest || isNaN(latencyData.latest) || latencyData.latest == latencyData.prev[1]) return;
         // Smooth latency bounce by averaging latest 2 values
-        previousLatencyValues.push(latency);
-        if (previousLatencyValues.length > 2) previousLatencyValues.shift();
-        graphValues.smoothedLatency = (previousLatencyValues[0] + previousLatencyValues[1]) / 2;
+        latencyData.prev.push(latencyData.latest);
+        if (latencyData.prev.length > 2) latencyData.prev.shift();
+        graphValues.smoothedLatency = (latencyData.prev[0] + latencyData.prev[1]) / 2;
     }
 
     function handleBufferSizeChange() {
-        // Ignore 0, impossibly high values, and duplicate values
-        // if (!bufferSize || bufferSize > graphValues.smoothedLatency || bufferSize == previousBufferValues[1]) {
-        //     return;
-        // }
-        if (!bufferSize || isNaN(bufferSize) || bufferSize == previousBufferValues[1]) {
+        if (!bufferData.latest || isNaN(bufferData.latest) || bufferData.latest == bufferData.prev[1]) {
             return;
         }
         // Temporary solution to big spikes
-        if (bufferSize > 10) {
-            // console.log('Ignoring bufferSize:', bufferSize);
-            return;
-        }
+        if (bufferData.latest > 10) return;
         // Smooth buffer size bounce by averaging latest 2 values
-        previousBufferValues.push(bufferSize);
-        if (previousBufferValues.length > 2) previousBufferValues.shift();
-        graphValues.smoothedBufferSize = (previousBufferValues[0] + previousBufferValues[1]) / 2;
+        bufferData.prev.push(bufferData.latest);
+        if (bufferData.prev.length > 2) bufferData.prev.shift();
+        graphValues.smoothedBufferSize = (bufferData.prev[0] + bufferData.prev[1]) / 2;
     }
 
     function evaluateSpeedAdjustment() {
-        let [lowerLimit, upperLimit] = [targetLatency - range, targetLatency + range];
         let latencyEstimate = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
-
         if (!latencyEstimate || isNaN(latencyEstimate)) return;
 
         // Determine how far off we are from the target
+        let [lowerLimit, upperLimit] = [TARGET_LATENCY - LATENCY_IGNORE_RANGE, TARGET_LATENCY + LATENCY_IGNORE_RANGE];
         let latencyDelta = 0;
         if (latencyEstimate > upperLimit) {
             latencyDelta = latencyEstimate - upperLimit;
@@ -402,15 +297,15 @@
     }
 
     function setLatencyTextColor(latencyTextElement) {
-        if (!latencyTextElement.node || !bufferSize || !latency) {
+        if (!latencyTextElement.node || !bufferData.latest || !latencyData.latest) {
             // console.log('Missing: latencyTextElement || bufferSize || latency');
             return;
         }
 
-        if (bufferSize > latency) {
+        if (bufferData.latest > latencyData.latest) {
             latencyTextElement.node.style.color = 'orange';
             latencyTextElement.node.style.opacity = '1';
-        } else if (bufferSize < 0.75) {
+        } else if (bufferData.latest < 0.75) {
             latencyTextElement.node.style.color = 'red';
             latencyTextElement.node.style.opacity = '1';
             temporarilyShowElement(screenElement.graph);
@@ -421,16 +316,20 @@
         }
     }
 
+    function getLatestVideoStats() {
+        TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
+        latencyData.latest = videoPlayer?.getLiveLatency();
+        bufferData.latest = videoPlayer?.getBufferDuration();
+        graphValues.latestBitrate = videoPlayer?.getVideoBitRate();
+        graphValues.latestFps = videoPlayer?.getVideoFrameRate();
+    }
+
     function findReactNode(root, constraint) {
-        if (root.stateNode && constraint(root.stateNode)) {
-            return root.stateNode;
-        }
+        if (root.stateNode && constraint(root.stateNode)) return root.stateNode;
         let node = root.child;
         while (node) {
             const result = findReactNode(node, constraint);
-            if (result) {
-                return result;
-            }
+            if (result) return result;
             node = node.sibling;
         }
         return null;
@@ -442,22 +341,15 @@
         reactRootNode = rootNode?._reactRootContainer?._internalRoot?.current;
         if (!reactRootNode) {
             let containerName = Object.keys(rootNode).find(x => x.startsWith('__reactContainer'));
-            if (containerName) {
-                reactRootNode = rootNode[containerName];
-            }
-        }
-        if (!reactRootNode) {
-            console.error('Could not find react root');
+            if (containerName) reactRootNode = rootNode[containerName];
         }
         return reactRootNode;
     }
 
     // Update graph & make sure table is open
     let pollingInterval = setInterval(async function() {
-        if (!videoPlayer) {
-            videoPlayer = findReactNode(findReactRootNode(), node => node.setPlayerActive && node.props && node.props.mediaPlayerInstance);
-            videoPlayer = videoPlayer?.props?.mediaPlayerInstance;
-        }
+        videoPlayer = videoPlayer ?? findReactNode(findReactRootNode(), node => node.setPlayerActive && node.props && node.props.mediaPlayerInstance)?.props.mediaPlayerInstance;
+
         screenElement.currentLatency.node = createLatencyTextElement(
             screenElement.currentLatency.className,
             screenElement.currentLatency.opacity.default,
@@ -467,14 +359,9 @@
             screenElement.targetLatency.opacity.default,
             screenElement.targetLatency.topValue
         );
-        updateLatencyTextElement(screenElement.targetLatency.className, `${targetLatency?.toFixed(2)} sec`);
+        updateLatencyTextElement(screenElement.targetLatency.className, `${TARGET_LATENCY?.toFixed(2)} sec`);
 
-        targetLatency = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
-        latency = videoPlayer?.getLiveLatency();
-        bufferSize = videoPlayer?.getBufferDuration();
-        graphValues.latestBitrate = videoPlayer?.getVideoBitRate();
-        graphValues.latestFps = videoPlayer?.getVideoFrameRate();
-
+        getLatestVideoStats();
         handleLatencyChange();
         handleBufferSizeChange();
 
