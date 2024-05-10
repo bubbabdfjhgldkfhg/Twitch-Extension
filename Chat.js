@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Chat
-// @version      0.3
+// @version      0.4
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -230,20 +230,18 @@
     function chatObserver(chatContainer) {
         let observer = new MutationObserver((mutations) => {
             mutations.forEach(mutation => {
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === Node.ELEMENT_NODE) {
-                            if (node.classList.contains('chat-line__message')) {
-                                newMessageHandler(node);
-                                fadeOverflowMessages(chatContainer);
-                            }
-                            let chatInput = node.querySelector('.chat-input');
-                            if (chatInput) {
-                                applyChatInputStyles(chatInput);
-                            }
-                        }
-                    });
+                if (mutation.type !== 'childList' || mutation.addedNodes.length == 0) {
+                    return;
                 }
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType !== Node.ELEMENT_NODE) return;
+                    if (node.classList.contains('chat-line__message')) {
+                        newMessageHandler(node);
+                        fadeOverflowMessages(chatContainer);
+                    }
+                    let chatInput = node.querySelector('.chat-input');
+                    if (chatInput) applyChatInputStyles(chatInput);
+                });
             });
         });
         let config = { childList: true, subtree: true };
@@ -264,9 +262,7 @@
         chatWindowOpacity();
         chatContainer.querySelectorAll('.chat-line__message').forEach(message => newMessageHandler(message));
         let chatInput = chatContainer.querySelector('.chat-input');
-        if (chatInput) {
-            applyChatInputStyles(chatInput);
-        }
+        if (chatInput) applyChatInputStyles(chatInput);
         // Create long-term observer
         observer?.disconnect();
         observer = chatObserver(chatContainer);
