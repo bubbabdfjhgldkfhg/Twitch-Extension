@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Latency
-// @version      0.4
+// @version      0.5
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @match        *://*.twitch.tv/*
-// @exclude      *://*.twitch.tv/videos/*
+// @exclude      *://*.twitch.tv/*/*
 // @grant        none
 // @require      https://cdn.jsdelivr.net/npm/chart.js
 // ==/UserScript==
