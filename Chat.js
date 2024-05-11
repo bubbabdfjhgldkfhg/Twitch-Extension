@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Chat
-// @version      0.4
+// @version      0.5
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @match        *://*.twitch.tv/*
-// @exclude      *://*.twitch.tv/videos/*
+// @exclude      *://*.twitch.tv/*/*
 // @grant        none
 // ==/UserScript==
 
