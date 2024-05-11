@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Shuffle
-// @version      0.2
+// @version      0.3
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -51,38 +51,27 @@ const svgPaths = {
     let rotationTimerId = null;
     let similarChannelClickCount = 0;
 
-     function disableButtonTemporarily(timerId, buttonBool) {
-            buttonBool = true;
-            // Clear existing timer if it exists
-            clearTimeout(timerId);
-            // Set a new timer
-            timerId = setTimeout(() => {
-                buttonBool = false;
-                timerId = null; // Reset the timer ID
-            }, 2000);
-        }
-    
-    // function disableSnoozeTemporarily() {
-    //     snoozeDisabled = true;
-    //     // Clear existing timer if it exists
-    //     clearTimeout(snoozeTimerId);
-    //     // Set a new timer
-    //     snoozeTimerId = setTimeout(() => {
-    //         snoozeDisabled = false;
-    //         snoozeTimerId = null; // Reset the timer ID
-    //     }, 2000);
-    // }
+    function disableSnoozeTemporarily() {
+        snoozeDisabled = true;
+        // Clear existing timer if it exists
+        clearTimeout(snoozeTimerId);
+        // Set a new timer
+        snoozeTimerId = setTimeout(() => {
+            snoozeDisabled = false;
+            snoozeTimerId = null; // Reset the timer ID
+        }, 2000);
+    }
 
-    // function disableNextButtonTemporarily() {
-    //     nextButtonDisabled = true;
-    //     // Clear existing timer if it exists
-    //     clearTimeout(nextButtonTimerId);
-    //     // Set a new timer
-    //     nextButtonTimerId = setTimeout(() => {
-    //         nextButtonDisabled = false;
-    //         nextButtonTimerId = null; // Reset the timer ID
-    //     }, 2000);
-    // }
+    function disableNextButtonTemporarily() {
+        nextButtonDisabled = true;
+        // Clear existing timer if it exists
+        clearTimeout(nextButtonTimerId);
+        // Set a new timer
+        nextButtonTimerId = setTimeout(() => {
+            nextButtonDisabled = false;
+            nextButtonTimerId = null; // Reset the timer ID
+        }, 2000);
+    }
 
     function snoozeChannel() {
         if (snoozeDisabled) {
@@ -106,7 +95,7 @@ const svgPaths = {
     }
 
     function expandChannelSections() {
-        document.querySelectorAll('[data-a-target="side-nav-show-more-button"]')?
+        document.querySelectorAll('[data-a-target="side-nav-show-more-button"]')
             .forEach(button => button.click());
     }
 
@@ -189,10 +178,8 @@ const svgPaths = {
         console.log(`${snoozedList.length} snoozed\nLast ${lastClickedHrefs.length} channels:\n\n${lastClickedHrefs.join("\n")}`);
 
         // Click the new channel and reset all timers
-        disableButtonTemporarily(snoozeTimerId, snoozeDisabled);
-        disableButtonTemporarily(nextButtonTimerId, nextButtonDisabled);
-        // disableSnoozeTemporarily();
-        // disableNextButtonTemporarily();
+        disableSnoozeTemporarily();
+        disableNextButtonTemporarily();
         newChannel.click();
         resetChannelRotationTimer();
     }
