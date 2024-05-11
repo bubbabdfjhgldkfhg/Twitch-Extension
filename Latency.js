@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Latency
-// @version      0.3
+// @version      0.4
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -14,7 +14,7 @@
 (function() {
     'use strict';
 
-    const LATENCY_IGNORE_RANGE = 0.14; // Latency jitter to ignore
+    const LATENCY_IGNORE_RANGE = 0.135; // Latency jitter to ignore
     const MAX_DATA_POINTS = 90; // Data history length for the graph
     const GRAPH_WIDTH = '210px';
     const GRAPH_HEIGHT = '40px';
@@ -389,3 +389,4 @@
     })(window.history);
     window.addEventListener('popstate', handlePageChange);
 })();
+
