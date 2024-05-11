@@ -9,6 +9,8 @@
 // @grant        none
 // ==/UserScript==
 
+// TODO: Make chatbox not scrollable
+
 (function() {
     'use strict';
 
