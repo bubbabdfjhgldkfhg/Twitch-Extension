@@ -51,27 +51,38 @@ const svgPaths = {
     let rotationTimerId = null;
     let similarChannelClickCount = 0;
 
-    function disableSnoozeTemporarily() {
-        snoozeDisabled = true;
-        // Clear existing timer if it exists
-        clearTimeout(snoozeTimerId);
-        // Set a new timer
-        snoozeTimerId = setTimeout(() => {
-            snoozeDisabled = false;
-            snoozeTimerId = null; // Reset the timer ID
-        }, 2000);
-    }
+     function disableButtonTemporarily(timerId, buttonBool) {
+            buttonBool = true;
+            // Clear existing timer if it exists
+            clearTimeout(timerId);
+            // Set a new timer
+            timerId = setTimeout(() => {
+                buttonBool = false;
+                timerId = null; // Reset the timer ID
+            }, 2000);
+        }
+    
+    // function disableSnoozeTemporarily() {
+    //     snoozeDisabled = true;
+    //     // Clear existing timer if it exists
+    //     clearTimeout(snoozeTimerId);
+    //     // Set a new timer
+    //     snoozeTimerId = setTimeout(() => {
+    //         snoozeDisabled = false;
+    //         snoozeTimerId = null; // Reset the timer ID
+    //     }, 2000);
+    // }
 
-    function disableNextButtonTemporarily() {
-        nextButtonDisabled = true;
-        // Clear existing timer if it exists
-        clearTimeout(nextButtonTimerId);
-        // Set a new timer
-        nextButtonTimerId = setTimeout(() => {
-            nextButtonDisabled = false;
-            nextButtonTimerId = null; // Reset the timer ID
-        }, 2000);
-    }
+    // function disableNextButtonTemporarily() {
+    //     nextButtonDisabled = true;
+    //     // Clear existing timer if it exists
+    //     clearTimeout(nextButtonTimerId);
+    //     // Set a new timer
+    //     nextButtonTimerId = setTimeout(() => {
+    //         nextButtonDisabled = false;
+    //         nextButtonTimerId = null; // Reset the timer ID
+    //     }, 2000);
+    // }
 
     function snoozeChannel() {
         if (snoozeDisabled) {
@@ -85,19 +96,18 @@ const svgPaths = {
             // Turn snooze button back to white
             let snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
             snoozeButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', 'white'));
-            return;
+        } else {
+            snoozedList.push(window.location.pathname);
+            // Remove snoozed channel from lastClickedHrefs so it doesn't clog things up later
+            lastClickedHrefs = lastClickedHrefs.filter(item => item !== window.location.pathname);
+            similarChannelClickCount = maxSimilarChannelClicks; // Don't allow similar channels from snoozed channels
+            clickRandomChannel();
         }
-
-        snoozedList.push(window.location.pathname);
-        // Remove snoozed channel from lastClickedHrefs so it doesn't clog things up later
-        lastClickedHrefs = lastClickedHrefs.filter(item => item !== window.location.pathname);
-        similarChannelClickCount = maxSimilarChannelClicks; // Don't allow similar channels from snoozed channels
-        clickRandomChannel();
     }
 
     function expandChannelSections() {
-        let showMoreButtons = document.querySelectorAll('[data-a-target="side-nav-show-more-button"]');
-        showMoreButtons?.forEach(button => button.click());
+        document.querySelectorAll('[data-a-target="side-nav-show-more-button"]')?
+            .forEach(button => button.click());
     }
 
     function getChannelsBySection(ariaLabel) {
@@ -106,10 +116,10 @@ const svgPaths = {
     }
 
     function filterQualifyingChannels(allChannels) {
-        return allChannels.filter(channel => {
+        return [...allChannels].filter(channel => {
             let isOffline = channel.querySelector('div.side-nav-card__avatar--offline');
             let href = channel.getAttribute('href')
-            return (!isOffline && !snoozedList.includes(href) && !lastClickedHrefs.includes(href) && href !== window.location.pathname);
+            return !isOffline && !snoozedList.includes(href) && !lastClickedHrefs.includes(href) && href !== window.location.pathname;
         });
     }
 
@@ -121,7 +131,7 @@ const svgPaths = {
         if (!liveChannels.length) {
             if (!allChannels.length) {
                 console.log('No qualifying live channels found.');
-                return;
+                return null;
             }
             // Attempt correction
             if (lastClickedHrefs.length) lastClickedHrefs.shift();
@@ -179,8 +189,10 @@ const svgPaths = {
         console.log(`${snoozedList.length} snoozed\nLast ${lastClickedHrefs.length} channels:\n\n${lastClickedHrefs.join("\n")}`);
 
         // Click the new channel and reset all timers
-        disableSnoozeTemporarily();
-        disableNextButtonTemporarily();
+        disableButtonTemporarily(snoozeTimerId, snoozeDisabled);
+        disableButtonTemporarily(nextButtonTimerId, nextButtonDisabled);
+        // disableSnoozeTemporarily();
+        // disableNextButtonTemporarily();
         newChannel.click();
         resetChannelRotationTimer();
     }
@@ -209,7 +221,7 @@ const svgPaths = {
 
     function resetChannelRotationTimer() {
         clearInterval(rotationTimerId);
-        rotationTimerId = null;
+        // rotationTimerId = null;
         if (autoRotateEnabled) {
             rotationTimerId = setInterval(() => clickRandomChannel(), rotationTimer);
         }
