@@ -14,7 +14,7 @@
 (function() {
     'use strict';
 
-    const LATENCY_IGNORE_RANGE = 0.135; // Latency jitter to ignore
+    const LATENCY_IGNORE_RANGE = 0.13; // Latency jitter to ignore
     const MAX_DATA_POINTS = 90; // Data history length for the graph
     const GRAPH_WIDTH = '210px';
     const GRAPH_HEIGHT = '40px';
