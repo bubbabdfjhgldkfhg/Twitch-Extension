@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Chat
-// @version      0.5
+// @version      0.6
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -59,7 +59,6 @@
     }
 
     // TODO: Properly distinguish theater mode
-    // Dynamically apply styles to chat input in Twitch theater mode
     async function applyChatInputStyles(chatInputContainer) {
         let setOpacity = (opacityValue) => {
             chatInputContainer.style.opacity = opacityValue;
@@ -243,6 +242,9 @@
                     }
                     let chatInput = node.querySelector('.chat-input');
                     if (chatInput) applyChatInputStyles(chatInput);
+
+                    let chatHeader = node.querySelector('.stream-chat-header');
+                    if (chatHeader) chatHeader.style.setProperty('display', 'none', 'important');
                 });
             });
         });
