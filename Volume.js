@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Volume
-// @version      0.4
+// @version      0.5
 // @description  Automatically set channel specific volume on Twitch
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
@@ -66,8 +66,10 @@
 
     // Function to adjust the volume
     function adjustVolume(targetVolume) {
+        // Assign to global
         currentTargetVolume = targetVolume;
         const player = getCurrentPlayer();
+        // console.log('Setting volume:',targetVolume);
         player.setVolume(targetVolume);
         // Set global volume so the page doesnt get confused
         localStorage.setItem('volume', targetVolume);
@@ -107,7 +109,7 @@
     setInterval(function() {
         let slider = document.querySelector('[data-a-target="player-volume-slider"]')
         if (slider && observer?.targetElement != slider) {
-            console.log('Found new volume slider');
+            // console.log('Found new volume slider');
             handlePathChange();
             observer?.disconnect();
             observer = sliderObserver(slider);
