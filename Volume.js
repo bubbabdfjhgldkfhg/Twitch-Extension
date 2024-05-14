@@ -1,5 +1,6 @@
 // ==UserScript==
 // @name         Volume
+// @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      0.5
 // @description  Automatically set channel specific volume on Twitch
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
