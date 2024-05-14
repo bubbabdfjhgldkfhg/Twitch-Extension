@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Latency
-// @version      0.6
+// @version      0.7
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -14,7 +14,7 @@
 (function() {
     'use strict';
 
-    const LATENCY_IGNORE_RANGE = 0.13; // Latency jitter to ignore
+    const LATENCY_IGNORE_RANGE = 0.125; // Latency jitter to ignore
     const MAX_DATA_POINTS = 90; // Data history length for the graph
     const GRAPH_WIDTH = '210px';
     const GRAPH_HEIGHT = '40px';
@@ -69,14 +69,14 @@
         options: {
             animation: {
                 duration: 500,
-                x: {type: 'number', easing: 'linear', duration: 500},
-                y: {duration: 0}
+                x: { type: 'number', easing: 'linear', duration: 500 },
+                y: { duration: 0 }
             },
             scales: {
-                'latency': {beginAtZero: false, min: 0.33, display: false},
-                'frames': {beginAtZero: true, display: false},
-                'bitrate': {type: 'logarithmic', beginAtZero: true, display: false},
-                x: {display: false}
+                'latency': { beginAtZero: false, min: 0.33, display: false },
+                'frames': { beginAtZero: true, display: false },
+                'bitrate': { type: 'logarithmic', beginAtZero: true, display: false },
+                x: { display: false }
             },
             plugins: { legend: { display: false } }
         }
@@ -182,9 +182,9 @@
              text-align: right;
              color: white;
              padding-right: 0.5rem;
-             font-size: 1.3rem;
+             font-size: 1.25rem;
              opacity: ${opacity};`
-        ); // padding-top: 0.5rem;
+        );
         screenElement.videoContainer.node = document.querySelector(`.${screenElement.videoContainer.className}`);
         screenElement.videoContainer.node.appendChild(newElement);
 
@@ -248,8 +248,16 @@
         chart.update();
     }
 
+    // -----------------------
+    // Combine these
+    // -----------------------
+    function isValidDataPoint(statObject) {
+        return statObject.latest && !isNaN(statObject.latest) && statObject.latest != statObject.prev[1];
+    }
+
     function handleLatencyChange() {
-        if (!latencyData.latest || isNaN(latencyData.latest) || latencyData.latest == latencyData.prev[1]) return;
+        // if (!latencyData.latest || isNaN(latencyData.latest) || latencyData.latest == latencyData.prev[1]) return;
+        if (!isValidDataPoint(latencyData)) return;
         // Smooth latency bounce by averaging latest 2 values
         latencyData.prev.push(latencyData.latest);
         if (latencyData.prev.length > 2) latencyData.prev.shift();
@@ -257,9 +265,8 @@
     }
 
     function handleBufferSizeChange() {
-        if (!bufferData.latest || isNaN(bufferData.latest) || bufferData.latest == bufferData.prev[1]) {
-            return;
-        }
+        // if (!bufferData.latest || isNaN(bufferData.latest) || bufferData.latest == bufferData.prev[1]) return;
+        if (!isValidDataPoint(bufferData)) return;
         // Temporary solution to big spikes
         if (bufferData.latest > 10) return;
         // Smooth buffer size bounce by averaging latest 2 values
@@ -267,6 +274,9 @@
         if (bufferData.prev.length > 2) bufferData.prev.shift();
         graphValues.smoothedBufferSize = (bufferData.prev[0] + bufferData.prev[1]) / 2;
     }
+    // -----------------------
+    // Combine these
+    // -----------------------
 
     function evaluateSpeedAdjustment() {
         let latencyEstimate = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
@@ -389,4 +399,3 @@
     })(window.history);
     window.addEventListener('popstate', handlePageChange);
 })();
-
