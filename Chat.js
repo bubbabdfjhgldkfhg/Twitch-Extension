@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.7
+// @version      0.8
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -71,11 +71,11 @@
         hide();
         // Set opacity before transition so it doesnt flash
         await new Promise(resolve => setTimeout(resolve, 0));
-        chatInputContainer.style.transition = 'opacity .5s';
+        chatInputContainer.style.transition = 'opacity .25s';
 
         // Add event listeners for focus and hover to adjust opacity
-        chatInputContainer.addEventListener('mouseenter', show);
-        chatInputContainer.addEventListener('mouseleave', hide);
+        // chatInputContainer.addEventListener('mouseenter', show);
+        // chatInputContainer.addEventListener('mouseleave', hide);
         chatInputContainer.addEventListener('focusin', show);
         chatInputContainer.addEventListener('focusout', hide);
     }
@@ -105,7 +105,7 @@
         message.style.opacity = '0';
         setTimeout(() => {
             message.style.transition = 'opacity .5s ease-in-out, background .5s ease-in-out';
-            message.style.transition = 'opacity .5s ease-in-out';
+            // message.style.transition = 'opacity .5s ease-in-out';
             message.style.opacity = brightness;
             message.style.setProperty('padding', '.5rem 1.3rem', 'important');
         }, 0);
@@ -198,18 +198,70 @@
     function newMessageHandler(message) {
         fadeInScheduleFadeOut(message);
 
+        let streamer = window.location.pathname.substring(1);
+        let usernameElement = message.querySelector('.chat-author__display-name');
+        let username = usernameElement?.textContent;
+        let textElement = message.querySelector('.text-fragment');
+        let text = textElement ? textElement.textContent : '';
+
+        // Function to get the React internal instance from a DOM element
+        function getReactInstance(element) {
+            for (const key in element) {
+                if (key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$')) {
+                    return element[key];
+                }
+            }
+            return null;
+        }
+
+        // Function to search React parent components up to a maximum depth
+        function searchReactParents(node, predicate, maxDepth = 15, depth = 0) {
+            try {
+                if (predicate(node)) {
+                    return node;
+                }
+            } catch (_) {}
+
+            if (!node || depth > maxDepth) {
+                return null;
+            }
+
+            const {return: parent} = node;
+            if (parent) {
+                return searchReactParents(parent, predicate, maxDepth, depth + 1);
+            }
+
+            return null;
+        }
+
+        // Function to get the React component that contains the `props`
+        function getMessageProps(element) {
+            try {
+                const node = searchReactParents(
+                    getReactInstance(element),
+                    n => n.memoizedProps && n.memoizedProps.message != null, 30
+                );
+                return node ? node.memoizedProps : null;
+            } catch (e) {
+                console.error("Failed to retrieve the message props:", e);
+            }
+            return null;
+        }
+
+        const props = getMessageProps(message);
+        if (props?.message?.isFirstMsg && usernameElement?.style && textElement?.style) {
+            usernameElement.style.fontStyle = 'italic';
+            textElement.style.fontWeight = 'bold';
+            textElement.style.fontStyle = 'italic';
+        }
+
+
         // Hide the red line in chat that just says "New" || Hide bits
         if (message.querySelector('.live-message-separator-line__hr') ||
             message.querySelector('.chat-line__message--cheer-amount')) {
             message.style.setProperty('display', 'none', 'important');
             return;
         }
-
-        let streamer = window.location.pathname.substring(1);
-        let usernameElement = message.querySelector('.chat-author__display-name');
-        let username = usernameElement?.textContent;
-        let textElement = message.querySelector('.text-fragment');
-        let text = textElement ? textElement.textContent : '';
 
         if (username.includes(currentUser || streamer) || text.includes(currentUser)) return;
 
@@ -228,6 +280,8 @@
         hideDuplicateEmotes(message);
         clipCardAppearance(message);
     }
+
+
 
     function chatObserver(chatContainer) {
         let observer = new MutationObserver((mutations) => {
