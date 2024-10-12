@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.8
+// @version      0.9
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -15,14 +15,25 @@
 (function() {
     'use strict';
 
-    const LATENCY_IGNORE_RANGE = 0.125; // Latency jitter to ignore
-    const MAX_DATA_POINTS = 90; // Data history length for the graph
-    const GRAPH_WIDTH = '210px';
-    const GRAPH_HEIGHT = '40px';
+    let MAX_DATA_POINTS = 90; // Data history length for the graph
+    let GRAPH_WIDTH = '210px';
+    let GRAPH_HEIGHT = '40px';
 
     let latencyTargetLow = 1.25; // Low latency default
     let latencyTargetNormal = 4.25; // Normal latency default
     let TARGET_LATENCY;
+    let TARGET_LATENCY_TOLERANCE = 0.125; // Latency jitter to ignore
+    let SPEED_ADJUSTMENT_FACTOR = 7.5; // Lower number is more aggresive
+    let SPEED_MIN = 0.5;
+    let SPEED_MAX = 1.3;
+
+    // let targetBufferSize = 0.8;
+    // let bufferRange = 0.125;
+
+    // let bufferHistoryDesiredLength = 120 * 2; // Seconds * 2 because polling happens every 500ms
+
+    // let riskyBufferSize = 0.8;
+    // let criticalBufferSize = 0.6;
 
     let playbackRate = 1.0;
     let videoPlayer;
@@ -41,12 +52,12 @@
         },
         graph: {
             node: null, className: 'stream-stats-graph',
-            opacity: { timer: null, duration: 4000, default: '0', current: '0', peak: '1' }
+            opacity: { timer: null, duration: 5000, default: '0', current: '0', peak: '1' }
         }
     }
 
     let latencyData = { latest: null, prev: [] };
-    let bufferData = { latest: null, prev: [] };
+    let bufferData = { latest: null, prev: [], history: [] };
 
     const graphValues = { smoothedLatency: null, smoothedBufferSize: null, latestFps: null, latestBitrate: null };
 
@@ -85,8 +96,8 @@
 
     function setSpeed(newRate) {
         if (playbackRate == newRate) return;
-
         playbackRate = newRate;
+        console.log('playbackRate', playbackRate);
         const mediaElements = document.querySelectorAll('video, audio');
         mediaElements.forEach(media => {
             if (!media._rateControlApplied) {
@@ -118,6 +129,9 @@
     });
 
     function changeTargetLatency(delta) {
+        if (isNaN(delta) || !delta || delta == -Infinity || isNaN(TARGET_LATENCY) || !TARGET_LATENCY) {
+            return;
+        }
         // Sketchy way to store latency preferences because they keep getting reset when the video stats randomly flashes the latency to Normal
         if (TARGET_LATENCY === latencyTargetLow) {
             latencyTargetLow += delta;
@@ -126,6 +140,8 @@
             latencyTargetNormal += delta;
             TARGET_LATENCY = latencyTargetNormal;
         }
+        // if (TARGET_LATENCY + delta > 0) TARGET_LATENCY += delta;
+
         updateLatencyTextElement('target-latency-text', `${TARGET_LATENCY.toFixed(2)} sec`);
         temporarilyShowElement(screenElement.targetLatency);
     }
@@ -249,15 +265,11 @@
         chart.update();
     }
 
-    // -----------------------
-    // Combine these
-    // -----------------------
     function isValidDataPoint(statObject) {
         return statObject.latest && !isNaN(statObject.latest) && statObject.latest != statObject.prev[1];
     }
 
     function handleLatencyChange() {
-        // if (!latencyData.latest || isNaN(latencyData.latest) || latencyData.latest == latencyData.prev[1]) return;
         if (!isValidDataPoint(latencyData)) return;
         // Smooth latency bounce by averaging latest 2 values
         latencyData.prev.push(latencyData.latest);
@@ -266,57 +278,65 @@
     }
 
     function handleBufferSizeChange() {
-        // if (!bufferData.latest || isNaN(bufferData.latest) || bufferData.latest == bufferData.prev[1]) return;
         if (!isValidDataPoint(bufferData)) return;
+        // Save the last few minutes of buffer values
+        bufferData.history.push(bufferData.latest);
+        // if (bufferData.history.length > bufferHistoryDesiredLength) bufferData.history.shift();
         // Temporary solution to big spikes
-        if (bufferData.latest > 10) return;
-        // Smooth buffer size bounce by averaging latest 2 values
-        bufferData.prev.push(bufferData.latest);
-        if (bufferData.prev.length > 2) bufferData.prev.shift();
-        graphValues.smoothedBufferSize = (bufferData.prev[0] + bufferData.prev[1]) / 2;
+        if (bufferData.latest < 10) graphValues.smoothedBufferSize = bufferData.latest;
     }
-    // -----------------------
-    // Combine these
-    // -----------------------
 
-    function evaluateSpeedAdjustment() {
-        let latencyEstimate = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
+    // function calibrateTargetLatency(latencyEstimate) {
+    //     // How far we are above the exact target. I don't want to lower from 1.00 if we're seeing red at 1.08
+    //     // If we're seeing red at 2.50, I don't want to raise the target from 1.00, I want to raise it from 2.50
+    //     let latencyJitter = latencyEstimate - TARGET_LATENCY; // Will be positive if we're above, negative below.
+    //     let lowestObservedBuffer = Math.min(...bufferData.history);
+    //     // Min 0 because if we're above the risky buffer, there's no reason to go positive.
+    //     let riskyBufferSize = targetBufferSize + bufferRange;
+    //     let distanceAboveRiskyBuffer = Math.min((riskyBufferSize - lowestObservedBuffer + latencyJitter), 0);
+    //     changeTargetLatency(distanceAboveRiskyBuffer);
+    //     // Max 0 because if we're below the critical buffer, there's no reason to go negative.
+    //     let criticalBufferSize = targetBufferSize - bufferRange;
+    //     let distanceBelowCriticalBuffer = Math.max((criticalBufferSize - bufferData.latest + latencyJitter), 0);
+    //     changeTargetLatency(distanceBelowCriticalBuffer);
+    // }
+
+    function evaluateSpeedAdjustment(latencyEstimate) {
         if (!latencyEstimate || isNaN(latencyEstimate)) return;
 
         // Determine how far off we are from the target
-        let [lowerLimit, upperLimit] = [TARGET_LATENCY - LATENCY_IGNORE_RANGE, TARGET_LATENCY + LATENCY_IGNORE_RANGE];
-        let latencyDelta = 0;
-        if (latencyEstimate > upperLimit) {
-            latencyDelta = latencyEstimate - upperLimit;
-        } else if (latencyEstimate < lowerLimit) {
-            latencyDelta = latencyEstimate - lowerLimit;
+        // let [lowerLimit, upperLimit] = [TARGET_LATENCY - TARGET_LATENCY_TOLERANCE, TARGET_LATENCY + TARGET_LATENCY_TOLERANCE];
+
+        // let latencyDelta = 0;
+        // latencyDelta = latencyEstimate > upperLimit ? latencyEstimate - upperLimit : latencyDelta;
+        // latencyDelta = latencyEstimate < lowerLimit ? latencyEstimate - lowerLimit : latencyDelta;
+
+        let latencyDelta = latencyEstimate - TARGET_LATENCY;
+        if (Math.abs(latencyDelta) <= TARGET_LATENCY_TOLERANCE) {
+            setSpeed(1);
+            return;
         }
 
-        // Modify playback rate
-        if (latencyDelta) { // Calculates a playback speed from (latencyDelta/7.5) + 1; constrained from 0.75 - 1.5
-            setSpeed(Math.min(Math.max(parseFloat(((latencyDelta / 7.5) + 1).toFixed(2)), 0.75), 1.5));
-        } else {
-            setSpeed(1);
-        }
+        let newSpeed = ((latencyDelta / SPEED_ADJUSTMENT_FACTOR) + 1).toFixed(2);
+        setSpeed(Math.min(Math.max(parseFloat(newSpeed), SPEED_MIN), SPEED_MAX));
     }
 
     function handlePageChange() {
         setSpeed(1);
-        // previousLatencyValues = [targetLatency];
+        latencyData.prev = [TARGET_LATENCY];
+        // bufferData.history = [];
         // graphValues.smoothedLatency = [];
         // graphValues.smoothedBufferSize = [];
     }
 
     function setLatencyTextColor(latencyTextElement) {
-        if (!latencyTextElement.node || !bufferData.latest || !latencyData.latest) {
-            // console.log('Missing: latencyTextElement || bufferSize || latency');
-            return;
-        }
+        if (!latencyTextElement.node || !bufferData.latest || !latencyData.latest) return;
 
         if (bufferData.latest > latencyData.latest) {
             latencyTextElement.node.style.color = 'orange';
-            latencyTextElement.node.style.opacity = '1';
-        } else if (bufferData.latest < 0.75) {
+            latencyTextElement.node.style.opacity = '.8';
+        } else if (bufferData.latest < .6) {
+            // } else if (bufferData.latest < targetBufferSize - bufferRange) {
             latencyTextElement.node.style.color = 'red';
             latencyTextElement.node.style.opacity = '1';
             temporarilyShowElement(screenElement.graph);
@@ -329,9 +349,10 @@
 
     function getLatestVideoStats() {
         TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
+        // targetBufferSize = videoPlayer?.isLiveLowLatency() ? 0.75 : 1.25;
         latencyData.latest = videoPlayer?.getLiveLatency();
         bufferData.latest = videoPlayer?.getBufferDuration();
-        graphValues.latestBitrate = videoPlayer?.getVideoBitRate();
+        graphValues.latestBitrate = videoPlayer?.getVideoBitRate()/1000;
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
     }
 
@@ -360,6 +381,14 @@
     // Update graph & make sure table is open
     let pollingInterval = setInterval(async function() {
         videoPlayer = videoPlayer ?? findReactNode(findReactRootNode(), node => node.setPlayerActive && node.props && node.props.mediaPlayerInstance)?.props.mediaPlayerInstance;
+        // console.log('videoPlayer', videoPlayer)
+
+        // let proto = Object.getPrototypeOf(videoPlayer?.getHTMLVideoElement());
+        // while (proto) {
+        //     console.log(Object.getOwnPropertyNames(proto));
+        //     proto = Object.getPrototypeOf(proto);
+        // }
+        // videoPlayer.getHTMLVideoElement().preservesPitch = false;
 
         screenElement.currentLatency.node = createLatencyTextElement(
             screenElement.currentLatency.className,
@@ -376,13 +405,15 @@
         handleLatencyChange();
         handleBufferSizeChange();
 
-        let textToShow = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
-        updateLatencyTextElement(screenElement.currentLatency.className, `${textToShow.toFixed(2)} sec`);
+        let latencyEstimate = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
+        updateLatencyTextElement(screenElement.currentLatency.className, `${latencyEstimate.toFixed(2)} sec`);
         setLatencyTextColor(screenElement.currentLatency);
 
-        evaluateSpeedAdjustment();
+        // calibrateTargetLatency(latencyEstimate);
+        evaluateSpeedAdjustment(latencyEstimate);
         appendGraph();
         updateGraph();
+
     }, 500);
 
     // Enhance navigation handling by overriding history methods.
