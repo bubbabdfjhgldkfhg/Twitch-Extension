@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.6
+// @version      0.7
 // @description  Automatically set channel specific volume on Twitch
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
@@ -15,12 +15,14 @@
 
     const defaultVolume = 0.6;
 
-    let currentTargetVolume;
+    // let currentTargetVolume;
     let observer;
     let checkSliderInterval;
+    let isAdjustingVolume = false; // Flag to prevent detecting our own updates
 
     // Function to get the React internal instance from a DOM element
     function getReactInstance(element) {
+        if (!element) return null;
         for (const key in element) {
             if (key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$')) {
                 return element[key];
@@ -68,12 +70,24 @@
     // Function to adjust the volume
     function adjustVolume(targetVolume) {
         // Assign to global
-        currentTargetVolume = targetVolume;
+        // currentTargetVolume = targetVolume;
         const player = getCurrentPlayer();
-        // console.log('Setting volume:',targetVolume);
-        player.setVolume(targetVolume);
-        // Set global volume so the page doesnt get confused
-        localStorage.setItem('volume', targetVolume);
+        if (player) {
+            let currentVolume = player.getVolume();
+            if (currentVolume !== targetVolume) {
+                isAdjustingVolume = true; // Set flag
+                player.setVolume(targetVolume);
+                isAdjustingVolume = false; // Reset flag
+            }
+            // Optionally, you can remove this line if it's causing issues
+            localStorage.setItem('volume', targetVolume);
+        } else {
+            console.warn("Player not found.");
+        }
+        // // console.log('Setting volume:',targetVolume);
+        // player.setVolume(targetVolume);
+        // // Set global volume so the page doesnt get confused
+        // localStorage.setItem('volume', targetVolume);
     }
 
     // Local storage handling for volume settings
@@ -97,6 +111,7 @@
     function sliderObserver(slider) {
         const config = { attributes: true, childList: false, subtree: false };
         observer = new MutationObserver((mutations) => {
+            if (isAdjustingVolume) return;
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
                     saveVolume(slider, window.location.pathname);
