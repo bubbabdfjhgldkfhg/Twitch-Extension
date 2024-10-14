@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.0
+// @version      1.1
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -24,7 +24,7 @@
     let TARGET_LATENCY;
     let TARGET_LATENCY_TOLERANCE = 0.125; // Latency jitter to ignore
     let SPEED_ADJUSTMENT_FACTOR = 7.5; // Lower number is more aggresive
-    let SPEED_MIN = 0.5;
+    let SPEED_MIN = 0.7;
     let SPEED_MAX = 1.3;
 
     // let targetBufferSize = 0.8;
