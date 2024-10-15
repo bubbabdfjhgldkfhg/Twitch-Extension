@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.2
+// @version      1.3
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -142,7 +142,7 @@
         }
         // if (TARGET_LATENCY + delta > 0) TARGET_LATENCY += delta;
 
-        updateLatencyTextElement('target-latency-text', `${TARGET_LATENCY.toFixed(2)} sec`);
+        updateLatencyTextElement('target-latency-text', TARGET_LATENCY);
         temporarilyShowElement(screenElement.targetLatency);
     }
 
@@ -212,8 +212,10 @@
 
     // Function to update an existing latency text element with new inner text
     function updateLatencyTextElement(className, innerText) {
+        if (!innerText || isNaN(innerText)) return;
+
         const latencyElement = document.querySelector(`.${className}`);
-        if (latencyElement) latencyElement.innerText = innerText;
+        if (latencyElement) latencyElement.innerText = `${innerText.toFixed(2)} sec`;
     }
 
     // Plot the video stats values
@@ -399,14 +401,14 @@
             screenElement.targetLatency.opacity.default,
             screenElement.targetLatency.topValue
         );
-        updateLatencyTextElement(screenElement.targetLatency.className, `${TARGET_LATENCY?.toFixed(2)} sec`);
+        updateLatencyTextElement(screenElement.targetLatency.className, TARGET_LATENCY);
 
         getLatestVideoStats();
         handleLatencyChange();
         handleBufferSizeChange();
 
         let latencyEstimate = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
-        updateLatencyTextElement(screenElement.currentLatency.className, `${latencyEstimate.toFixed(2)} sec`);
+        updateLatencyTextElement(screenElement.currentLatency.className, latencyEstimate);
         setLatencyTextColor(screenElement.currentLatency);
 
         // calibrateTargetLatency(latencyEstimate);
