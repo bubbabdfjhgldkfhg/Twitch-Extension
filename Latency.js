@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.3
+// @version      1.4
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -326,6 +326,7 @@
     function handlePageChange() {
         setSpeed(1);
         latencyData.prev = [TARGET_LATENCY];
+        videoPlayer = null;
         // bufferData.history = [];
         // graphValues.smoothedLatency = [];
         // graphValues.smoothedBufferSize = [];
