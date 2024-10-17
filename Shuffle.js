@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.6
+// @version      0.7
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -34,12 +34,24 @@ const svgPaths = {
 (function() {
     'use strict';
 
-    let shuffleType = 'followed';
-    let followedChannelTimer = 20000;
-    let recommendedChannelTimer = 18000;
-    let discoverChannelTimer = 7500;
-    let rotationTimer = followedChannelTimer; // Default
-    let maxSimilarChannelClicks = 7;
+    // ===========================
+    //          CONFIG
+    // ===========================
+
+    let shuffleType = 'followed'; // Default (the options are ['followed', 'recommended', 'discover'])
+
+    // The channel timer determines how long to stay on each channel in continuous shuffle mode (1000 * seconds = milliseconds)
+    let followedChannelTimer = 1000 * 20;
+    let recommendedChannelTimer = 1000 * 18;
+    let discoverChannelTimer = 1000 * 7.5;
+    let rotationTimer = followedChannelTimer; // Default (keep this the same as the shuffle type, the options are above.)
+
+    let newChannelCooldownTimer = 1000 * 2.6; // Minimum delay between channel clicks. Things break if you go too fast.
+    let maxSimilarChannelClicks = 7; // How many channels deep to go in 'discover' mode.
+
+    // ===========================
+    //        END CONFIG
+    // ===========================
 
     let autoRotateEnabled = false;
     let observer = null;
@@ -56,29 +68,30 @@ const svgPaths = {
 
         coolDownTimerId = setTimeout(() => {
             cooldownActive = false;
-        }, 2600);
+        }, newChannelCooldownTimer);
     }
 
     function snoozeChannel() {
         if (cooldownActive) { // This is mostly so we dont accidentally snooze a channel the moment that its clicked
-            console.log('Snooze button disabled');
+            console.log('Snooze button on cooldown');
             return;
         }
 
         // Remove channel from snooze list if it's already there
         if (snoozedList.includes(window.location.pathname)) {
             snoozedList = snoozedList.filter(item => item !== window.location.pathname);
-            // Turn snooze button back to white
+            // Hide Unsnooze button
             let snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
             if (snoozeButton) snoozeButton.style.display = 'none';
-            // snoozeButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', 'white'));
             return;
         }
 
+        // Add channel to snoozedList
         snoozedList.push(window.location.pathname);
-        // Remove snoozed channel from lastClickedHrefs so it doesn't clog things up later
+        // Remove snoozed channel from lastClickedHrefs so it doesn't clog things up
         lastClickedHrefs = lastClickedHrefs.filter(item => item !== window.location.pathname);
-        similarChannelClickCount = maxSimilarChannelClicks; // Don't allow similar channels from snoozed channels
+        // While in 'discover' mode, don't use the snoozed channel as a source of similar channels
+        similarChannelClickCount = maxSimilarChannelClicks;
         clickRandomChannel();
         resetChannelRotationTimer();
     }
@@ -93,6 +106,7 @@ const svgPaths = {
         return section ? section.querySelectorAll('a.tw-link') : [];
     }
 
+    // Filter out offline, snoozed, and already clicked channels
     function filterQualifyingChannels(allChannels) {
         return allChannels.filter(channel => {
             let isOffline = channel.querySelector('div.side-nav-card__avatar--offline');
@@ -102,28 +116,31 @@ const svgPaths = {
     }
 
     function selectQualifyingChannel(allChannels) {
-        // Filter out offline, snoozed, and already clicked channels
         let liveChannels = filterQualifyingChannels(allChannels);
 
-        // No channel matches. Find out why and lower standards.
+        // No eligible channels. (Probably just need to start looping.)
         if (!liveChannels.length) {
             if (!allChannels.length) {
+                // Something is actually broken
                 console.log('No qualifying live channels found.');
                 return;
             }
-            // Attempt correction
+            // If we're out of new channels to click, remove the oldest one and start over.
             if (lastClickedHrefs.length) lastClickedHrefs.shift();
+            // If everything is snoozed but continuous mode is still on, unsnoozed the oldest snoozed channel. (This is not a great solution.)
             else if (snoozedList.length) snoozedList.shift();
             // Run selectQualifyingChannel() again and get the results
             return selectQualifyingChannel(allChannels);
-        } else {
-            return liveChannels.length === 1 ? liveChannels[0] : liveChannels[Math.floor(Math.random() * liveChannels.length)];
         }
+
+        // If there multiple channel options, choose randomly.
+        // Random selection only happens on the first loop, then we iterate through that list using the code above.
+        return liveChannels.length === 1 ? liveChannels[0] : liveChannels[Math.floor(Math.random() * liveChannels.length)];
     }
 
     function clickPreviousChannel() {
         if (cooldownActive) {
-            console.log('Back button disabled');
+            console.log('Back button on cooldown');
             return;
         }
         window.history.back();
@@ -133,7 +150,7 @@ const svgPaths = {
 
     function clickRandomChannel() {
         if (cooldownActive) {
-            console.log('Next button disabled');
+            console.log('Next button on cooldown');
             return;
         }
 
