@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.4
+// @version      1.5
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @match        *://*.twitch.tv/*
-// @exclude      *://*.twitch.tv/*/*
+// @exclude      *://*.twitch.tv/videos/*
 // @grant        none
 // @require      https://cdn.jsdelivr.net/npm/chart.js
 // ==/UserScript==
@@ -97,7 +97,7 @@
     function setSpeed(newRate) {
         if (playbackRate == newRate) return;
         playbackRate = newRate;
-        console.log('playbackRate', playbackRate);
+        // console.log('playbackRate', playbackRate);
         const mediaElements = document.querySelectorAll('video, audio');
         mediaElements.forEach(media => {
             if (!media._rateControlApplied) {
@@ -307,29 +307,23 @@
         if (!latencyEstimate || isNaN(latencyEstimate)) return;
 
         // Determine how far off we are from the target
-        // let [lowerLimit, upperLimit] = [TARGET_LATENCY - TARGET_LATENCY_TOLERANCE, TARGET_LATENCY + TARGET_LATENCY_TOLERANCE];
-
-        // let latencyDelta = 0;
-        // latencyDelta = latencyEstimate > upperLimit ? latencyEstimate - upperLimit : latencyDelta;
-        // latencyDelta = latencyEstimate < lowerLimit ? latencyEstimate - lowerLimit : latencyDelta;
-
         let latencyDelta = latencyEstimate - TARGET_LATENCY;
-        if (Math.abs(latencyDelta) <= TARGET_LATENCY_TOLERANCE) {
+        // Adjust speed if needed
+        if (Math.abs(latencyDelta) >= TARGET_LATENCY_TOLERANCE) {
+            let newSpeed = ((latencyDelta / SPEED_ADJUSTMENT_FACTOR) + 1).toFixed(2);
+            setSpeed(Math.min(Math.max(parseFloat(newSpeed), SPEED_MIN), SPEED_MAX));
+        } else {
             setSpeed(1);
-            return;
         }
-
-        let newSpeed = ((latencyDelta / SPEED_ADJUSTMENT_FACTOR) + 1).toFixed(2);
-        setSpeed(Math.min(Math.max(parseFloat(newSpeed), SPEED_MIN), SPEED_MAX));
     }
 
     function handlePageChange() {
+        // Don't carry over residual speed from last channel
         setSpeed(1);
-        latencyData.prev = [TARGET_LATENCY];
+        // First few latency values on page load can't be trusted
+        latencyData.prev = [null, null];
+        // Assume a new video player instance was created
         videoPlayer = null;
-        // bufferData.history = [];
-        // graphValues.smoothedLatency = [];
-        // graphValues.smoothedBufferSize = [];
     }
 
     function setLatencyTextColor(latencyTextElement) {
