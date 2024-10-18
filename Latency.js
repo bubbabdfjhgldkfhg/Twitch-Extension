@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.6
+// @version      1.7
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -287,8 +287,10 @@
         // Save the last few minutes of buffer values
         bufferData.history.push(bufferData.latest);
         // if (bufferData.history.length > bufferHistoryDesiredLength) bufferData.history.shift();
+
         // Temporary solution to big spikes
-        if (bufferData.latest < 10) graphValues.smoothedBufferSize = bufferData.latest;
+        // if (bufferData.latest < 10) graphValues.smoothedBufferSize = bufferData.latest;
+        graphValues.smoothedBufferSize = bufferData.latest;
     }
 
     // function calibrateTargetLatency(latencyEstimate) {
