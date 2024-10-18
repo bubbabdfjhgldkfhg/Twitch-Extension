@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.5
+// @version      1.6
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -26,6 +26,9 @@
     let SPEED_ADJUSTMENT_FACTOR = 7.5; // Lower number is more aggresive
     let SPEED_MIN = 0.75;
     let SPEED_MAX = 1.25;
+
+    let newPageStatsCooldownActive = false;
+    let newPageStatsCooldownTimer = 2500;
 
     // let targetBufferSize = 0.8;
     // let bufferRange = 0.125;
@@ -318,10 +321,19 @@
     }
 
     function handlePageChange() {
+        newPageStatsCooldownActive = true;
+        setTimeout(() => {
+            newPageStatsCooldownActive = false;
+        }, newPageStatsCooldownTimer);
         // Don't carry over residual speed from last channel
         setSpeed(1);
         // First few latency values on page load can't be trusted
-        latencyData.prev = [null, null];
+        latencyData.latest = null;
+        bufferData.latest = null;
+        latencyData.prev = [];
+        bufferData.prev = [];
+        graphValues.smoothedLatency = null;
+        graphValues.smoothedBufferSize = null;
         // Assume a new video player instance was created
         videoPlayer = null;
     }
@@ -377,6 +389,11 @@
 
     // Update graph & make sure table is open
     let pollingInterval = setInterval(async function() {
+
+        if (newPageStatsCooldownActive) {
+            return;
+        }
+
         videoPlayer = videoPlayer ?? findReactNode(findReactRootNode(), node => node.setPlayerActive && node.props && node.props.mediaPlayerInstance)?.props.mediaPlayerInstance;
         // console.log('videoPlayer', videoPlayer)
 
