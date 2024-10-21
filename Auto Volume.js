@@ -1,8 +1,10 @@
 // ==UserScript==
-// @name         Auto Volume
+// @name         Twitch Audio Level Analyzer with Auto Volume Control
 // @namespace    http://tampermonkey.net/
 // @version      0.5
 // @description  Analyze audio levels of a Twitch stream and automatically adjust volume
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
 // @match        https://www.twitch.tv/*
 // @grant        none
 // ==/UserScript==
@@ -18,7 +20,7 @@
     let newPageCooldownActive;
 
     let newPageCooldownTimer = 2000;
-    const SAMPLE_RATE = 100; // How many times per second to sample
+    const SAMPLE_RATE = 50; // How many times per second to sample
     const SMALL_WINDOW = .1 * SAMPLE_RATE; // .5 seconds * samples per second
     const LARGE_WINDOW = 12 * SAMPLE_RATE;
     let small_samples = [];
@@ -141,29 +143,29 @@
         // const maxDB = Math.max(...samples);
 
         // Check if we need to lower the volume
-        if (Date.now() - lastVolumeAdjustment > VOLUME_DOWN_COOLDOWN) {
-            if (small_averageDB > MAX_DB_THRESHOLD) {
-                adjustVolume(VOLUME_REDUCTION);
-                lastVolumeAdjustment = Date.now();
-            }
+        // if (Date.now() - lastVolumeAdjustment > VOLUME_DOWN_COOLDOWN) {
+        if (instantDB > MAX_DB_THRESHOLD) {
+            adjustVolume(VOLUME_REDUCTION);
+            lastVolumeAdjustment = Date.now();
         }
+        // }
         // if (Date.now() - lastVolumeAdjustment > 3000) {
         //     if (large_averageDB > -16) {
         //         adjustVolume(VOLUME_REDUCTION);
         //         lastVolumeAdjustment = Date.now();
         //     }
         // }
-        if (large_averageDB < MIN_DB_THRESHOLD && small_averageDB < MIN_DB_THRESHOLD
-            && Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
-            adjustVolume(VOLUME_INCREASE);
-            lastVolumeAdjustment = Date.now();
-        }
+        // if (large_averageDB < MIN_DB_THRESHOLD && small_averageDB < MIN_DB_THRESHOLD
+        //     && Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
+        //     adjustVolume(VOLUME_INCREASE);
+        //     lastVolumeAdjustment = Date.now();
+        // }
 
         //         levelDisplay.textContent = `Instant Level: ${instantDB.toFixed(2)} dBFS
         // Avg: ${averageDB.toFixed(2)} dBFS
         // Max: ${maxDB.toFixed(2)} dBFS`;
 
-        levelDisplay.textContent = `.1s Avg: ${small_averageDB.toFixed(0)} dBFS 5s Avg: ${large_averageDB.toFixed(1)} dBFS`;
+        // levelDisplay.textContent = `.1s Avg: ${small_averageDB.toFixed(0)} dBFS 5s Avg: ${large_averageDB.toFixed(1)} dBFS`;
 
         rafId = setTimeout(() => {
             requestAnimationFrame(updateLevel);
