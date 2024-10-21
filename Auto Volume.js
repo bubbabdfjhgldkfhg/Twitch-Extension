@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Twitch Audio Level Analyzer with Auto Volume Control
+// @name         Auto Volume
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Analyze audio levels of a Twitch stream and automatically adjust volume
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
