@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.8
+// @version      0.9
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -239,9 +239,14 @@
             try {
                 const node = searchReactParents(
                     getReactInstance(element),
-                    n => n.memoizedProps && n.memoizedProps.message != null, 30
+                    n => n.memoizedProps && n.memoizedProps.message != null,
+                    30
                 );
-                return node ? node.memoizedProps : null;
+                if (node) {
+                    return node.memoizedProps;
+                } else {
+                    console.warn("React node with message props not found.");
+                }
             } catch (e) {
                 console.error("Failed to retrieve the message props:", e);
             }
@@ -254,7 +259,6 @@
             textElement.style.fontWeight = 'bold';
             textElement.style.fontStyle = 'italic';
         }
-
 
         // Hide the red line in chat that just says "New" || Hide bits
         if (message.querySelector('.live-message-separator-line__hr') ||
@@ -281,8 +285,6 @@
         clipCardAppearance(message);
     }
 
-
-
     function chatObserver(chatContainer) {
         let observer = new MutationObserver((mutations) => {
             mutations.forEach(mutation => {
@@ -291,9 +293,12 @@
                 }
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType !== Node.ELEMENT_NODE) return;
-                    if (node.classList.contains('chat-line__message')) {
-                        newMessageHandler(node);
+
+                    let message = node.querySelectorAll('.chat-line__message')
+                    if (message && message.length) {
+                        newMessageHandler(message[0]);
                         fadeOverflowMessages(chatContainer);
+                        return
                     }
                     let chatInput = node.querySelector('.chat-input');
                     if (chatInput) applyChatInputStyles(chatInput);
@@ -311,7 +316,6 @@
     setInterval(function() {
         let chatContainer = document.querySelector('.chat-shell')
         if (chatContainer && observer?.targetElement != chatContainer) {
-            // console.log('Found new chat container');
             chatShellFound(chatContainer);
         }
     }, 100);
