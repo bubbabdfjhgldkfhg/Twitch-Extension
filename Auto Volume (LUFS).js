@@ -3,6 +3,8 @@
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      0.95
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
 // @match        https://www.twitch.tv/*
 // @grant        none
 // ==/UserScript==
@@ -18,19 +20,19 @@
 
     const SAMPLE_RATE = 50; // How many times per second to sample
     const BLOCK_SIZE = 4096; // ~85ms at 48kHz
-    const LUFS_WINDOW = 500; // 3 seconds at 50 samples per second
-    const PLOT_POINTS = 200; // Number of points to show in the plot
+    const LUFS_WINDOW = 2000; // 10 seconds at 50 samples per second
+    const PLOT_POINTS = 2000; // Number of points to show in the plot
 
     let lastVolumeAdjustment = 0;
     const VOLUME_COOLDOWN = 100; // 0.5 second cooldown
     const MAX_DB_THRESHOLD = -30; // LUFS
-    const MIN_DB_THRESHOLD = -60; // LUFS
+    const MIN_DB_THRESHOLD = -50; // LUFS
     const VOLUME_ADJUSTMENT = 0.01; // 1%
     const MAX_VOLUME = 1.0;
     const MIN_VOLUME = 0.05;
 
     // Graph settings
-    const GRAPH_PADDING = 5; // LUFS
+    const GRAPH_PADDING = 10; // LUFS
     const GRAPH_MIN = Math.floor((MIN_DB_THRESHOLD - GRAPH_PADDING) / 5) * 5; // Round down to nearest 5
     const GRAPH_MAX = Math.ceil((MAX_DB_THRESHOLD + GRAPH_PADDING) / 5) * 5; // Round up to nearest 5
     const GRAPH_RANGE = GRAPH_MAX - GRAPH_MIN;
@@ -131,7 +133,7 @@
             const newVolume = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, currentVolume + volumeDelta));
             player.setVolume(newVolume);
             console.log(`Volume changed to ${newVolume.toFixed(2)}`);
-            updateDebugInfo(`Volume: ${newVolume.toFixed(2)}`);
+            updateDebugInfo(`Volume: ${currentVolume.toFixed(2)}`);
         } else {
             console.warn("Player not found.");
         }
@@ -249,8 +251,8 @@
                     lufsBuffer.shift();
                 }
 
-                const averageLUFS = lufsBuffer.reduce((sum, value) => sum + value, 0) / lufsBuffer.length;
                 const shortTermLUFS = lufsBuffer.slice(-10).reduce((sum, value) => sum + value, 0) / 10;
+                const averageLUFS = lufsBuffer.reduce((sum, value) => sum + value, 0) / lufsBuffer.length;
 
                 updatePlot(shortTermLUFS, averageLUFS);
 
@@ -258,7 +260,7 @@
                     if (shortTermLUFS > MAX_DB_THRESHOLD) {
                         adjustVolume(-VOLUME_ADJUSTMENT);
                         lastVolumeAdjustment = Date.now();
-                    } else if (averageLUFS < MIN_DB_THRESHOLD) {
+                    } else if (averageLUFS < MIN_DB_THRESHOLD && Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 5) {
                         adjustVolume(VOLUME_ADJUSTMENT);
                         lastVolumeAdjustment = Date.now();
                     }
@@ -275,11 +277,12 @@
         newPageCooldownActive = true;
         setTimeout(() => {
             newPageCooldownActive = false;
-        }, 2000);
+        }, 3000);
 
         blockBufferIndex = 0;
-        // lufsBuffer = [];
-        plotData = Array(PLOT_POINTS).fill(MIN_DB_THRESHOLD);
+        lufsBuffer = Array(LUFS_WINDOW).fill(MIN_DB_THRESHOLD - MAX_DB_THRESHOLD);
+        plotData = Array(PLOT_POINTS).fill(MIN_DB_THRESHOLD - MAX_DB_THRESHOLD);
+        adjustVolume(0);
     }
 
     function createDebugElement() {
