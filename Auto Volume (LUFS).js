@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume with LUFS Visualization
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.95
+// @version      1.0
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
@@ -20,19 +20,21 @@
 
     const SAMPLE_RATE = 50; // How many times per second to sample
     const BLOCK_SIZE = 4096; // ~85ms at 48kHz
-    const LUFS_WINDOW = 2000; // 10 seconds at 50 samples per second
-    const PLOT_POINTS = 2000; // Number of points to show in the plot
+    const LUFS_WINDOW = 1500; // 10 seconds at 50 samples per second
+    const PLOT_POINTS = 1500; // Number of points to show in the plot
 
     let lastVolumeAdjustment = 0;
-    const VOLUME_COOLDOWN = 100; // 0.5 second cooldown
+    const VOLUME_CHANGER_MODIFIER = 80;
+    const VOLUME_DOWN_COOLDOWN = 500;
+    const VOLUME_UP_COOLDOWN = 5000; // 5 second cooldown
     const MAX_DB_THRESHOLD = -30; // LUFS
     const MIN_DB_THRESHOLD = -50; // LUFS
-    const VOLUME_ADJUSTMENT = 0.01; // 1%
+    const VOLUME_ADJUSTMENT = 0.005; // .1%
     const MAX_VOLUME = 1.0;
     const MIN_VOLUME = 0.05;
 
     // Graph settings
-    const GRAPH_PADDING = 10; // LUFS
+    const GRAPH_PADDING = 15; // LUFS
     const GRAPH_MIN = Math.floor((MIN_DB_THRESHOLD - GRAPH_PADDING) / 5) * 5; // Round down to nearest 5
     const GRAPH_MAX = Math.ceil((MAX_DB_THRESHOLD + GRAPH_PADDING) / 5) * 5; // Round up to nearest 5
     const GRAPH_RANGE = GRAPH_MAX - GRAPH_MIN;
@@ -44,8 +46,8 @@
 
     let blockBuffer = new Float32Array(BLOCK_SIZE);
     let blockBufferIndex = 0;
-    let lufsBuffer = [];
-    let plotData = Array(PLOT_POINTS).fill(MIN_DB_THRESHOLD);
+    let lufsBuffer = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
+    let plotData = Array(PLOT_POINTS).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
     let debugElement;
     let canvas;
     let ctx;
@@ -245,24 +247,29 @@
             blockBufferIndex++;
 
             if (blockBufferIndex >= BLOCK_SIZE && !newPageCooldownActive) {
+
                 const lufs = calculateLUFS(blockBuffer);
-                lufsBuffer.push(lufs);
+                if (lufs && !isNaN(lufs) && lufs != -Infinity) {
+                    lufsBuffer.push(lufs);
+                }
                 if (lufsBuffer.length > LUFS_WINDOW) {
                     lufsBuffer.shift();
                 }
-
                 const shortTermLUFS = lufsBuffer.slice(-10).reduce((sum, value) => sum + value, 0) / 10;
                 const averageLUFS = lufsBuffer.reduce((sum, value) => sum + value, 0) / lufsBuffer.length;
 
                 updatePlot(shortTermLUFS, averageLUFS);
 
-                if (Date.now() - lastVolumeAdjustment > VOLUME_COOLDOWN) {
+                if (Date.now() - lastVolumeAdjustment > VOLUME_DOWN_COOLDOWN) {
                     if (shortTermLUFS > MAX_DB_THRESHOLD) {
-                        adjustVolume(-VOLUME_ADJUSTMENT);
+                        adjustVolume(Math.max(-0.1, (MAX_DB_THRESHOLD-shortTermLUFS)/VOLUME_CHANGER_MODIFIER));
                         lastVolumeAdjustment = Date.now();
-                    } else if (averageLUFS < MIN_DB_THRESHOLD && Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 5) {
-                        adjustVolume(VOLUME_ADJUSTMENT);
-                        lastVolumeAdjustment = Date.now();
+                    }
+                }
+                if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
+                    if (Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 5) {
+                        adjustVolume(Math.min(0.1, ((MAX_DB_THRESHOLD - 5) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER));
+                        lastVolumeAdjustment = Date.now()
                     }
                 }
 
@@ -280,8 +287,7 @@
         }, 3000);
 
         blockBufferIndex = 0;
-        lufsBuffer = Array(LUFS_WINDOW).fill(MIN_DB_THRESHOLD - MAX_DB_THRESHOLD);
-        plotData = Array(PLOT_POINTS).fill(MIN_DB_THRESHOLD - MAX_DB_THRESHOLD);
+        lufsBuffer = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
         adjustVolume(0);
     }
 
