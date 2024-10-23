@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.8
+// @version      1.9
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -21,10 +21,13 @@
 
     let latencyTargetLow = 1.25; // Low latency default
     let latencyTargetNormal = 4.25; // Normal latency default
+    let unstableBufferSeparationLowLatency = 1.5; // Low latency default
+    let unstableBufferSeparationNormalLatency = 4; // Normal latency default
+    let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
     let TARGET_LATENCY;
     let TARGET_LATENCY_TOLERANCE = 0.125; // Latency jitter to ignore
     let SPEED_ADJUSTMENT_FACTOR = 7.5; // Lower number is more aggresive
-    let SPEED_MIN = 0.75;
+    let SPEED_MIN = 0.5;
     let SPEED_MAX = 1.25;
 
     let newPageStatsCooldownActive = false;
@@ -292,6 +295,16 @@
         if (bufferData.latest < (latencyData.latest + 10)) graphValues.smoothedBufferSize = bufferData.latest;
     }
 
+    function estimateLatency(latestLatency, latestBuffer) {
+        if (!latestLatency || !latestBuffer || isNaN(latestLatency) || isNaN(latestBuffer)) return;
+        // If buffer is larger than latency OR buffer is 2 seconds below latency, use buffer size for speed adjustment
+        if (latestBuffer > latestLatency || latestBuffer < latestLatency - UNSTABLE_BUFFER_SEPARATION) {
+            return latestBuffer;
+        } else {
+            return latestLatency;
+        }
+    }
+
     // function calibrateTargetLatency(latencyEstimate) {
     //     // How far we are above the exact target. I don't want to lower from 1.00 if we're seeing red at 1.08
     //     // If we're seeing red at 2.50, I don't want to raise the target from 1.00, I want to raise it from 2.50
@@ -345,8 +358,7 @@
         if (bufferData.latest > latencyData.latest) {
             latencyTextElement.node.style.color = 'orange';
             latencyTextElement.node.style.opacity = '.8';
-        } else if (bufferData.latest < .6) {
-            // } else if (bufferData.latest < targetBufferSize - bufferRange) {
+        } else if (bufferData.latest < .6 || bufferData.latest < latencyData.latest - UNSTABLE_BUFFER_SEPARATION) {
             latencyTextElement.node.style.color = 'red';
             latencyTextElement.node.style.opacity = '1';
             temporarilyShowElement(screenElement.graph);
@@ -359,6 +371,7 @@
 
     function getLatestVideoStats() {
         TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
+        UNSTABLE_BUFFER_SEPARATION = videoPlayer?.isLiveLowLatency() ? unstableBufferSeparationLowLatency : unstableBufferSeparationNormalLatency;
         // targetBufferSize = videoPlayer?.isLiveLowLatency() ? 0.75 : 1.25;
         latencyData.latest = videoPlayer?.getLiveLatency();
         bufferData.latest = videoPlayer?.getBufferDuration();
@@ -420,7 +433,9 @@
         handleLatencyChange();
         handleBufferSizeChange();
 
-        let latencyEstimate = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
+        let latencyEstimate = estimateLatency(graphValues.smoothedLatency, graphValues.smoothedBufferSize)
+
+        // let latencyEstimate = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
         updateLatencyTextElement(screenElement.currentLatency.className, latencyEstimate);
         setLatencyTextColor(screenElement.currentLatency);
 
