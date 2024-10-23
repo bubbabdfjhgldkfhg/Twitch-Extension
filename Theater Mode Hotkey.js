@@ -2,6 +2,8 @@
 // @name         Theater Mode Hotkey
 // @version      0.1
 // @description  Enable theater mode with 't'
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Theater%20Mode%20Hotkey.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Theater%20Mode%20Hotkey.js
 // @author       Me
 // @match        *://*.twitch.tv/*
 // @grant        none
