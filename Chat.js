@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.9
+// @version      1.0
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -24,16 +24,20 @@
     // Adjust brightness with "+" and "_"
     document.addEventListener('keydown', function(event) {
         if (event.key === '`') {
-            event.preventDefault(); // Prevent the backtick from being entered into the text box
+            event.preventDefault();
             document.querySelector('.chat-wysiwyg-input__editor')?.focus();
         } else if (event.key === '_' && brightness > 0.2) {
             brightness = parseFloat((brightness - 0.1).toFixed(1));
-            messageBrightness();
-            chatWindowOpacity();
+            requestAnimationFrame(() => {
+                messageBrightness();
+                chatWindowOpacity();
+            });
         } else if (event.key === '+' && brightness < 1) {
             brightness = parseFloat((brightness + 0.1).toFixed(1));
-            messageBrightness();
-            chatWindowOpacity();
+            requestAnimationFrame(() => {
+                messageBrightness();
+                chatWindowOpacity();
+            });
         }
     });
 
@@ -46,6 +50,7 @@
     function chatWindowOpacity() {
         let rightColumn = document.querySelector('.channel-root__right-column');
         if (rightColumn) {
+            rightColumn.style.transition = 'all 0.25s ease-in-out';
             rightColumn.style.background = `linear-gradient(90deg, rgba(0,0,0,${brightness/2}) 0%, rgba(0,0,0,0.001) 100%)`;
         }
     }
@@ -149,11 +154,12 @@
 
     function isSideConversation(message) {
         let streamer = window.location.pathname.substring(1);
-        // Hide replies and mentions that aren't to/from the current user
+        // Hide replies that aren't to/from the current user
         let isReply = message.querySelector('p[title^="Reply"]');
         if (isReply && !isReply.textContent.includes(currentUser)) {
             return true;
         }
+        // Hide mentions that aren't to the current user || current streamer
         let mentionFragment = message.querySelector('.mention-fragment');
         if (mentionFragment &&
             mentionFragment.textContent.toLowerCase() != ('@' + streamer) &&
@@ -253,6 +259,7 @@
             return null;
         }
 
+        // Highlight first time chats
         const props = getMessageProps(message);
         if (props?.message?.isFirstMsg && usernameElement?.style && textElement?.style) {
             usernameElement.style.fontStyle = 'italic';
