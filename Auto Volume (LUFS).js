@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume with LUFS Visualization
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.1
+// @version      1.2
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
@@ -331,7 +331,9 @@
     }
 
     function init() {
-        createDebugElement();
+        if (SHOW_GRAPH) {
+            createDebugElement();
+        }
         const observer = new MutationObserver((mutations) => {
             if (document.querySelector('video')) {
                 observer.disconnect();
