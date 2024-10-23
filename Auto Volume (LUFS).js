@@ -20,11 +20,11 @@
 
     const SAMPLE_RATE = 50; // How many times per second to sample
     const BLOCK_SIZE = 4096; // ~85ms at 48kHz
-    const LUFS_WINDOW = 1500; // 10 seconds at 50 samples per second
-    const PLOT_POINTS = 1500; // Number of points to show in the plot
+    const LUFS_WINDOW = 1800; // 10 seconds at 50 samples per second
+    const PLOT_POINTS = 1800; // Number of points to show in the plot
 
     let lastVolumeAdjustment = 0;
-    const VOLUME_CHANGER_MODIFIER = 80;
+    const VOLUME_CHANGER_MODIFIER = 50; // Lower is more aggresive
     const VOLUME_DOWN_COOLDOWN = 500;
     const VOLUME_UP_COOLDOWN = 5000; // 5 second cooldown
     const MAX_DB_THRESHOLD = -30; // LUFS
@@ -135,7 +135,7 @@
             const newVolume = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, currentVolume + volumeDelta));
             player.setVolume(newVolume);
             console.log(`Volume changed to ${newVolume.toFixed(2)}`);
-            updateDebugInfo(`Volume: ${currentVolume.toFixed(2)}`);
+            updateDebugInfo(`Volume: ${newVolume.toFixed(2)}`);
         } else {
             console.warn("Player not found.");
         }
@@ -267,8 +267,8 @@
                     }
                 }
                 if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
-                    if (Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 5) {
-                        adjustVolume(Math.min(0.1, ((MAX_DB_THRESHOLD - 5) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER));
+                    if (Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 2) {
+                        adjustVolume(Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER));
                         lastVolumeAdjustment = Date.now()
                     }
                 }
@@ -287,7 +287,7 @@
         }, 3000);
 
         blockBufferIndex = 0;
-        lufsBuffer = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
+        lufsBuffer = Array(LUFS_WINDOW).fill(MAX_DB_THRESHOLD);
         adjustVolume(0);
     }
 
