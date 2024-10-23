@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume with LUFS Visualization
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.0
+// @version      1.1
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
@@ -11,6 +11,8 @@
 
 (function() {
     'use strict';
+
+    let SHOW_GRAPH = false;
 
     let audioContext;
     let analyser;
@@ -135,7 +137,9 @@
             const newVolume = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, currentVolume + volumeDelta));
             player.setVolume(newVolume);
             console.log(`Volume changed to ${newVolume.toFixed(2)}`);
-            updateDebugInfo(`Volume: ${newVolume.toFixed(2)}`);
+            if (SHOW_GRAPH) {
+                updateDebugInfo(`Volume: ${newVolume.toFixed(2)}`);
+            }
         } else {
             console.warn("Player not found.");
         }
@@ -258,7 +262,9 @@
                 const shortTermLUFS = lufsBuffer.slice(-10).reduce((sum, value) => sum + value, 0) / 10;
                 const averageLUFS = lufsBuffer.reduce((sum, value) => sum + value, 0) / lufsBuffer.length;
 
-                updatePlot(shortTermLUFS, averageLUFS);
+                if (SHOW_GRAPH) {
+                    updatePlot(shortTermLUFS, averageLUFS);
+                }
 
                 if (Date.now() - lastVolumeAdjustment > VOLUME_DOWN_COOLDOWN) {
                     if (shortTermLUFS > MAX_DB_THRESHOLD) {
