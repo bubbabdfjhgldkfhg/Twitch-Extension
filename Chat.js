@@ -294,12 +294,16 @@
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
+                    if (node.classList.contains('chat-line__message')) {
+                        newMessageHandler(node);
+                    }
                     let message = node.querySelectorAll('.chat-line__message')
                     if (message && message.length) {
                         newMessageHandler(message[0]);
-                        fadeOverflowMessages(chatContainer);
-                        return
                     }
+
+                    fadeOverflowMessages(chatContainer);
+
                     let chatInput = node.querySelector('.chat-input');
                     if (chatInput) applyChatInputStyles(chatInput);
 
