@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.7
+// @version      0.8
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -73,7 +73,7 @@ const svgPaths = {
 
     function snoozeChannel() {
         if (cooldownActive) { // This is mostly so we dont accidentally snooze a channel the moment that its clicked
-            console.log('Snooze button on cooldown');
+            // console.log('Snooze button on cooldown');
             return;
         }
 
@@ -140,7 +140,7 @@ const svgPaths = {
 
     function clickPreviousChannel() {
         if (cooldownActive) {
-            console.log('Back button on cooldown');
+            // console.log('Back button on cooldown');
             return;
         }
         window.history.back();
@@ -150,7 +150,7 @@ const svgPaths = {
 
     function clickRandomChannel() {
         if (cooldownActive) {
-            console.log('Next button on cooldown');
+            // console.log('Next button on cooldown');
             return;
         }
 
