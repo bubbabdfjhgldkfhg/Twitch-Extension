@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume with LUFS Visualization
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.2
+// @version      1.3
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
@@ -33,7 +33,7 @@
     const MIN_DB_THRESHOLD = -50; // LUFS
     const VOLUME_ADJUSTMENT = 0.005; // .1%
     const MAX_VOLUME = 1.0;
-    const MIN_VOLUME = 0.05;
+    const MIN_VOLUME = 0.01;
 
     // Graph settings
     const GRAPH_PADDING = 15; // LUFS
@@ -136,7 +136,7 @@
             const currentVolume = player.getVolume();
             const newVolume = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, currentVolume + volumeDelta));
             player.setVolume(newVolume);
-            console.log(`Volume changed to ${newVolume.toFixed(2)}`);
+            // console.log(`Volume changed to ${newVolume.toFixed(2)}`);
             if (SHOW_GRAPH) {
                 updateDebugInfo(`Volume: ${newVolume.toFixed(2)}`);
             }
