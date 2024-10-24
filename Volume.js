@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.8
+// @version      0.9
 // @description  Automatically set channel specific volume on Twitch
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
@@ -13,9 +13,8 @@
 (function() {
     'use strict';
 
-    const defaultVolume = 0.6;
+    const defaultVolume = 0.5;
 
-    // let currentTargetVolume;
     let observer;
     let checkSliderInterval;
     let isAdjustingVolume = false; // Flag to prevent detecting our own updates
@@ -70,24 +69,19 @@
     // Function to adjust the volume
     function adjustVolume(targetVolume) {
         // Assign to global
-        // currentTargetVolume = targetVolume;
         const player = getCurrentPlayer();
         if (player) {
             let currentVolume = player.getVolume();
-            if (currentVolume !== targetVolume) {
-                isAdjustingVolume = true; // Set flag
+            if (currentVolume != targetVolume) {
+                isAdjustingVolume = true;
                 player.setVolume(targetVolume);
-                isAdjustingVolume = false; // Reset flag
+                // Set global volume so the page doesnt get confused
+                localStorage.setItem('volume', targetVolume);
+                isAdjustingVolume = false;
             }
-            // Optionally, you can remove this line if it's causing issues
-            localStorage.setItem('volume', targetVolume);
         } else {
             console.warn("Player not found.");
         }
-        // // console.log('Setting volume:',targetVolume);
-        // player.setVolume(targetVolume);
-        // // Set global volume so the page doesnt get confused
-        // localStorage.setItem('volume', targetVolume);
     }
 
     // Local storage handling for volume settings
@@ -104,7 +98,10 @@
     }
 
     function handlePathChange() {
-        adjustVolume(loadVolume(window.location.pathname));
+        // Added a delay to see if it helps w/ crashes
+        setTimeout(() => {
+            adjustVolume(loadVolume(window.location.pathname));
+        }, 300);
     }
 
     // Observe changes in the volume slider to save the volume
@@ -125,7 +122,6 @@
     setInterval(function() {
         let slider = document.querySelector('[data-a-target="player-volume-slider"]')
         if (slider && observer?.targetElement != slider) {
-            // console.log('Found new volume slider');
             handlePathChange();
             observer?.disconnect();
             observer = sliderObserver(slider);
