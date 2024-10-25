@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.0
+// @version      1.1
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -131,7 +131,7 @@
         let badges = message.querySelectorAll('.chat-badge');
         for (let element of badges) {
             let altAttr = element.getAttribute('alt');
-            if (!altAttr.match(/Subscriber|Founder|Verified|Broadcaster|VIP|Moderator|Bot/)) {
+            if (!altAttr.match(/Subscriber|Founder|Verified|Broadcaster|VIP|Moderator|Bot|Staff/)) {
                 element.remove();
                 continue;
             }
