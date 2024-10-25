@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume with LUFS Visualization
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.3
+// @version      1.4
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%20(LUFS).js
@@ -12,34 +12,44 @@
 (function() {
     'use strict';
 
-    let SHOW_GRAPH = false;
+    const DEBUG_MODE = true;
+    function debug(...args) {
+        if (DEBUG_MODE) {
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                fractionalSecondDigits: 3
+            });
+            console.log(`[Auto Volume Debug ${timestamp}]:`, ...args);
+        }
+    }
 
     let audioContext;
     let analyser;
     let source;
     let rafId;
     let newPageCooldownActive;
+    let currentVolume = 1.0;
 
-    const SAMPLE_RATE = 50; // How many times per second to sample
-    const BLOCK_SIZE = 4096; // ~85ms at 48kHz
-    const LUFS_WINDOW = 1800; // 10 seconds at 50 samples per second
-    const PLOT_POINTS = 1800; // Number of points to show in the plot
+    const SAMPLE_RATE = 50;
+    const BLOCK_SIZE = 4096;
+    const LUFS_WINDOW = 1500;
+    const PLOT_POINTS = 1500;
 
     let lastVolumeAdjustment = 0;
-    const VOLUME_CHANGER_MODIFIER = 50; // Lower is more aggresive
+    const VOLUME_CHANGER_MODIFIER = 30;
     const VOLUME_DOWN_COOLDOWN = 500;
-    const VOLUME_UP_COOLDOWN = 5000; // 5 second cooldown
-    const MAX_DB_THRESHOLD = -30; // LUFS
-    const MIN_DB_THRESHOLD = -50; // LUFS
-    const VOLUME_ADJUSTMENT = 0.005; // .1%
+    const VOLUME_UP_COOLDOWN = 5000;
+    const MAX_DB_THRESHOLD = -28;
+    const MIN_DB_THRESHOLD = -50;
+    const VOLUME_ADJUSTMENT = 0.005;
     const MAX_VOLUME = 1.0;
     const MIN_VOLUME = 0.01;
 
-    // Graph settings
-    const GRAPH_PADDING = 15; // LUFS
-    const GRAPH_MIN = Math.floor((MIN_DB_THRESHOLD - GRAPH_PADDING) / 5) * 5; // Round down to nearest 5
-    const GRAPH_MAX = Math.ceil((MAX_DB_THRESHOLD + GRAPH_PADDING) / 5) * 5; // Round up to nearest 5
-    const GRAPH_RANGE = GRAPH_MAX - GRAPH_MIN;
+    const FIXED_TOP = MAX_DB_THRESHOLD + 5;
 
     const FILTER_COEFFICIENTS = {
         a: [1.0, -1.69065929318241, 0.73248077421585],
@@ -50,14 +60,14 @@
     let blockBufferIndex = 0;
     let lufsBuffer = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
     let plotData = Array(PLOT_POINTS).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
-    let debugElement;
     let canvas;
     let ctx;
 
     function initAudio() {
+        debug('Initializing audio context');
         const videoElement = document.querySelector('video');
         if (!videoElement) {
-            console.error('No video element found');
+            debug('Error: No video element found');
             return;
         }
 
@@ -68,6 +78,11 @@
         source = audioContext.createMediaElementSource(videoElement);
         source.connect(analyser);
         analyser.connect(audioContext.destination);
+
+        debug('Audio context initialized', {
+            sampleRate: audioContext.sampleRate,
+            fftSize: analyser.fftSize
+        });
 
         updateLevel();
     }
@@ -83,27 +98,36 @@
         }
 
         const meanSquare = filtered.reduce((sum, sample) => sum + sample * sample, 0) / buffer.length;
-        return -0.691 + 10 * Math.log10(meanSquare);
+        const lufs = -0.691 + 10 * Math.log10(meanSquare);
+
+        return lufs;
     }
 
     function getReactInstance(element) {
+        debug('Searching for React instance');
         if (!element) return null;
         for (const key in element) {
             if (key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$')) {
+                debug('Found React instance key:', key);
                 return element[key];
             }
         }
+        debug('No React instance found');
         return null;
     }
 
     function searchReactParents(node, predicate, maxDepth = 15, depth = 0) {
         try {
             if (predicate(node)) {
+                debug('Found matching React parent node at depth:', depth);
                 return node;
             }
-        } catch (_) {}
+        } catch (e) {
+            debug('Error in predicate:', e);
+        }
 
         if (!node || depth > maxDepth) {
+            depth > maxDepth && debug('Max depth reached in React parent search');
             return null;
         }
 
@@ -112,10 +136,12 @@
             return searchReactParents(parent, predicate, maxDepth, depth + 1);
         }
 
+        debug('No more parent nodes found');
         return null;
     }
 
     function getCurrentPlayer() {
+        debug('Getting current player');
         const PLAYER_SELECTOR = 'div[data-a-target="player-overlay-click-handler"], .video-player';
         try {
             const node = searchReactParents(
@@ -123,9 +149,10 @@
                 n => n.memoizedProps?.mediaPlayerInstance?.core != null,
                 30
             );
+            debug('Player node found:', !!node);
             return node?.memoizedProps.mediaPlayerInstance.core;
         } catch (e) {
-            console.error("Failed to retrieve the player:", e);
+            debug('Error getting player:', e);
         }
         return null;
     }
@@ -133,113 +160,92 @@
     function adjustVolume(volumeDelta) {
         const player = getCurrentPlayer();
         if (player) {
-            const currentVolume = player.getVolume();
-            const newVolume = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, currentVolume + volumeDelta));
-            player.setVolume(newVolume);
-            // console.log(`Volume changed to ${newVolume.toFixed(2)}`);
-            if (SHOW_GRAPH) {
-                updateDebugInfo(`Volume: ${newVolume.toFixed(2)}`);
-            }
+            const currentVol = player.getVolume();
+            const newVolume = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, currentVol + volumeDelta));
+            debug('Adjusting volume', {
+                currentVolume: parseFloat(currentVol.toFixed(2)),
+                delta: volumeDelta,
+                newVolume: parseFloat(newVolume.toFixed(2))
+            });
+            currentVolume = newVolume;
+            player.setVolume(currentVolume);
         } else {
-            console.warn("Player not found.");
+            debug('Warning: Player not found for volume adjustment');
         }
     }
 
     function updatePlot(shortTermLUFS, averageLUFS) {
+        // Update data
         plotData.push(shortTermLUFS);
         plotData.shift();
 
-        const width = canvas.width;
-        const height = canvas.height;
-        ctx.clearRect(0, 0, width, height);
+        // Clear canvas
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, width, height);
+        // Find the lowest LUFS value in the buffer
+        const minLUFS = MIN_DB_THRESHOLD - 5;
 
-        // Draw grid
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.beginPath();
-        for (let i = GRAPH_MIN; i <= GRAPH_MAX; i += 5) {
-            const y = height - ((i - GRAPH_MIN) / GRAPH_RANGE) * height;
-            ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
-            // Add LUFS labels
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.fillText(i.toString(), 5, y - 2);
-        }
-        ctx.stroke();
+        // Convert LUFS value to Y coordinate using dynamic bottom and fixed top
+        const toY = (lufs) => {
+            const y = canvas.height - ((lufs - minLUFS) / (FIXED_TOP - minLUFS)) * canvas.height;
+            return y;
+        };
 
-        // Draw thresholds
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.beginPath();
-        const maxY = height - ((MAX_DB_THRESHOLD - GRAPH_MIN) / GRAPH_RANGE) * height;
-        ctx.moveTo(0, maxY);
-        ctx.lineTo(width, maxY);
-        ctx.stroke();
-
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-        ctx.beginPath();
-        const minY = height - ((MIN_DB_THRESHOLD - GRAPH_MIN) / GRAPH_RANGE) * height;
-        ctx.moveTo(0, minY);
-        ctx.lineTo(width, minY);
-        ctx.stroke();
-
-        // Draw LUFS line
-        ctx.strokeStyle = 'cyan';
-        ctx.beginPath();
-        ctx.moveTo(0, height - ((plotData[0] - GRAPH_MIN) / GRAPH_RANGE) * height);
-        for (let i = 1; i < plotData.length; i++) {
-            const x = (i / plotData.length) * width;
-            const y = height - ((plotData[i] - GRAPH_MIN) / GRAPH_RANGE) * height;
-            ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-
-        // Draw average LUFS
-        ctx.strokeStyle = 'yellow';
-        const avgY = height - ((averageLUFS - GRAPH_MIN) / GRAPH_RANGE) * height;
-        ctx.beginPath();
-        ctx.moveTo(0, avgY);
-        ctx.lineTo(width, avgY);
-        ctx.stroke();
-
-        // Add legend
-        const legendY = 15;
-        const legendSpacing = 80;
+        // Draw grid lines and labels every 5 dB
+        ctx.strokeStyle = '#333333';
+        ctx.fillStyle = '#888888';
         ctx.font = '10px monospace';
+        let gridStep = 5;
+        let startLevel = Math.floor(minLUFS / gridStep) * gridStep;
+        let endLevel = Math.ceil(FIXED_TOP / gridStep) * gridStep;
 
+        for (let level = startLevel; level <= endLevel; level += gridStep) {
+            let y = toY(level);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+            ctx.fillText(`${level} dB`, 5, y - 2);
+        }
+
+        // Draw max threshold line
         ctx.strokeStyle = 'red';
-        ctx.fillStyle = 'red';
         ctx.beginPath();
-        ctx.moveTo(10, legendY);
-        ctx.lineTo(30, legendY);
+        ctx.moveTo(0, toY(MAX_DB_THRESHOLD));
+        ctx.lineTo(canvas.width, toY(MAX_DB_THRESHOLD));
         ctx.stroke();
-        ctx.fillText(`Max: ${MAX_DB_THRESHOLD}`, 35, legendY + 4);
 
+        // Draw min threshold line
         ctx.strokeStyle = 'green';
-        ctx.fillStyle = 'green';
         ctx.beginPath();
-        ctx.moveTo(10 + legendSpacing, legendY);
-        ctx.lineTo(30 + legendSpacing, legendY);
+        ctx.moveTo(0, toY(MIN_DB_THRESHOLD));
+        ctx.lineTo(canvas.width, toY(MIN_DB_THRESHOLD));
         ctx.stroke();
-        ctx.fillText(`Min: ${MIN_DB_THRESHOLD}`, 35 + legendSpacing, legendY + 4);
 
-        ctx.strokeStyle = 'yellow';
-        ctx.fillStyle = 'yellow';
-        ctx.beginPath();
-        ctx.moveTo(10 + legendSpacing * 2, legendY);
-        ctx.lineTo(30 + legendSpacing * 2, legendY);
-        ctx.stroke();
-        ctx.fillText(`Avg: ${averageLUFS.toFixed(1)}`, 35 + legendSpacing * 2, legendY + 4);
-
+        // Draw LUFS history
         ctx.strokeStyle = 'cyan';
-        ctx.fillStyle = 'cyan';
         ctx.beginPath();
-        ctx.moveTo(10 + legendSpacing * 3, legendY);
-        ctx.lineTo(30 + legendSpacing * 3, legendY);
+        plotData.forEach((lufs, i) => {
+            const x = (i / plotData.length) * canvas.width;
+            const y = toY(lufs);
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
         ctx.stroke();
-        ctx.fillText(`Now: ${shortTermLUFS.toFixed(1)}`, 35 + legendSpacing * 3, legendY + 4);
+
+        // Draw legend
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(10, 10, 140, 70);
+
+        ctx.font = '12px monospace';
+        ctx.fillStyle = 'white';
+        ctx.fillText(`Current: ${shortTermLUFS.toFixed(1)} dB`, 20, 30);
+        ctx.fillText(`Average: ${averageLUFS.toFixed(1)} dB`, 20, 50);
+        ctx.fillText(`Volume: ${(currentVolume * 100).toFixed(1)}%`, 20, 70);
     }
 
     function updateLevel() {
@@ -251,7 +257,6 @@
             blockBufferIndex++;
 
             if (blockBufferIndex >= BLOCK_SIZE && !newPageCooldownActive) {
-
                 const lufs = calculateLUFS(blockBuffer);
                 if (lufs && !isNaN(lufs) && lufs != -Infinity) {
                     lufsBuffer.push(lufs);
@@ -262,20 +267,43 @@
                 const shortTermLUFS = lufsBuffer.slice(-10).reduce((sum, value) => sum + value, 0) / 10;
                 const averageLUFS = lufsBuffer.reduce((sum, value) => sum + value, 0) / lufsBuffer.length;
 
-                if (SHOW_GRAPH) {
+                // debug('Audio metrics', {
+                //     shortTermLUFS,
+                //     averageLUFS,
+                //     bufferSize: blockBufferIndex,
+                //     timestamp: Date.now()
+                // });
+
+                if (DEBUG_MODE) {
                     updatePlot(shortTermLUFS, averageLUFS);
                 }
 
                 if (Date.now() - lastVolumeAdjustment > VOLUME_DOWN_COOLDOWN) {
                     if (shortTermLUFS > MAX_DB_THRESHOLD) {
-                        adjustVolume(Math.max(-0.1, (MAX_DB_THRESHOLD-shortTermLUFS)/VOLUME_CHANGER_MODIFIER));
-                        lastVolumeAdjustment = Date.now();
+                        let adjustment = Math.max(-0.1, (MAX_DB_THRESHOLD-shortTermLUFS)/VOLUME_CHANGER_MODIFIER);
+                        adjustment = parseFloat(adjustment.toFixed(2));
+                        if (adjustment) {
+                            debug('Volume down adjustment', {
+                                adjustment,
+                                reason: 'Above max threshold'
+                            });
+                            adjustVolume(adjustment);
+                            lastVolumeAdjustment = Date.now();
+                        }
                     }
                 }
                 if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
                     if (Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 2) {
-                        adjustVolume(Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER));
-                        lastVolumeAdjustment = Date.now()
+                        let adjustment = Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER);
+                        adjustment = parseFloat(adjustment.toFixed(2));
+                        if (adjustment) {
+                            debug('Volume up adjustment', {
+                                adjustment,
+                                reason: 'Below min threshold'
+                            });
+                            adjustVolume(adjustment);
+                            lastVolumeAdjustment = Date.now();
+                        }
                     }
                 }
 
@@ -287,55 +315,49 @@
     }
 
     function handlePathChange() {
+        debug('Page navigation detected');
         newPageCooldownActive = true;
         setTimeout(() => {
+            debug('Navigation cooldown ended');
+            adjustVolume(0);
             newPageCooldownActive = false;
-        }, 3000);
+        }, 2500);
 
         blockBufferIndex = 0;
         lufsBuffer = Array(LUFS_WINDOW).fill(MAX_DB_THRESHOLD);
-        adjustVolume(0);
     }
 
-    function createDebugElement() {
-        debugElement = document.createElement('div');
-        debugElement.style.position = 'fixed';
-        debugElement.style.top = '10px';
-        debugElement.style.right = '10px';
-        debugElement.style.zIndex = '9999';
-        debugElement.style.padding = '10px';
-        document.body.appendChild(debugElement);
+    function createVisualization() {
+        debug('Creating visualization interface');
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.top = '10px';
+        container.style.right = '10px';
+        container.style.zIndex = '9999';
+        container.style.padding = '10px';
+        document.body.appendChild(container);
 
         canvas = document.createElement('canvas');
         canvas.width = 400;
         canvas.height = 200;
         canvas.style.display = 'block';
-        canvas.style.marginBottom = '5px';
-        debugElement.appendChild(canvas);
+        container.appendChild(canvas);
 
         ctx = canvas.getContext('2d');
-        ctx.font = '10px monospace';
-    }
-
-    function updateDebugInfo(info) {
-        if (debugElement) {
-            const textDiv = debugElement.querySelector('div') || document.createElement('div');
-            textDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            textDiv.style.color = 'white';
-            textDiv.style.padding = '5px';
-            textDiv.textContent = info;
-            if (!textDiv.parentElement) {
-                debugElement.appendChild(textDiv);
-            }
-        }
+        debug('Visualization created', {
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height
+        });
     }
 
     function init() {
-        if (SHOW_GRAPH) {
-            createDebugElement();
+        debug('Initializing script');
+        if (DEBUG_MODE) {
+            createVisualization();
         }
         const observer = new MutationObserver((mutations) => {
             if (document.querySelector('video')) {
+                debug('Video element found, initializing audio');
                 observer.disconnect();
                 initAudio();
             }
@@ -357,6 +379,7 @@
         const overrideHistoryMethod = (methodName) => {
             const original = history[methodName];
             history[methodName] = function(state) {
+                debug(`History method ${methodName} called`);
                 const result = original.apply(this, arguments);
                 setTimeout(handlePathChange, 0);
                 return result;
