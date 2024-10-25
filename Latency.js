@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.9
+// @version      2.0
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -22,7 +22,7 @@
     let latencyTargetLow = 1.25; // Low latency default
     let latencyTargetNormal = 4.25; // Normal latency default
     let unstableBufferSeparationLowLatency = 1.5; // Low latency default
-    let unstableBufferSeparationNormalLatency = 4; // Normal latency default
+    let unstableBufferSeparationNormalLatency = 5; // Normal latency default
     let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
     let TARGET_LATENCY;
     let TARGET_LATENCY_TOLERANCE = 0.125; // Latency jitter to ignore
@@ -32,14 +32,6 @@
 
     let newPageStatsCooldownActive = false;
     let newPageStatsCooldownTimer = 2500;
-
-    // let targetBufferSize = 0.8;
-    // let bufferRange = 0.125;
-
-    // let bufferHistoryDesiredLength = 120 * 2; // Seconds * 2 because polling happens every 500ms
-
-    // let riskyBufferSize = 0.8;
-    // let criticalBufferSize = 0.6;
 
     let playbackRate = 1.0;
     let videoPlayer;
@@ -146,7 +138,6 @@
             latencyTargetNormal += delta;
             TARGET_LATENCY = latencyTargetNormal;
         }
-        // if (TARGET_LATENCY + delta > 0) TARGET_LATENCY += delta;
 
         updateLatencyTextElement('target-latency-text', TARGET_LATENCY);
         temporarilyShowElement(screenElement.targetLatency);
@@ -289,8 +280,6 @@
         if (!isValidDataPoint(bufferData)) return;
         // Save the last few minutes of buffer values
         bufferData.history.push(bufferData.latest);
-        // if (bufferData.history.length > bufferHistoryDesiredLength) bufferData.history.shift();
-
         // Temporary solution to big spikes
         if (bufferData.latest < (latencyData.latest + 10)) graphValues.smoothedBufferSize = bufferData.latest;
     }
@@ -304,21 +293,6 @@
             return latestLatency;
         }
     }
-
-    // function calibrateTargetLatency(latencyEstimate) {
-    //     // How far we are above the exact target. I don't want to lower from 1.00 if we're seeing red at 1.08
-    //     // If we're seeing red at 2.50, I don't want to raise the target from 1.00, I want to raise it from 2.50
-    //     let latencyJitter = latencyEstimate - TARGET_LATENCY; // Will be positive if we're above, negative below.
-    //     let lowestObservedBuffer = Math.min(...bufferData.history);
-    //     // Min 0 because if we're above the risky buffer, there's no reason to go positive.
-    //     let riskyBufferSize = targetBufferSize + bufferRange;
-    //     let distanceAboveRiskyBuffer = Math.min((riskyBufferSize - lowestObservedBuffer + latencyJitter), 0);
-    //     changeTargetLatency(distanceAboveRiskyBuffer);
-    //     // Max 0 because if we're below the critical buffer, there's no reason to go negative.
-    //     let criticalBufferSize = targetBufferSize - bufferRange;
-    //     let distanceBelowCriticalBuffer = Math.max((criticalBufferSize - bufferData.latest + latencyJitter), 0);
-    //     changeTargetLatency(distanceBelowCriticalBuffer);
-    // }
 
     function evaluateSpeedAdjustment(latencyEstimate) {
         if (!latencyEstimate || isNaN(latencyEstimate)) return;
@@ -372,7 +346,6 @@
     function getLatestVideoStats() {
         TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
         UNSTABLE_BUFFER_SEPARATION = videoPlayer?.isLiveLowLatency() ? unstableBufferSeparationLowLatency : unstableBufferSeparationNormalLatency;
-        // targetBufferSize = videoPlayer?.isLiveLowLatency() ? 0.75 : 1.25;
         latencyData.latest = videoPlayer?.getLiveLatency();
         bufferData.latest = videoPlayer?.getBufferDuration();
         graphValues.latestBitrate = videoPlayer?.getVideoBitRate()/1000;
@@ -435,11 +408,9 @@
 
         let latencyEstimate = estimateLatency(graphValues.smoothedLatency, graphValues.smoothedBufferSize)
 
-        // let latencyEstimate = Math.max(graphValues.smoothedLatency, graphValues.smoothedBufferSize);
         updateLatencyTextElement(screenElement.currentLatency.className, latencyEstimate);
         setLatencyTextColor(screenElement.currentLatency);
 
-        // calibrateTargetLatency(latencyEstimate);
         evaluateSpeedAdjustment(latencyEstimate);
         appendGraph();
         updateGraph();
