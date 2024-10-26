@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume 2
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.2
+// @version      0.3
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%202.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%202.js
@@ -41,12 +41,12 @@
     const PLOT_POINTS = 1500;
 
     let lastVolumeAdjustment = 0;
-    const VOLUME_CHANGER_MODIFIER = 25; // More sensitive adjustment for headphones
-    const VOLUME_DOWN_COOLDOWN = 300; // Faster response for sudden loud sounds
-    const VOLUME_UP_COOLDOWN = 3000; // Quicker recovery for quiet sections
-    const MAX_DB_THRESHOLD = -20; // Higher threshold for headphone listening
+    const VOLUME_CHANGER_MODIFIER = 20; // More sensitive adjustment for headphones
+    const VOLUME_DOWN_COOLDOWN = 250; // Faster response for sudden loud sounds
+    const VOLUME_UP_COOLDOWN = 5000; // Quicker recovery for quiet sections
+    const MAX_DB_THRESHOLD = -25; // Higher threshold for headphone listening
     const MIN_DB_THRESHOLD = -38; // Higher minimum for better audibility
-    const MAX_VOLUME = 3.0;
+    const MAX_VOLUME = .99;
     const MIN_VOLUME = 0.01;
     const VOLUME_BOOST_THRESHOLD = 1.0;
 
@@ -417,20 +417,20 @@
                             }
                         }
                     }
-                    // if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
-                    //     if (Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 2) {
-                    //         let adjustment = Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER);
-                    //         adjustment = parseFloat(adjustment.toFixed(2));
-                    //         if (adjustment) {
-                    //             debug('Volume up adjustment', {
-                    //                 adjustment,
-                    //                 reason: 'Below min threshold'
-                    //             });
-                    //             adjustVolume(adjustment);
-                    //             lastVolumeAdjustment = Date.now();
-                    //         }
-                    //     }
-                    // }
+                    if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
+                        if (Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 5) {
+                            let adjustment = Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER);
+                            adjustment = parseFloat(adjustment.toFixed(2));
+                            if (adjustment) {
+                                debug('Volume up adjustment', {
+                                    adjustment,
+                                    reason: 'Below min threshold'
+                                });
+                                adjustVolume(adjustment);
+                                lastVolumeAdjustment = Date.now();
+                            }
+                        }
+                    }
 
                     blockBufferIndex = 0;
                 }
