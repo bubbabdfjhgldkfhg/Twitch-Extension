@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.1
+// @version      1.2
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -23,9 +23,13 @@
 
     // Adjust brightness with "+" and "_"
     document.addEventListener('keydown', function(event) {
+        const editor = document.querySelector('.chat-wysiwyg-input__editor');
+
         if (event.key === '`') {
             event.preventDefault();
-            document.querySelector('.chat-wysiwyg-input__editor')?.focus();
+            editor?.focus();
+        } else if (event.key === 'Enter' && !event.shiftKey) {
+            editor?.blur();
         } else if (event.key === '_' && brightness > 0.2) {
             brightness = parseFloat((brightness - 0.1).toFixed(1));
             requestAnimationFrame(() => {
