@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume 2
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.1
+// @version      0.2
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%202.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%202.js
@@ -12,7 +12,7 @@
 (function() {
     'use strict';
 
-    const DEBUG_MODE = true;
+    const DEBUG_MODE = false;
     function debug(...args) {
         if (DEBUG_MODE) {
             const now = new Date();
@@ -30,6 +30,7 @@
     let audioContext;
     let analyser;
     let source;
+    let gainNode;
     let rafId;
     let newPageCooldownActive;
     let currentVolume = 1.0;
@@ -43,10 +44,11 @@
     const VOLUME_CHANGER_MODIFIER = 25; // More sensitive adjustment for headphones
     const VOLUME_DOWN_COOLDOWN = 300; // Faster response for sudden loud sounds
     const VOLUME_UP_COOLDOWN = 3000; // Quicker recovery for quiet sections
-    const MAX_DB_THRESHOLD = -22; // Higher threshold for headphone listening
+    const MAX_DB_THRESHOLD = -20; // Higher threshold for headphone listening
     const MIN_DB_THRESHOLD = -38; // Higher minimum for better audibility
-    const MAX_VOLUME = 1.0;
+    const MAX_VOLUME = 3.0;
     const MIN_VOLUME = 0.01;
+    const VOLUME_BOOST_THRESHOLD = 1.0;
 
     const FIXED_TOP = MAX_DB_THRESHOLD + 5;
 
@@ -82,8 +84,12 @@
         analyser = audioContext.createAnalyser();
         analyser.fftSize = BLOCK_SIZE * 2;
 
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = 1.0;
+
         source = audioContext.createMediaElementSource(videoElement);
-        source.connect(analyser);
+        source.connect(gainNode);
+        gainNode.connect(analyser);
         analyser.connect(audioContext.destination);
 
         debug('Audio context initialized', {
@@ -91,7 +97,26 @@
             fftSize: analyser.fftSize
         });
 
+        // Get initial volume and sync gain
+        const player = getCurrentPlayer();
+        if (player) {
+            currentVolume = player.getVolume();
+            syncGainWithVolume(currentVolume);
+        }
+
         updateLevel();
+    }
+
+    function syncGainWithVolume(volume) {
+        if (!gainNode) return;
+
+        if (volume <= VOLUME_BOOST_THRESHOLD) {
+            gainNode.gain.value = 1.0;
+            return volume;
+        } else {
+            gainNode.gain.value = volume;
+            return 1.0;
+        }
     }
 
     function calculateLUFS(buffer) {
@@ -148,17 +173,24 @@
     function adjustVolume(volumeDelta) {
         const player = getCurrentPlayer();
         if (player) {
-            // More gradual volume changes for headphone comfort
-            // const smoothedDelta = volumeDelta * 0.8;
-            const currentVol = player.getVolume();
-            const newVolume = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, currentVol + volumeDelta));
+            currentVolume = player.getVolume();
+            let newVolume = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, currentVolume + volumeDelta));
             debug('Adjusting volume', {
-                currentVolume: parseFloat(currentVol.toFixed(2)),
+                currentVolume: parseFloat(currentVolume.toFixed(2)),
                 delta: volumeDelta,
                 newVolume: parseFloat(newVolume.toFixed(2))
             });
+
             currentVolume = newVolume;
-            player.setVolume(currentVolume);
+
+            // Sync gain node and get the player volume
+            const playerVolume = syncGainWithVolume(currentVolume);
+            player.setVolume(playerVolume);
+
+            debug('Volume adjustment complete', {
+                playerVolume: parseFloat(playerVolume.toFixed(2)),
+                gainValue: parseFloat(gainNode.gain.value.toFixed(2))
+            });
         } else {
             debug('Warning: Player not found for volume adjustment');
         }
@@ -385,20 +417,20 @@
                             }
                         }
                     }
-                    if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
-                        if (Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 2) {
-                            let adjustment = Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER);
-                            adjustment = parseFloat(adjustment.toFixed(2));
-                            if (adjustment) {
-                                debug('Volume up adjustment', {
-                                    adjustment,
-                                    reason: 'Below min threshold'
-                                });
-                                adjustVolume(adjustment);
-                                lastVolumeAdjustment = Date.now();
-                            }
-                        }
-                    }
+                    // if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
+                    //     if (Math.max(...lufsBuffer) < MAX_DB_THRESHOLD - 2) {
+                    //         let adjustment = Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER);
+                    //         adjustment = parseFloat(adjustment.toFixed(2));
+                    //         if (adjustment) {
+                    //             debug('Volume up adjustment', {
+                    //                 adjustment,
+                    //                 reason: 'Below min threshold'
+                    //             });
+                    //             adjustVolume(adjustment);
+                    //             lastVolumeAdjustment = Date.now();
+                    //         }
+                    //     }
+                    // }
 
                     blockBufferIndex = 0;
                 }
@@ -411,11 +443,28 @@
     function handlePathChange() {
         debug('Page navigation detected');
         newPageCooldownActive = true;
+
+        // Reset gain node immediately to prevent audio boost bleeding
+        if (gainNode) {
+            gainNode.gain.value = 1.0;
+        }
+
         setTimeout(() => {
             debug('Navigation cooldown ended');
-            adjustVolume(0);
+            const player = getCurrentPlayer();
+            if (player) {
+                // Get the new page's initial volume
+                const newPageVolume = player.getVolume();
+                currentVolume = newPageVolume; // Update our volume tracker
+                debug('New page volume detected', {
+                    newPageVolume: parseFloat(newPageVolume.toFixed(2))
+                });
+
+                // Sync gain with the new volume
+                syncGainWithVolume(newPageVolume);
+            }
             newPageCooldownActive = false;
-        }, 2500);
+        }, 2000);
 
         blockBufferIndex = 0;
         lufsBuffer = Array(LUFS_WINDOW).fill(MAX_DB_THRESHOLD);
