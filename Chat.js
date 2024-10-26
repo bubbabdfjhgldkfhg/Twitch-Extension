@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.2
+// @version      1.3
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -15,7 +15,7 @@
 (function() {
     'use strict';
 
-    let fadeoutDuration = 20 * 1000;
+    let fadeoutDuration = 25 * 1000;
     let maxVisibleMessages = 15;
     let brightness = 1;
     let currentUser = getCookie('name');
