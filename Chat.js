@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.3
+// @version      1.4
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -24,12 +24,14 @@
     // Adjust brightness with "+" and "_"
     document.addEventListener('keydown', function(event) {
         const editor = document.querySelector('.chat-wysiwyg-input__editor');
-
         if (event.key === '`') {
             event.preventDefault();
             editor?.focus();
         } else if (event.key === 'Enter' && !event.shiftKey) {
             editor?.blur();
+        } else if (event.key === 'Escape' && document.activeElement === editor) {
+            event.preventDefault();
+            editor.blur();
         } else if (event.key === '_' && brightness > 0.2) {
             brightness = parseFloat((brightness - 0.1).toFixed(1));
             requestAnimationFrame(() => {
@@ -105,7 +107,7 @@
     }
 
     function getVisibleMessages() {
-        let chatMessages = observer.targetElement.querySelectorAll('.chat-line__message');
+        let chatMessages = observer.targetElement.querySelectorAll('.chat-line__message, .chat-line__status');
         return Array.from(chatMessages).filter(message => message.style.opacity !== '0' && message.style.display !== 'none');
     }
 
@@ -278,7 +280,7 @@
             return;
         }
 
-        if (username.includes(currentUser || streamer) || text.includes(currentUser)) return;
+        if (username?.includes(currentUser || streamer) || text?.includes(currentUser)) return;
 
         if (isSideConversation(message) || hasUnwantedEmote(message)) {
             message.style.display = 'none';
@@ -286,7 +288,7 @@
         }
 
         // Hide chat commands (Messages that start with '!')
-        if (text.startsWith('!')) {
+        if (text?.startsWith('!')) {
             message.style.display = 'none';
             return;
         }
@@ -305,10 +307,10 @@
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-                    if (node.classList.contains('chat-line__message')) {
+                    if (node.classList.contains('chat-line__message, .chat-line__status')) {
                         newMessageHandler(node);
                     }
-                    let message = node.querySelectorAll('.chat-line__message')
+                    let message = node.querySelectorAll('.chat-line__message, .chat-line__status')
                     if (message && message.length) {
                         newMessageHandler(message[0]);
                     }
@@ -338,7 +340,7 @@
     function chatShellFound(chatContainer) {
         // Set initial appearance for anything that already loaded
         chatWindowOpacity();
-        chatContainer.querySelectorAll('.chat-line__message').forEach(message => newMessageHandler(message));
+        chatContainer.querySelectorAll('.chat-line__message, .chat-line__status').forEach(message => newMessageHandler(message));
         let chatInput = chatContainer.querySelector('.chat-input');
         if (chatInput) applyChatInputStyles(chatInput);
         // Create long-term observer
