@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.0
+// @version      2.1
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -21,18 +21,21 @@
 
     let latencyTargetLow = 1.25; // Low latency default
     let latencyTargetNormal = 4.25; // Normal latency default
-    let unstableBufferSeparationLowLatency = 1.5; // Low latency default
+    let unstableBufferSeparationLowLatency = 1.25; // Low latency default
     let unstableBufferSeparationNormalLatency = 5; // Normal latency default
     let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
+    let MINIMUM_BUFFER = 0.65;
     let TARGET_LATENCY;
     let TARGET_LATENCY_TOLERANCE = 0.125; // Latency jitter to ignore
-    let SPEED_ADJUSTMENT_FACTOR = 7.5; // Lower number is more aggresive
-    let SPEED_MIN = 0.5;
+    let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.5;
+    let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT; // Lower number is more aggresive
+    let SPEED_MIN = 0.07;
     let SPEED_MAX = 1.25;
 
     let newPageStatsCooldownActive = false;
     let newPageStatsCooldownTimer = 2500;
 
+    let LATENCY_PROBLEM = false;
     let playbackRate = 1.0;
     let videoPlayer;
 
@@ -286,10 +289,24 @@
 
     function estimateLatency(latestLatency, latestBuffer) {
         if (!latestLatency || !latestBuffer || isNaN(latestLatency) || isNaN(latestBuffer)) return;
-        // If buffer is larger than latency OR buffer is 2 seconds below latency, use buffer size for speed adjustment
-        if (latestBuffer > latestLatency || latestBuffer < latestLatency - UNSTABLE_BUFFER_SEPARATION) {
+
+        if (latestBuffer > latestLatency) {
+            // Buffer is larger than latency, slight concern but might be more accurate than latency
+            LATENCY_PROBLEM = false;
+            return latestBuffer;
+        } else if (latestBuffer < latestLatency - UNSTABLE_BUFFER_SEPARATION && latestLatency < 30) {
+            // Buffer is too far below latency, doesn't work above 30 seconds.
+            LATENCY_PROBLEM = true;
+            SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
+            return latestBuffer;
+        } else if (latestBuffer < MINIMUM_BUFFER) {
+            // Buffer too low
+            LATENCY_PROBLEM = true;
+            SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
             return latestBuffer;
         } else {
+            LATENCY_PROBLEM = false;
+            SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
             return latestLatency;
         }
     }
@@ -332,7 +349,7 @@
         if (bufferData.latest > latencyData.latest) {
             latencyTextElement.node.style.color = 'orange';
             latencyTextElement.node.style.opacity = '.8';
-        } else if (bufferData.latest < .6 || bufferData.latest < latencyData.latest - UNSTABLE_BUFFER_SEPARATION) {
+        } else if (LATENCY_PROBLEM) {
             latencyTextElement.node.style.color = 'red';
             latencyTextElement.node.style.opacity = '1';
             temporarilyShowElement(screenElement.graph);
