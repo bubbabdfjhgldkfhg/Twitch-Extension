@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.4
+// @version      1.5
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -341,11 +341,35 @@
         // Set initial appearance for anything that already loaded
         chatWindowOpacity();
         chatContainer.querySelectorAll('.chat-line__message, .chat-line__status').forEach(message => newMessageHandler(message));
-        let chatInput = chatContainer.querySelector('.chat-input');
-        if (chatInput) applyChatInputStyles(chatInput);
         // Create long-term observer
         observer?.disconnect();
         observer = chatObserver(chatContainer);
         observer.targetElement = chatContainer;
+        // Setup chat input box behavior and appearance
+        let chatInput = chatContainer.querySelector('.chat-input');
+        if (chatInput) applyChatInputStyles(chatInput);
     }
+
+    // Probably better than constantly polling
+    function handlePageChange() {
+        // setTimeout(function() {
+        //     if (observer) observer.targetElement = null;
+        // }, 500)
+    }
+
+    // Enhance navigation handling by overriding history methods.
+    (function(history){
+        const overrideHistoryMethod = (methodName) => {
+            const original = history[methodName];
+            history[methodName] = function(state) {
+                const result = original.apply(this, arguments);
+                handlePageChange();
+                return result;
+            };
+        };
+        overrideHistoryMethod('pushState');
+        overrideHistoryMethod('replaceState');
+    })(window.history);
+    window.addEventListener('popstate', handlePageChange);
+
 })();
