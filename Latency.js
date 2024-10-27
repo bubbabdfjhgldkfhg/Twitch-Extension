@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.1
+// @version      2.2
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -24,7 +24,7 @@
     let unstableBufferSeparationLowLatency = 1.25; // Low latency default
     let unstableBufferSeparationNormalLatency = 5; // Normal latency default
     let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
-    let MINIMUM_BUFFER = 0.65;
+    let MINIMUM_BUFFER = 0.6;
     let TARGET_LATENCY;
     let TARGET_LATENCY_TOLERANCE = 0.125; // Latency jitter to ignore
     let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.5;
