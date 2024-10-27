@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Theater Mode Hotkey
-// @version      0.2
-// @description  Enable theater mode with 't'
+// @version      0.3
+// @description  Enable theater mode with 't' and modify 'f' fullscreen behavior
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Theater%20Mode%20Hotkey.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Theater%20Mode%20Hotkey.js
 // @author       Me
@@ -24,7 +24,20 @@
                 second: '2-digit',
                 fractionalSecondDigits: 3
             });
-            console.log(`[Theater Mode Debug ${timestamp}]:`, ...args);
+            console.log(`[Twitch Controls Debug ${timestamp}]:`, ...args);
+        }
+    }
+
+    // Function to handle window fullscreen
+    function toggleWindowFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                debug(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
         }
     }
 
@@ -61,7 +74,7 @@
         return reactRootNode;
     }
 
-    function enableTheatreMode() {
+    function enableControls() {
         let reactRootNode = findReactRootNode();
         if (!reactRootNode) {
             debug('ERROR: React root node not found');
@@ -69,12 +82,12 @@
         }
 
         const theatreModeComponent = findReactNode(reactRootNode, node =>
-                                                   node && typeof node.toggleTheatreMode === 'function'
-                                                  );
+            node && typeof node.toggleTheatreMode === 'function'
+        );
 
         if (theatreModeComponent) {
             debug('Theatre mode component found, setting up event listener');
-            document.addEventListener("keydown", async function(event) {
+            document.addEventListener("keydown", function(event) {
                 debug('Keydown event:', { key: event.key, metaKey: event.metaKey, target: event.target.tagName });
 
                 if (event.metaKey) {
@@ -87,7 +100,15 @@
                     return;
                 }
 
-                switch (event.key) {
+                switch (event.key.toLowerCase()) {
+                    case 'f':
+                        // Prevent default fullscreen behavior
+                        event.preventDefault();
+                        event.stopPropagation();
+                        debug('Toggling window fullscreen');
+                        toggleWindowFullscreen();
+                        break;
+
                     case 't':
                         if (cooldownActive) {
                             debug('Cooldown active, ignoring toggle');
@@ -103,7 +124,7 @@
                         theatreModeComponent.toggleTheatreMode();
                         break;
                 }
-            });
+            }, true);
         } else {
             debug('ERROR: Theatre mode component not found');
         }
@@ -111,10 +132,11 @@
 
     // Wait for the page to fully load
     window.addEventListener('load', () => {
-        debug('Page loaded, initializing theatre mode');
-        setTimeout(enableTheatreMode, 0);
+        debug('Page loaded, initializing controls');
+        setTimeout(enableControls, 0);
     });
 
+    // Handle navigation events
     (function(history){
         debug('Setting up history state handlers');
         const overrideHistoryMethod = (methodName) => {
@@ -122,7 +144,7 @@
             history[methodName] = function(state) {
                 debug(`History ${methodName} called`);
                 const result = original.apply(this, arguments);
-                enableTheatreMode();
+                enableControls();
                 return result;
             };
         };
@@ -132,6 +154,6 @@
 
     window.addEventListener('popstate', () => {
         debug('Popstate event triggered');
-        enableTheatreMode();
+        enableControls();
     });
 })();
