@@ -2,6 +2,8 @@
 // @name         Chat Toggle Hotkey
 // @version      0.1
 // @description  Toggle Twitch chat with 'r' key
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Chat%20Toggle%20Hotkey.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Chat%20Toggle%20Hotkey.js
 // @match        *://*.twitch.tv/*
 // @grant        none
 // ==/UserScript==
