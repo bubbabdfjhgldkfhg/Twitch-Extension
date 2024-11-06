@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.3
+// @version      2.4
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -15,25 +15,32 @@
 (function() {
     'use strict';
 
-    let MAX_DATA_POINTS = 90; // Data history length for the graph
-    let GRAPH_WIDTH = '210px';
+    let MAIN_POLLING_INTERVAL = 100; // Milliseconds
+    let DESIRED_HISTORY_LENGTH = 20; // Seconds
+    let MAX_DATA_POINTS = (DESIRED_HISTORY_LENGTH*1000) / MAIN_POLLING_INTERVAL;
+    MAX_DATA_POINTS = parseFloat(MAX_DATA_POINTS.toFixed(0));
+
+    let GRAPH_WIDTH = '200px';
     let GRAPH_HEIGHT = '40px';
+    let GRAPH_LINE_THICKNESS = 2.0;
+    let NUMBER_COLOR_OPACITY_TRANSITION_DURATION = 300; // ms
 
     let latencyTargetLow = 1.25; // Low latency default
     let latencyTargetNormal = 4.25; // Normal latency default
     let unstableBufferSeparationLowLatency = 1.5; // Low latency default
     let unstableBufferSeparationNormalLatency = 5; // Normal latency default
     let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
-    let MINIMUM_BUFFER = 0.6;
+    let MINIMUM_BUFFER = 0.5;
     let TARGET_LATENCY;
-    let TARGET_LATENCY_TOLERANCE = 0.125; // Latency jitter to ignore
-    let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.5;
-    let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT; // Lower number is more aggresive
+    let TARGET_LATENCY_MIN = 0.75;
+    let TARGET_LATENCY_TOLERANCE = 0.13; // Latency jitter to ignore
+    let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.5; // Lower number is more aggresive
+    let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
     let SPEED_MIN = 0.07;
     let SPEED_MAX = 1.25;
 
-    let newPageStatsCooldownActive = false;
     let newPageStatsCooldownTimer = 2500;
+    let newPageStatsCooldownActive = false;
 
     let LATENCY_PROBLEM = false;
     let playbackRate = 1.0;
@@ -73,16 +80,16 @@
         data: {
             labels: [],
             datasets: [
-                { label: 'Latency', borderColor: 'orange', borderWidth: 2, data: [], pointRadius: 0, yAxisID: 'latency' },
-                { label: 'Buffer Size', borderColor: 'red', borderWidth: 2, data: [], pointRadius: 0, yAxisID: 'latency' },
-                { label: 'FPS', borderColor: 'yellow', borderWidth: 2, data: [], pointRadius: 0, yAxisID: 'frames' },
-                { label: 'Bitrate', borderColor: 'white', borderWidth: 2, data: [], pointRadius: 0, yAxisID: 'bitrate' }
+                { label: 'Latency', borderColor: 'orange', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'latency' },
+                { label: 'Buffer Size', borderColor: 'red', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'latency' },
+                { label: 'FPS', borderColor: 'yellow', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'frames' },
+                { label: 'Bitrate', borderColor: 'white', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'bitrate' }
             ]
         },
         options: {
             animation: {
-                duration: 500,
-                x: { type: 'number', easing: 'linear', duration: 500 },
+                duration: MAIN_POLLING_INTERVAL,
+                x: { type: 'number', easing: 'linear', duration: MAIN_POLLING_INTERVAL },
                 y: { duration: 0 }
             },
             scales: {
@@ -96,6 +103,8 @@
     });
 
     function setSpeed(newRate) {
+        // return; // Test script without interfering with speed
+
         if (playbackRate == newRate) return;
         playbackRate = newRate;
         // console.log('playbackRate', playbackRate);
@@ -124,7 +133,7 @@
                 break;
             case ']':
                 event.preventDefault();
-                if (TARGET_LATENCY > 0.75) changeTargetLatency(-0.25);
+                if (TARGET_LATENCY > TARGET_LATENCY_MIN) changeTargetLatency(-0.25);
                 break;
         }
     });
@@ -192,7 +201,7 @@
         newElement.classList.add(className);
         newElement.setAttribute(
             'style',
-            `transition: color 0.5s, opacity 0.5s !important;
+            `transition: color ${NUMBER_COLOR_OPACITY_TRANSITION_DURATION}ms, opacity ${NUMBER_COLOR_OPACITY_TRANSITION_DURATION}ms !important;
              position: absolute;
              right: 0;
              top: ${topValue};
@@ -265,10 +274,18 @@
         chart.data.datasets[2].data.push(graphValues.latestFps);
         chart.data.datasets[3].data.push(graphValues.latestBitrate);
         chart.update();
+
+        // const zipped = chart.data.datasets[0].data.map((item, index) => [item, chart.data.datasets[1].data[index]]);
+        // console.log(zipped);
     }
 
     function isValidDataPoint(statObject) {
         return statObject.latest && !isNaN(statObject.latest) && statObject.latest != statObject.prev[1];
+    }
+
+    function twoDecimalPlaces(float) {
+        return parseFloat(float.toFixed(2));
+
     }
 
     function handleLatencyChange() {
@@ -281,16 +298,19 @@
 
     function handleBufferSizeChange() {
         if (!isValidDataPoint(bufferData)) return;
-        // Save the last few minutes of buffer values
-        bufferData.history.push(bufferData.latest);
+
+        bufferData.prev.push(bufferData.latest);
+        if (bufferData.prev.length > 2) bufferData.prev.shift();
         // Temporary solution to big spikes
-        if (bufferData.latest < (latencyData.latest + 10)) graphValues.smoothedBufferSize = bufferData.latest;
+        if (bufferData.latest < (latencyData.latest + 10)) {
+            graphValues.smoothedBufferSize = bufferData.latest;
+        }
     }
 
     function estimateLatency(latestLatency, latestBuffer) {
         if (!latestLatency || !latestBuffer || isNaN(latestLatency) || isNaN(latestBuffer)) return;
 
-        if (latestBuffer > latestLatency) {
+        if (latestBuffer > latestLatency + UNSTABLE_BUFFER_SEPARATION) {
             // Buffer is larger than latency, slight concern but might be more accurate than latency
             LATENCY_PROBLEM = false;
             return latestBuffer;
@@ -303,6 +323,9 @@
             // Buffer too low
             LATENCY_PROBLEM = true;
             SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
+
+            console.log('latestBuffer', latestBuffer);
+
             return latestBuffer;
         } else {
             LATENCY_PROBLEM = false;
@@ -346,7 +369,7 @@
     function setLatencyTextColor(latencyTextElement) {
         if (!latencyTextElement.node || !bufferData.latest || !latencyData.latest) return;
 
-        if (bufferData.latest > latencyData.latest) {
+        if (bufferData.latest > latencyData.latest + UNSTABLE_BUFFER_SEPARATION) {
             latencyTextElement.node.style.color = 'orange';
             latencyTextElement.node.style.opacity = '.8';
         } else if (LATENCY_PROBLEM) {
@@ -364,7 +387,7 @@
         TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
         UNSTABLE_BUFFER_SEPARATION = videoPlayer?.isLiveLowLatency() ? unstableBufferSeparationLowLatency : unstableBufferSeparationNormalLatency;
         latencyData.latest = videoPlayer?.getLiveLatency();
-        bufferData.latest = videoPlayer?.getBufferDuration();
+        bufferData.latest = twoDecimalPlaces(videoPlayer?.getBufferDuration());
         graphValues.latestBitrate = videoPlayer?.getVideoBitRate()/1000;
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
     }
@@ -391,10 +414,41 @@
         return reactRootNode;
     }
 
+    //     // DO NOT DELETE
+    //     function inspectVideoPlayer(player) {
+    //         if (!player) {
+    //             console.log('Video player not found');
+    //             return;
+    //         }
+
+    //         // Get all properties including methods
+    //         let properties = new Set();
+    //         let proto = Object.getPrototypeOf(player);
+
+    //         // Walk up the prototype chain
+    //         while (proto && proto !== Object.prototype) {
+    //             const props = Object.getOwnPropertyNames(proto)
+    //             .filter(prop => typeof player[prop] === 'function'); // Only get methods
+    //             props.forEach(prop => properties.add(prop));
+    //             proto = Object.getPrototypeOf(proto);
+    //         }
+
+    //         // Sort and log all available methods
+    //         console.log('Available video player methods:');
+    //         [...properties].sort().forEach(prop => {
+    //             try {
+    //                 console.log(`${prop}() - Type: ${typeof player[prop]}`);
+    //             } catch (e) {
+    //                 console.log(`${prop}() - Unable to access`);
+    //             }
+    //         });
+    //     }
+
     // Update graph & make sure table is open
     let pollingInterval = setInterval(async function() {
 
         if (newPageStatsCooldownActive) {
+            // console.log('newPageStatsCooldownActive');
             return;
         }
 
@@ -407,6 +461,12 @@
         //     proto = Object.getPrototypeOf(proto);
         // }
         // videoPlayer.getHTMLVideoElement().preservesPitch = false;
+
+        // DO NOT DELETE
+        // if (videoPlayer && !videoPlayer._methodsLogged) {
+        //     inspectVideoPlayer(videoPlayer);
+        //     videoPlayer._methodsLogged = true; // Only log once
+        // }
 
         screenElement.currentLatency.node = createLatencyTextElement(
             screenElement.currentLatency.className,
@@ -432,7 +492,7 @@
         appendGraph();
         updateGraph();
 
-    }, 500);
+    }, MAIN_POLLING_INTERVAL);
 
     // Enhance navigation handling by overriding history methods.
     (function(history){
