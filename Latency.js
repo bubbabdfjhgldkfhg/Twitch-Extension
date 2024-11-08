@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.4
+// @version      2.5
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -20,21 +20,22 @@
     let MAX_DATA_POINTS = (DESIRED_HISTORY_LENGTH*1000) / MAIN_POLLING_INTERVAL;
     MAX_DATA_POINTS = parseFloat(MAX_DATA_POINTS.toFixed(0));
 
-    let GRAPH_WIDTH = '200px';
+    let GRAPH_WIDTH = '210px';
     let GRAPH_HEIGHT = '40px';
     let GRAPH_LINE_THICKNESS = 2.0;
     let NUMBER_COLOR_OPACITY_TRANSITION_DURATION = 300; // ms
 
     let latencyTargetLow = 1.25; // Low latency default
     let latencyTargetNormal = 4.25; // Normal latency default
-    let unstableBufferSeparationLowLatency = 1.5; // Low latency default
+    let unstableBufferSeparationLowLatency = 2; // Low latency default
     let unstableBufferSeparationNormalLatency = 5; // Normal latency default
     let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
     let MINIMUM_BUFFER = 0.5;
     let TARGET_LATENCY;
     let TARGET_LATENCY_MIN = 0.75;
     let TARGET_LATENCY_TOLERANCE = 0.13; // Latency jitter to ignore
-    let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.5; // Lower number is more aggresive
+    let NUM_LATENCY_VALS_TO_AVG = 3; // Average together the previous x latencies
+    let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.2; // Lower number is more aggresive
     let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
     let SPEED_MIN = 0.07;
     let SPEED_MAX = 1.25;
@@ -43,6 +44,9 @@
     let newPageStatsCooldownActive = false;
 
     let LATENCY_PROBLEM = false;
+    let MAX_LATENCY_PROBLEMS = 7;
+    let LATENCY_PROBLEM_COUNTER = 0;
+
     let playbackRate = 1.0;
     let videoPlayer;
 
@@ -64,8 +68,8 @@
         }
     }
 
-    let latencyData = { latest: null, prev: [] };
-    let bufferData = { latest: null, prev: [], history: [] };
+    let latencyData = { latest: null, prev: null, history: [] };
+    let bufferData = { latest: null, prev: null, history: [] };
 
     const graphValues = { smoothedLatency: null, smoothedBufferSize: null, latestFps: null, latestBitrate: null };
 
@@ -275,32 +279,37 @@
         chart.data.datasets[3].data.push(graphValues.latestBitrate);
         chart.update();
 
+        // let latencyRange = Math.max(...chart.data.datasets[0].data) - Math.min(...chart.data.datasets[0].data);
+        // console.log('Latency Range', latencyRange.toFixed(2));
+
         // const zipped = chart.data.datasets[0].data.map((item, index) => [item, chart.data.datasets[1].data[index]]);
         // console.log(zipped);
     }
 
     function isValidDataPoint(statObject) {
-        return statObject.latest && !isNaN(statObject.latest) && statObject.latest != statObject.prev[1];
+        return statObject.latest && !isNaN(statObject.latest) && statObject.latest != statObject.prev;
     }
 
     function twoDecimalPlaces(float) {
         return parseFloat(float.toFixed(2));
-
     }
 
     function handleLatencyChange() {
         if (!isValidDataPoint(latencyData)) return;
-        // Smooth latency bounce by averaging latest 2 values
-        latencyData.prev.push(latencyData.latest);
-        if (latencyData.prev.length > 2) latencyData.prev.shift();
-        graphValues.smoothedLatency = (latencyData.prev[0] + latencyData.prev[1]) / 2;
+        // Smooth latency by averaging latest values
+        latencyData.prev = latencyData.latest;
+        latencyData.history.push(latencyData.latest);
+        if (latencyData.history.length > NUM_LATENCY_VALS_TO_AVG) latencyData.history.shift();
+        // console.log(latencyData.history);
+        // graphValues.smoothedLatency = (latencyData.prev[0] + latencyData.prev[1]) / 2;
+        graphValues.smoothedLatency = latencyData.history.reduce((sum, value) => sum + value, 0) / latencyData.history.length;
     }
 
     function handleBufferSizeChange() {
         if (!isValidDataPoint(bufferData)) return;
 
-        bufferData.prev.push(bufferData.latest);
-        if (bufferData.prev.length > 2) bufferData.prev.shift();
+        bufferData.prev = bufferData.latest;
+        // if (bufferData.prev.length > 2) bufferData.prev.shift();
         // Temporary solution to big spikes
         if (bufferData.latest < (latencyData.latest + 10)) {
             graphValues.smoothedBufferSize = bufferData.latest;
@@ -313,22 +322,32 @@
         if (latestBuffer > latestLatency + UNSTABLE_BUFFER_SEPARATION) {
             // Buffer is larger than latency, slight concern but might be more accurate than latency
             LATENCY_PROBLEM = false;
+            LATENCY_PROBLEM_COUNTER = 0;
             return latestBuffer;
         } else if (latestBuffer < latestLatency - UNSTABLE_BUFFER_SEPARATION && latestLatency < 30) {
             // Buffer is too far below latency, doesn't work above 30 seconds.
             LATENCY_PROBLEM = true;
+            LATENCY_PROBLEM_COUNTER = 0; // We don't want pause/play in this scenario
             SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
             return latestBuffer;
         } else if (latestBuffer < MINIMUM_BUFFER) {
             // Buffer too low
             LATENCY_PROBLEM = true;
-            SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
+            LATENCY_PROBLEM_COUNTER += 1;
+            console.log('LATENCY_PROBLEM_COUNTER', LATENCY_PROBLEM_COUNTER);
 
-            console.log('latestBuffer', latestBuffer);
+            if (LATENCY_PROBLEM_COUNTER < MAX_LATENCY_PROBLEMS) {
+                SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
+            } else {
+                videoPlayer?.pause();
+                videoPlayer?.play();
+                LATENCY_PROBLEM_COUNTER = 0;
+            }
 
             return latestBuffer;
         } else {
             LATENCY_PROBLEM = false;
+            LATENCY_PROBLEM_COUNTER = 0;
             SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
             return latestLatency;
         }
@@ -357,9 +376,10 @@
         setSpeed(1);
         // First few latency values on page load can't be trusted
         latencyData.latest = null;
+        latencyData.history = [];
         bufferData.latest = null;
-        latencyData.prev = [];
-        bufferData.prev = [];
+        latencyData.prev = null;
+        bufferData.prev = null;
         graphValues.smoothedLatency = null;
         graphValues.smoothedBufferSize = null;
         // Assume a new video player instance was created
@@ -386,7 +406,8 @@
     function getLatestVideoStats() {
         TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
         UNSTABLE_BUFFER_SEPARATION = videoPlayer?.isLiveLowLatency() ? unstableBufferSeparationLowLatency : unstableBufferSeparationNormalLatency;
-        latencyData.latest = videoPlayer?.getLiveLatency();
+        latencyData.latest = twoDecimalPlaces(videoPlayer?.getLiveLatency());
+        // graphValues.latestFps = latencyData.latest;
         bufferData.latest = twoDecimalPlaces(videoPlayer?.getBufferDuration());
         graphValues.latestBitrate = videoPlayer?.getVideoBitRate()/1000;
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
