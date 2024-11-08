@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume 2
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.3
+// @version      0.4
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%202.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%202.js
@@ -184,8 +184,12 @@
             currentVolume = newVolume;
 
             // Sync gain node and get the player volume
-            const playerVolume = syncGainWithVolume(currentVolume);
+            let playerVolume = syncGainWithVolume(currentVolume);
+            playerVolume = parseFloat(playerVolume.toFixed(2));
+
             player.setVolume(playerVolume);
+            // Update the twitch volume tracker so the page doesnt get confused
+            localStorage.setItem('volume', playerVolume);
 
             debug('Volume adjustment complete', {
                 playerVolume: parseFloat(playerVolume.toFixed(2)),
