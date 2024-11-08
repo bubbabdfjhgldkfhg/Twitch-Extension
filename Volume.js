@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.0
+// @version      1.1
 // @description  Automatically set channel specific volume on Twitch
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
@@ -34,6 +34,7 @@
     let observer;
     let checkSliderInterval;
     let isAdjustingVolume = false; // Flag to prevent detecting our own updates
+    let handlingPathChange = false // Flag to prevent reacting to the same path change twice
 
     // Function to get the React internal instance from a DOM element
     function getReactInstance(element) {
@@ -108,10 +109,11 @@
         const player = getCurrentPlayer();
         if (player) {
             let currentVolume = player.getVolume();
-            debug('Current volume:', parseFloat(currentVolume.toFixed(2)));
+            currentVolume = parseFloat(currentVolume.toFixed(2));
+            debug('Current volume:', currentVolume);
             if (currentVolume != targetVolume) {
                 isAdjustingVolume = true;
-                debug('Setting new volume', parseFloat(targetVolume.toFixed(2)));
+                debug('Setting new volume', targetVolume);
                 player.setVolume(targetVolume);
                 // Set global volume so the page doesnt get confused
                 localStorage.setItem('volume', targetVolume);
@@ -129,6 +131,8 @@
 
     // Local storage handling for volume settings
     function saveVolume(slider, pathname) {
+        if (pathname == '/') return;
+
         const volume = parseFloat(slider.value);
         debug('Saving volume for path:', pathname, 'Volume:', volume);
         if (volume != defaultVolume) {
@@ -146,8 +150,9 @@
     }
 
     function handlePathChange() {
-        debug('Path change detected');
+        debug('Running handlePathChange in 300ms');
         // Added a delay to see if it helps w/ crashes
+        // Without the delay, this might try to adjust volume before the player loads
         setTimeout(() => {
             const pathname = window.location.pathname;
             debug('Handling path change for:', pathname);
@@ -180,6 +185,7 @@
         let slider = document.querySelector('[data-a-target="player-volume-slider"]')
         if (slider && observer?.targetElement != slider) {
             debug('New slider element detected');
+            debug('Calling handlePathChange');
             handlePathChange();
             observer?.disconnect();
             debug('Previous observer disconnected');
