@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.5
+// @version      2.6
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -32,6 +32,7 @@
     let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
     let MINIMUM_BUFFER = 0.5;
     let TARGET_LATENCY;
+    let LATENCY_SETTINGS = {}; // Dictionary to store pathname and target latency
     let TARGET_LATENCY_MIN = 0.75;
     let TARGET_LATENCY_TOLERANCE = 0.13; // Latency jitter to ignore
     let NUM_LATENCY_VALS_TO_AVG = 3; // Average together the previous x latencies
@@ -44,8 +45,10 @@
     let newPageStatsCooldownActive = false;
 
     let LATENCY_PROBLEM = false;
-    let MAX_LATENCY_PROBLEMS = 7;
+    let MAX_LATENCY_PROBLEMS = 5;
     let LATENCY_PROBLEM_COUNTER = 0;
+    let PAUSE_PLAY_COOLDOWN = false;
+    let PAUSE_PLAY_COOLDOWN_TIMER = 1500;
 
     let playbackRate = 1.0;
     let videoPlayer;
@@ -146,14 +149,21 @@
         if (isNaN(delta) || !delta || delta == -Infinity || isNaN(TARGET_LATENCY) || !TARGET_LATENCY) {
             return;
         }
-        // Sketchy way to store latency preferences because they keep getting reset when the video stats randomly flashes the latency to Normal
-        if (TARGET_LATENCY === latencyTargetLow) {
-            latencyTargetLow += delta;
-            TARGET_LATENCY = latencyTargetLow;
-        } else {
-            latencyTargetNormal += delta;
-            TARGET_LATENCY = latencyTargetNormal;
-        }
+        // // Adjust the target latency
+        // if (TARGET_LATENCY === latencyTargetLow) {
+        //     latencyTargetLow += delta;
+        //     TARGET_LATENCY = latencyTargetLow;
+        // } else {
+        //     latencyTargetNormal += delta;
+        //     TARGET_LATENCY = latencyTargetNormal;
+        // }
+
+        TARGET_LATENCY += delta;
+
+        // Save the pathname and TARGET_LATENCY to the dictionary
+        let pathname = window.location.pathname;
+        LATENCY_SETTINGS[pathname] = TARGET_LATENCY;
+        console.log(LATENCY_SETTINGS);
 
         updateLatencyTextElement('target-latency-text', TARGET_LATENCY);
         temporarilyShowElement(screenElement.targetLatency);
@@ -301,7 +311,6 @@
         latencyData.history.push(latencyData.latest);
         if (latencyData.history.length > NUM_LATENCY_VALS_TO_AVG) latencyData.history.shift();
         // console.log(latencyData.history);
-        // graphValues.smoothedLatency = (latencyData.prev[0] + latencyData.prev[1]) / 2;
         graphValues.smoothedLatency = latencyData.history.reduce((sum, value) => sum + value, 0) / latencyData.history.length;
     }
 
@@ -309,7 +318,6 @@
         if (!isValidDataPoint(bufferData)) return;
 
         bufferData.prev = bufferData.latest;
-        // if (bufferData.prev.length > 2) bufferData.prev.shift();
         // Temporary solution to big spikes
         if (bufferData.latest < (latencyData.latest + 10)) {
             graphValues.smoothedBufferSize = bufferData.latest;
@@ -328,23 +336,31 @@
             // Buffer is too far below latency, doesn't work above 30 seconds.
             LATENCY_PROBLEM = true;
             LATENCY_PROBLEM_COUNTER = 0; // We don't want pause/play in this scenario
-            SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
+            // SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
             return latestBuffer;
+
         } else if (latestBuffer < MINIMUM_BUFFER) {
             // Buffer too low
-            LATENCY_PROBLEM = true;
             LATENCY_PROBLEM_COUNTER += 1;
             console.log('LATENCY_PROBLEM_COUNTER', LATENCY_PROBLEM_COUNTER);
-
+            if (LATENCY_PROBLEM_COUNTER > 1) { // Doesn't really matter if it only happens once
+                LATENCY_PROBLEM = true;
+            }
             if (LATENCY_PROBLEM_COUNTER < MAX_LATENCY_PROBLEMS) {
                 SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
             } else {
                 videoPlayer?.pause();
                 videoPlayer?.play();
+                changeTargetLatency(0.25)
+
+                PAUSE_PLAY_COOLDOWN = true;
+                setTimeout(() => {
+                    PAUSE_PLAY_COOLDOWN = false;
+                }, PAUSE_PLAY_COOLDOWN_TIMER);
                 LATENCY_PROBLEM_COUNTER = 0;
             }
-
             return latestBuffer;
+
         } else {
             LATENCY_PROBLEM = false;
             LATENCY_PROBLEM_COUNTER = 0;
@@ -404,7 +420,12 @@
     }
 
     function getLatestVideoStats() {
-        TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
+        let pathname = window.location.pathname;
+        if (LATENCY_SETTINGS[pathname]) {
+            TARGET_LATENCY = LATENCY_SETTINGS[pathname];
+        } else {
+            TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
+        }
         UNSTABLE_BUFFER_SEPARATION = videoPlayer?.isLiveLowLatency() ? unstableBufferSeparationLowLatency : unstableBufferSeparationNormalLatency;
         latencyData.latest = twoDecimalPlaces(videoPlayer?.getLiveLatency());
         // graphValues.latestFps = latencyData.latest;
@@ -470,6 +491,10 @@
 
         if (newPageStatsCooldownActive) {
             // console.log('newPageStatsCooldownActive');
+            return;
+        }
+        if (PAUSE_PLAY_COOLDOWN) {
+            // console.log('PAUSE_PLAY_COOLDOWN');
             return;
         }
 
