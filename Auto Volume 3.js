@@ -12,7 +12,7 @@
 (function() {
     'use strict';
 
-    const DEBUG_MODE = true;
+    const DEBUG_MODE = false;
     function debug(...args) {
         if (DEBUG_MODE) {
             const now = new Date();
