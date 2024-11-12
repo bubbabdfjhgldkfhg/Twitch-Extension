@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.6
+// @version      2.7
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -350,7 +350,7 @@
                 SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
             } else {
                 videoPlayer?.pause();
-                videoPlayer?.play();
+                setTimeout(() => {videoPlayer?.play()}, 10);
                 changeTargetLatency(0.25)
 
                 PAUSE_PLAY_COOLDOWN = true;
