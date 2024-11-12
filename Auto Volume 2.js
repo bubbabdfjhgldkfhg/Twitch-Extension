@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume 2
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.5
+// @version      0.6
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%202.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%202.js
@@ -37,16 +37,16 @@
 
     const SAMPLE_RATE = 50;
     const BLOCK_SIZE = 4096;
-    const LUFS_WINDOW = 1500;
-    const PLOT_POINTS = 1500;
+    const LUFS_WINDOW = 800;
+    const PLOT_POINTS = 800;
 
     let lastVolumeAdjustment = 0;
-    const VOLUME_CHANGER_MODIFIER = 20; // More sensitive adjustment for headphones
-    const VOLUME_DOWN_COOLDOWN = 250; // Faster response for sudden loud sounds
+    const VOLUME_CHANGER_MODIFIER = 25; // More sensitive adjustment for headphones
+    const VOLUME_DOWN_COOLDOWN = 500; // Faster response for sudden loud sounds
     const VOLUME_UP_COOLDOWN = 5000; // Quicker recovery for quiet sections
     const MAX_DB_THRESHOLD = -25; // Higher threshold for headphone listening
     const MIN_DB_THRESHOLD = -32; // Higher minimum for better audibility
-    const MAX_VOLUME = .99;
+    const MAX_VOLUME = 1;
     const MIN_VOLUME = 0.01;
     const VOLUME_BOOST_THRESHOLD = 1.0;
 
@@ -409,7 +409,7 @@
 
                     if (Date.now() - lastVolumeAdjustment > VOLUME_DOWN_COOLDOWN) {
                         if (shortTermLUFS > MAX_DB_THRESHOLD) {
-                            let adjustment = Math.max(-0.1, (MAX_DB_THRESHOLD-shortTermLUFS)/VOLUME_CHANGER_MODIFIER);
+                            let adjustment = Math.max(-0.05, (MAX_DB_THRESHOLD-shortTermLUFS)/VOLUME_CHANGER_MODIFIER);
                             adjustment = parseFloat(adjustment.toFixed(2));
                             if (adjustment) {
                                 debug('Volume down adjustment', {
@@ -422,8 +422,8 @@
                         }
                     }
                     if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
-                        if (Math.max(...lufsBuffer) < MIN_DB_THRESHOLD) {
-                            let adjustment = Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER);
+                        if (Math.max(...plotData) < MIN_DB_THRESHOLD) {
+                            let adjustment = Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...plotData))/VOLUME_CHANGER_MODIFIER);
                             adjustment = parseFloat(adjustment.toFixed(2));
                             if (adjustment) {
                                 debug('Volume up adjustment', {
