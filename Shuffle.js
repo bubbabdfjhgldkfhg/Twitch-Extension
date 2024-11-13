@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.8
+// @version      0.9
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -143,9 +143,19 @@ const svgPaths = {
             // console.log('Back button on cooldown');
             return;
         }
-        window.history.back();
-        newChannelCooldown();
-        channelRotationTimer('disable');
+
+        if (window.history.length <= 1) {
+            console.log('No previous page in history');
+            return;
+        }
+
+        try {
+            window.history.back();
+            newChannelCooldown();
+            channelRotationTimer('disable');
+        } catch (error) {
+            console.error('Navigation failed:', error);
+        }
     }
 
     function clickRandomChannel() {
@@ -191,7 +201,25 @@ const svgPaths = {
             similarChannelClickCount++;
         } else similarChannelClickCount = 0; // Reset if a baseline channel is clicked
 
-        console.log(`${snoozedList.length} snoozed\nLast ${lastClickedHrefs.length} channels:\n\n${lastClickedHrefs.join("\n")}`);
+        // Build lastClickedFollowed and lastClickedNotFollowed lists for the log
+        let lastClickedFollowed = lastClickedHrefs.filter(
+            href => Array.from(followedChannels).some(channel => href === channel.getAttribute('href'))
+        );
+        let lastClickedNotFollowed = lastClickedHrefs.filter(
+            href => !lastClickedFollowed.includes(href)
+        );
+
+        let logMessage = ``;
+        if (snoozedList.length) {
+            logMessage += `${snoozedList.length} snoozed\n\n`;
+        }
+        if (lastClickedFollowed.length) {
+            logMessage += `Followed:\n${lastClickedFollowed.join("\n")}\n\n`;
+        }
+        if (lastClickedNotFollowed.length) {
+            logMessage += `Not followed:\n${lastClickedNotFollowed.join("\n")}`;
+        }
+        console.log(logMessage);
 
         // Click the new channel and reset all timers
         newChannelCooldown();
