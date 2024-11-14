@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.7
+// @version      2.8
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -28,7 +28,7 @@
     let latencyTargetLow = 1.25; // Low latency default
     let latencyTargetNormal = 4.25; // Normal latency default
     let unstableBufferSeparationLowLatency = 2; // Low latency default
-    let unstableBufferSeparationNormalLatency = 5; // Normal latency default
+    let unstableBufferSeparationNormalLatency = 10; // Normal latency default
     let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
     let MINIMUM_BUFFER = 0.5;
     let TARGET_LATENCY;
@@ -48,7 +48,7 @@
     let MAX_LATENCY_PROBLEMS = 5;
     let LATENCY_PROBLEM_COUNTER = 0;
     let PAUSE_PLAY_COOLDOWN = false;
-    let PAUSE_PLAY_COOLDOWN_TIMER = 1500;
+    let PAUSE_PLAY_COOLDOWN_TIMER = 2000;
 
     let playbackRate = 1.0;
     let videoPlayer;
@@ -350,7 +350,7 @@
                 SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
             } else {
                 videoPlayer?.pause();
-                setTimeout(() => {videoPlayer?.play()}, 10);
+                setTimeout(() => {videoPlayer?.play()}, 50);
                 changeTargetLatency(0.25)
 
                 PAUSE_PLAY_COOLDOWN = true;
