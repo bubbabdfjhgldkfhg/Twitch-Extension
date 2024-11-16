@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.5
+// @version      1.6
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -215,6 +215,7 @@
         let username = usernameElement?.textContent;
         let textElement = message.querySelector('.text-fragment');
         let text = textElement ? textElement.textContent : '';
+        let linkElement = message.querySelector('.link-fragment');
 
         // Function to get the React internal instance from a DOM element
         function getReactInstance(element) {
@@ -277,6 +278,13 @@
         if (message.querySelector('.live-message-separator-line__hr') ||
             message.querySelector('.chat-line__message--cheer-amount')) {
             message.style.setProperty('display', 'none', 'important');
+            return;
+        }
+
+        // Hide streamer chatbots
+        if (username?.toLowerCase().includes(streamer?.toLowerCase()) && linkElement) {
+            console.log('Hid streamer bot message', linkElement);
+            message.style.display = 'none';
             return;
         }
 
