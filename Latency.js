@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.8
+// @version      2.9
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -48,7 +48,7 @@
     let MAX_LATENCY_PROBLEMS = 5;
     let LATENCY_PROBLEM_COUNTER = 0;
     let PAUSE_PLAY_COOLDOWN = false;
-    let PAUSE_PLAY_COOLDOWN_TIMER = 2000;
+    let PAUSE_PLAY_COOLDOWN_TIMER = 3000;
 
     let playbackRate = 1.0;
     let videoPlayer;
@@ -358,6 +358,9 @@
                     PAUSE_PLAY_COOLDOWN = false;
                 }, PAUSE_PLAY_COOLDOWN_TIMER);
                 LATENCY_PROBLEM_COUNTER = 0;
+
+                // Return a number that doesnt mess with the speed.
+                return TARGET_LATENCY;
             }
             return latestBuffer;
 
@@ -456,35 +459,35 @@
         return reactRootNode;
     }
 
-    //     // DO NOT DELETE
-    //     function inspectVideoPlayer(player) {
-    //         if (!player) {
-    //             console.log('Video player not found');
-    //             return;
-    //         }
+//         // DO NOT DELETE
+//         function inspectVideoPlayer(player) {
+//             if (!player) {
+//                 console.log('Video player not found');
+//                 return;
+//             }
 
-    //         // Get all properties including methods
-    //         let properties = new Set();
-    //         let proto = Object.getPrototypeOf(player);
+//             // Get all properties including methods
+//             let properties = new Set();
+//             let proto = Object.getPrototypeOf(player);
 
-    //         // Walk up the prototype chain
-    //         while (proto && proto !== Object.prototype) {
-    //             const props = Object.getOwnPropertyNames(proto)
-    //             .filter(prop => typeof player[prop] === 'function'); // Only get methods
-    //             props.forEach(prop => properties.add(prop));
-    //             proto = Object.getPrototypeOf(proto);
-    //         }
+//             // Walk up the prototype chain
+//             while (proto && proto !== Object.prototype) {
+//                 const props = Object.getOwnPropertyNames(proto)
+//                 .filter(prop => typeof player[prop] === 'function'); // Only get methods
+//                 props.forEach(prop => properties.add(prop));
+//                 proto = Object.getPrototypeOf(proto);
+//             }
 
-    //         // Sort and log all available methods
-    //         console.log('Available video player methods:');
-    //         [...properties].sort().forEach(prop => {
-    //             try {
-    //                 console.log(`${prop}() - Type: ${typeof player[prop]}`);
-    //             } catch (e) {
-    //                 console.log(`${prop}() - Unable to access`);
-    //             }
-    //         });
-    //     }
+//             // Sort and log all available methods
+//             console.log('Available video player methods:');
+//             [...properties].sort().forEach(prop => {
+//                 try {
+//                     console.log(`${prop}() - Type: ${typeof player[prop]}`);
+//                 } catch (e) {
+//                     console.log(`${prop}() - Unable to access`);
+//                 }
+//             });
+//         }
 
     // Update graph & make sure table is open
     let pollingInterval = setInterval(async function() {
@@ -508,7 +511,7 @@
         // }
         // videoPlayer.getHTMLVideoElement().preservesPitch = false;
 
-        // DO NOT DELETE
+        // // DO NOT DELETE
         // if (videoPlayer && !videoPlayer._methodsLogged) {
         //     inspectVideoPlayer(videoPlayer);
         //     videoPlayer._methodsLogged = true; // Only log once
