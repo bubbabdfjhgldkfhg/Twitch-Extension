@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.1
+// @version      3.2
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -49,18 +49,21 @@
     let MAX_LATENCY_PROBLEMS = 3;
     let LAST_LATENCY_PROBLEM;
     let LATENCY_PROBLEM_COOLDOWN = 120000; // 2 minutes in milliseconds
+    let SEEK_COOLDOWN = false;
 
-    let PAUSE_PLAY_COOLDOWN = false;
-    let PAUSE_PLAY_COOLDOWN_TIMER = 3000;
+    // let PAUSE_PLAY_COOLDOWN = false;
+    // let PAUSE_PLAY_COOLDOWN_TIMER = 3000;
 
     let BUFFER_COUNT = 0;
     let MAX_BUFFER_COUNT = 10;
+    let BUFFER_STATE;
+
+    let READY_COUNT = 0;
+    let MAX_READY_COUNT = 10;
 
     let playbackRate = 1.0;
     let videoPlayer;
     let PLAYER_STATE;
-
-
 
     let screenElement = {
         videoContainer: { node: null, className: 'video-player__overlay' },
@@ -326,8 +329,6 @@
             LAST_LATENCY_PROBLEM = now;
         }
 
-        // console.log(now - LAST_LATENCY_PROBLEM, '/', LATENCY_PROBLEM_COOLDOWN);
-
         if (latestBuffer > latestLatency + UNSTABLE_BUFFER_SEPARATION) {
             // Buffer is larger than latency, slight concern but might be more accurate than latency
             LATENCY_PROBLEM = false;
@@ -345,10 +346,24 @@
             LATENCY_PROBLEM_COUNTER += 1;
             LAST_LATENCY_PROBLEM = now;
 
-            if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS) {
+            if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && !SEEK_COOLDOWN) {
                 // Go back a couple seconds to avoid buffering and raise target latency
-                videoPlayer.seekTo(videoPlayer.getPosition() - 1.5);
+                videoPlayer?.seekTo(videoPlayer?.getPosition() - 1.5);
+                console.log('Seeking backwards');
                 changeTargetLatency(0.25)
+
+                // SEEK_COOLDOWN can only be reset if BUFFER_STATE changes to Filling so we don't get caught in a loop.
+                SEEK_COOLDOWN = true;
+                LATENCY_PROBLEM = true;
+                LATENCY_PROBLEM_COUNTER = 0;
+                // Return a number that doesnt mess with the speed.
+                return TARGET_LATENCY;
+
+            } else if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && SEEK_COOLDOWN) {
+                // We already tried seeking backwards and buffer issue persists
+                console.log('Buffer still draining: PAUSE/PLAY');
+                videoPlayer?.pause();
+                videoPlayer?.play();
 
                 LATENCY_PROBLEM = true;
                 LATENCY_PROBLEM_COUNTER = 0;
@@ -427,6 +442,14 @@
         bufferData.latest = twoDecimalPlaces(videoPlayer?.getBufferDuration());
         graphValues.latestBitrate = videoPlayer?.getVideoBitRate()/1000;
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
+
+        if ((videoPlayer?.getBuffered().end - videoPlayer?.getBufferedRanges().video[0].end) > 0) {
+            BUFFER_STATE = 'Filling';
+            SEEK_COOLDOWN = false;
+        } else {
+            BUFFER_STATE ='Draining';
+        }
+        // console.log(BUFFER_STATE);
     }
 
     function findReactNode(root, constraint) {
@@ -490,7 +513,7 @@
         if (videoPlayer?.getState() == 'Buffering') {
             BUFFER_COUNT += 1;
             if (BUFFER_COUNT >= MAX_BUFFER_COUNT) {
-                console.log('Buffering too long: PLAY/PAUSE');
+                console.log('Buffering too long: PAUSE/PLAY');
                 videoPlayer?.pause();
                 videoPlayer?.play();
                 BUFFER_COUNT = 0;
@@ -498,7 +521,20 @@
             }
         } else {
             BUFFER_COUNT = 0;
-            return false;
+        }
+
+        // Sometimes PAUSE/PLAY will cause the player to get stuck in Ready state.
+        if (videoPlayer?.getState() == 'Ready') {
+            READY_COUNT += 1;
+            if (READY_COUNT >= MAX_READY_COUNT) {
+                console.log('Ready too long: PAUSE/PLAY');
+                videoPlayer?.pause();
+                videoPlayer?.play();
+                READY_COUNT = 0;
+                return true;
+            }
+        } else {
+            READY_COUNT = 0;
         }
     }
 
@@ -506,13 +542,13 @@
     let pollingInterval = setInterval(async function() {
 
         if (newPageStatsCooldownActive) {
-            // console.log('newPageStatsCooldownActive');
             return;
         }
-        if (PAUSE_PLAY_COOLDOWN) {
-            // console.log('PAUSE_PLAY_COOLDOWN');
-            return;
-        }
+
+        // We can't use this cause stuckBuffering() won't run.
+        // if (PAUSE_PLAY_COOLDOWN) {
+        //     return;
+        // }
 
         videoPlayer = videoPlayer ?? findReactNode(findReactRootNode(), node =>
                                                    node.setPlayerActive && node.props && node.props.mediaPlayerInstance)?.props.mediaPlayerInstance;
