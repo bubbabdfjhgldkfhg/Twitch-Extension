@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.0
+// @version      3.1
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -321,12 +321,11 @@
 
         let now = Date.now();
         // Lower latency if last problem hasn't happened in a while
-        if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN) {
+        if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN && TARGET_LATENCY > 1) {
             changeTargetLatency(-0.25)
             LAST_LATENCY_PROBLEM = now;
         }
 
-        // console.log(now, LAST_LATENCY_PROBLEM);
         // console.log(now - LAST_LATENCY_PROBLEM, '/', LATENCY_PROBLEM_COOLDOWN);
 
         if (latestBuffer > latestLatency + UNSTABLE_BUFFER_SEPARATION) {
@@ -339,21 +338,19 @@
             LATENCY_PROBLEM = true;
             LAST_LATENCY_PROBLEM = now;
             LATENCY_PROBLEM_COUNTER = 0;
-            // Probably don't need this cause we're already returning latestBuffer.
-            // SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
             return latestBuffer;
 
         } else if (latestBuffer < MINIMUM_BUFFER) {
             // Buffer too low
             LATENCY_PROBLEM_COUNTER += 1;
+            LAST_LATENCY_PROBLEM = now;
 
             if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS) {
                 // Go back a couple seconds to avoid buffering and raise target latency
-                videoPlayer.seekTo(videoPlayer.getPosition() - 2);
+                videoPlayer.seekTo(videoPlayer.getPosition() - 1.5);
                 changeTargetLatency(0.25)
 
                 LATENCY_PROBLEM = true;
-                LAST_LATENCY_PROBLEM = now;
                 LATENCY_PROBLEM_COUNTER = 0;
                 // Return a number that doesnt mess with the speed.
                 return TARGET_LATENCY;
@@ -363,7 +360,6 @@
         } else {
             LATENCY_PROBLEM = false;
             LATENCY_PROBLEM_COUNTER = 0;
-            SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
             return latestLatency;
         }
     }
