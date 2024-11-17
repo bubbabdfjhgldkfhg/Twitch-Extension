@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.6
+// @version      1.7
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -283,7 +283,7 @@
 
         // Hide streamer chatbots
         if (username?.toLowerCase().includes(streamer?.toLowerCase()) && linkElement) {
-            console.log('Hid streamer bot message', linkElement);
+            // console.log('Hid streamer bot message', linkElement);
             message.style.display = 'none';
             return;
         }
