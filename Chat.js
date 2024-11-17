@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.7
+// @version      1.8
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -85,8 +85,6 @@
         chatInputContainer.style.transition = 'opacity .25s';
 
         // Add event listeners for focus and hover to adjust opacity
-        // chatInputContainer.addEventListener('mouseenter', show);
-        // chatInputContainer.addEventListener('mouseleave', hide);
         chatInputContainer.addEventListener('focusin', show);
         chatInputContainer.addEventListener('focusout', hide);
     }
@@ -179,6 +177,16 @@
     function hasUnwantedEmote(message) {
         // Under construction
         return;
+    }
+
+    function hasCyrillic(str) {
+        if (typeof str !== 'string') {
+            throw new TypeError('Input must be a string');
+        }
+
+        // Regex pattern for Cyrillic characters using Unicode ranges
+        const cyrillicPattern = /[\u0400-\u04FF\u0500-\u052F\u2DE0-\u2DFF\uA640-\uA69F\u1C80-\u1C8F]/;
+        return cyrillicPattern.test(str);
     }
 
     async function hideDuplicateEmotes(message) {
@@ -292,6 +300,12 @@
 
         if (isSideConversation(message) || hasUnwantedEmote(message)) {
             message.style.display = 'none';
+            return;
+        }
+
+        if (hasCyrillic(text)) {
+            message.style.display = 'none';
+            console.log('Removing cyrillic:', text);
             return;
         }
 
