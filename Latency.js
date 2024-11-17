@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.9
+// @version      3.0
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -45,13 +45,22 @@
     let newPageStatsCooldownActive = false;
 
     let LATENCY_PROBLEM = false;
-    let MAX_LATENCY_PROBLEMS = 5;
     let LATENCY_PROBLEM_COUNTER = 0;
+    let MAX_LATENCY_PROBLEMS = 3;
+    let LAST_LATENCY_PROBLEM;
+    let LATENCY_PROBLEM_COOLDOWN = 120000; // 2 minutes in milliseconds
+
     let PAUSE_PLAY_COOLDOWN = false;
     let PAUSE_PLAY_COOLDOWN_TIMER = 3000;
 
+    let BUFFER_COUNT = 0;
+    let MAX_BUFFER_COUNT = 10;
+
     let playbackRate = 1.0;
     let videoPlayer;
+    let PLAYER_STATE;
+
+
 
     let screenElement = {
         videoContainer: { node: null, className: 'video-player__overlay' },
@@ -149,24 +158,13 @@
         if (isNaN(delta) || !delta || delta == -Infinity || isNaN(TARGET_LATENCY) || !TARGET_LATENCY) {
             return;
         }
-        // // Adjust the target latency
-        // if (TARGET_LATENCY === latencyTargetLow) {
-        //     latencyTargetLow += delta;
-        //     TARGET_LATENCY = latencyTargetLow;
-        // } else {
-        //     latencyTargetNormal += delta;
-        //     TARGET_LATENCY = latencyTargetNormal;
-        // }
-
         TARGET_LATENCY += delta;
-
         // Save the pathname and TARGET_LATENCY to the dictionary
         let pathname = window.location.pathname;
         LATENCY_SETTINGS[pathname] = TARGET_LATENCY;
-        console.log(LATENCY_SETTINGS);
-
         updateLatencyTextElement('target-latency-text', TARGET_LATENCY);
         temporarilyShowElement(screenElement.targetLatency);
+        console.log(pathname, LATENCY_SETTINGS[pathname], 'sec');
     }
 
     function temporarilyShowElement(element) {
@@ -288,12 +286,6 @@
         chart.data.datasets[2].data.push(graphValues.latestFps);
         chart.data.datasets[3].data.push(graphValues.latestBitrate);
         chart.update();
-
-        // let latencyRange = Math.max(...chart.data.datasets[0].data) - Math.min(...chart.data.datasets[0].data);
-        // console.log('Latency Range', latencyRange.toFixed(2));
-
-        // const zipped = chart.data.datasets[0].data.map((item, index) => [item, chart.data.datasets[1].data[index]]);
-        // console.log(zipped);
     }
 
     function isValidDataPoint(statObject) {
@@ -327,6 +319,16 @@
     function estimateLatency(latestLatency, latestBuffer) {
         if (!latestLatency || !latestBuffer || isNaN(latestLatency) || isNaN(latestBuffer)) return;
 
+        let now = Date.now();
+        // Lower latency if last problem hasn't happened in a while
+        if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN) {
+            changeTargetLatency(-0.25)
+            LAST_LATENCY_PROBLEM = now;
+        }
+
+        // console.log(now, LAST_LATENCY_PROBLEM);
+        // console.log(now - LAST_LATENCY_PROBLEM, '/', LATENCY_PROBLEM_COOLDOWN);
+
         if (latestBuffer > latestLatency + UNSTABLE_BUFFER_SEPARATION) {
             // Buffer is larger than latency, slight concern but might be more accurate than latency
             LATENCY_PROBLEM = false;
@@ -335,30 +337,24 @@
         } else if (latestBuffer < latestLatency - UNSTABLE_BUFFER_SEPARATION && latestLatency < 30) {
             // Buffer is too far below latency, doesn't work above 30 seconds.
             LATENCY_PROBLEM = true;
-            LATENCY_PROBLEM_COUNTER = 0; // We don't want pause/play in this scenario
+            LAST_LATENCY_PROBLEM = now;
+            LATENCY_PROBLEM_COUNTER = 0;
+            // Probably don't need this cause we're already returning latestBuffer.
             // SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
             return latestBuffer;
 
         } else if (latestBuffer < MINIMUM_BUFFER) {
             // Buffer too low
             LATENCY_PROBLEM_COUNTER += 1;
-            console.log('LATENCY_PROBLEM_COUNTER', LATENCY_PROBLEM_COUNTER);
-            if (LATENCY_PROBLEM_COUNTER > 1) { // Doesn't really matter if it only happens once
-                LATENCY_PROBLEM = true;
-            }
-            if (LATENCY_PROBLEM_COUNTER < MAX_LATENCY_PROBLEMS) {
-                SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR/2;
-            } else {
-                videoPlayer?.pause();
-                setTimeout(() => {videoPlayer?.play()}, 50);
+
+            if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS) {
+                // Go back a couple seconds to avoid buffering and raise target latency
+                videoPlayer.seekTo(videoPlayer.getPosition() - 2);
                 changeTargetLatency(0.25)
 
-                PAUSE_PLAY_COOLDOWN = true;
-                setTimeout(() => {
-                    PAUSE_PLAY_COOLDOWN = false;
-                }, PAUSE_PLAY_COOLDOWN_TIMER);
+                LATENCY_PROBLEM = true;
+                LAST_LATENCY_PROBLEM = now;
                 LATENCY_PROBLEM_COUNTER = 0;
-
                 // Return a number that doesnt mess with the speed.
                 return TARGET_LATENCY;
             }
@@ -387,6 +383,7 @@
     }
 
     function handlePageChange() {
+        LAST_LATENCY_PROBLEM = Date.now();
         newPageStatsCooldownActive = true;
         setTimeout(() => {
             newPageStatsCooldownActive = false;
@@ -431,7 +428,6 @@
         }
         UNSTABLE_BUFFER_SEPARATION = videoPlayer?.isLiveLowLatency() ? unstableBufferSeparationLowLatency : unstableBufferSeparationNormalLatency;
         latencyData.latest = twoDecimalPlaces(videoPlayer?.getLiveLatency());
-        // graphValues.latestFps = latencyData.latest;
         bufferData.latest = twoDecimalPlaces(videoPlayer?.getBufferDuration());
         graphValues.latestBitrate = videoPlayer?.getVideoBitRate()/1000;
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
@@ -459,35 +455,56 @@
         return reactRootNode;
     }
 
-//         // DO NOT DELETE
-//         function inspectVideoPlayer(player) {
-//             if (!player) {
-//                 console.log('Video player not found');
-//                 return;
-//             }
+    //     // DO NOT DELETE
+    //     function inspectVideoPlayer(player) {
+    //         if (!player) {
+    //             console.log('Video player not found');
+    //             return;
+    //         }
 
-//             // Get all properties including methods
-//             let properties = new Set();
-//             let proto = Object.getPrototypeOf(player);
+    //         // Get all properties including methods
+    //         let properties = new Set();
+    //         let proto = Object.getPrototypeOf(player);
 
-//             // Walk up the prototype chain
-//             while (proto && proto !== Object.prototype) {
-//                 const props = Object.getOwnPropertyNames(proto)
-//                 .filter(prop => typeof player[prop] === 'function'); // Only get methods
-//                 props.forEach(prop => properties.add(prop));
-//                 proto = Object.getPrototypeOf(proto);
-//             }
+    //         // Walk up the prototype chain
+    //         while (proto && proto !== Object.prototype) {
+    //             const props = Object.getOwnPropertyNames(proto)
+    //             .filter(prop => typeof player[prop] === 'function'); // Only get methods
+    //             props.forEach(prop => properties.add(prop));
+    //             proto = Object.getPrototypeOf(proto);
+    //         }
 
-//             // Sort and log all available methods
-//             console.log('Available video player methods:');
-//             [...properties].sort().forEach(prop => {
-//                 try {
-//                     console.log(`${prop}() - Type: ${typeof player[prop]}`);
-//                 } catch (e) {
-//                     console.log(`${prop}() - Unable to access`);
-//                 }
-//             });
-//         }
+    //         // Sort and log all available methods
+    //         console.log('Available video player methods:');
+    //         [...properties].sort().forEach(prop => {
+    //             try {
+    //                 console.log(`${prop}() - Type: ${typeof player[prop]}`);
+    //             } catch (e) {
+    //                 console.log(`${prop}() - Unable to access`);
+    //             }
+    //         });
+    //     }
+
+    function stuckBuffering() {
+        if (videoPlayer?.getState() != PLAYER_STATE) {
+            PLAYER_STATE = videoPlayer?.getState();
+            console.log(PLAYER_STATE);
+        }
+
+        if (videoPlayer?.getState() == 'Buffering') {
+            BUFFER_COUNT += 1;
+            if (BUFFER_COUNT >= MAX_BUFFER_COUNT) {
+                console.log('Buffering too long: PLAY/PAUSE');
+                videoPlayer?.pause();
+                videoPlayer?.play();
+                BUFFER_COUNT = 0;
+                return true;
+            }
+        } else {
+            BUFFER_COUNT = 0;
+            return false;
+        }
+    }
 
     // Update graph & make sure table is open
     let pollingInterval = setInterval(async function() {
@@ -501,8 +518,8 @@
             return;
         }
 
-        videoPlayer = videoPlayer ?? findReactNode(findReactRootNode(), node => node.setPlayerActive && node.props && node.props.mediaPlayerInstance)?.props.mediaPlayerInstance;
-        // console.log('videoPlayer', videoPlayer)
+        videoPlayer = videoPlayer ?? findReactNode(findReactRootNode(), node =>
+                                                   node.setPlayerActive && node.props && node.props.mediaPlayerInstance)?.props.mediaPlayerInstance;
 
         // let proto = Object.getPrototypeOf(videoPlayer?.getHTMLVideoElement());
         // while (proto) {
@@ -516,6 +533,10 @@
         //     inspectVideoPlayer(videoPlayer);
         //     videoPlayer._methodsLogged = true; // Only log once
         // }
+
+        // videoPlayer?.setLogLevel('debug');
+
+        if (stuckBuffering()) return;
 
         screenElement.currentLatency.node = createLatencyTextElement(
             screenElement.currentLatency.className,
