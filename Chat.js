@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.8
+// @version      1.9
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -303,11 +303,11 @@
             return;
         }
 
-        if (hasCyrillic(text)) {
-            message.style.display = 'none';
-            console.log('Removing cyrillic:', text);
-            return;
-        }
+        // if (hasCyrillic(text)) {
+        //     message.style.display = 'none';
+        //     console.log('Removing cyrillic:', text);
+        //     return;
+        // }
 
         // Hide chat commands (Messages that start with '!')
         if (text?.startsWith('!')) {
