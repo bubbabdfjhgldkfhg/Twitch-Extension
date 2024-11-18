@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.2
+// @version      3.3
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -58,12 +58,16 @@
     let MAX_BUFFER_COUNT = 10;
     let BUFFER_STATE;
 
+    let DRAIN_COUNT = 0;
+    let MAX_DRAIN_COUNT = 10;
+
     let READY_COUNT = 0;
     let MAX_READY_COUNT = 10;
 
     let playbackRate = 1.0;
     let videoPlayer;
     let PLAYER_STATE;
+    let PREVIOUS_PLAYER_STATE;
 
     let screenElement = {
         videoContainer: { node: null, className: 'video-player__overlay' },
@@ -348,25 +352,25 @@
 
             if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && !SEEK_COOLDOWN) {
                 // Go back a couple seconds to avoid buffering and raise target latency
-                videoPlayer?.seekTo(videoPlayer?.getPosition() - 1.5);
-                console.log('Seeking backwards');
-                changeTargetLatency(0.25)
+//                 videoPlayer?.seekTo(videoPlayer?.getPosition() - 1.5);
+//                 console.log('Seeking backwards');
+//                 changeTargetLatency(0.25)
 
-                // SEEK_COOLDOWN can only be reset if BUFFER_STATE changes to Filling so we don't get caught in a loop.
-                SEEK_COOLDOWN = true;
-                LATENCY_PROBLEM = true;
-                LATENCY_PROBLEM_COUNTER = 0;
+//                 // SEEK_COOLDOWN can only be reset if BUFFER_STATE changes to Filling so we don't get caught in a loop.
+//                 SEEK_COOLDOWN = true;
+//                 LATENCY_PROBLEM = true;
+//                 LATENCY_PROBLEM_COUNTER = 0;
                 // Return a number that doesnt mess with the speed.
                 return TARGET_LATENCY;
 
             } else if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && SEEK_COOLDOWN) {
                 // We already tried seeking backwards and buffer issue persists
-                console.log('Buffer still draining: PAUSE/PLAY');
-                videoPlayer?.pause();
-                videoPlayer?.play();
+//                 console.log('Buffer still draining: PAUSE/PLAY');
+//                 videoPlayer?.pause();
+//                 videoPlayer?.play();
 
-                LATENCY_PROBLEM = true;
-                LATENCY_PROBLEM_COUNTER = 0;
+//                 LATENCY_PROBLEM = true;
+//                 LATENCY_PROBLEM_COUNTER = 0;
                 // Return a number that doesnt mess with the speed.
                 return TARGET_LATENCY;
             }
@@ -446,10 +450,20 @@
         if ((videoPlayer?.getBuffered().end - videoPlayer?.getBufferedRanges().video[0].end) > 0) {
             BUFFER_STATE = 'Filling';
             SEEK_COOLDOWN = false;
+            DRAIN_COUNT = 0;
         } else {
             BUFFER_STATE ='Draining';
+            DRAIN_COUNT += 1;
         }
         // console.log(BUFFER_STATE);
+
+        // Doesnt work on normal latency streams
+        if (DRAIN_COUNT >= MAX_DRAIN_COUNT) {
+            videoPlayer?.pause();
+            videoPlayer?.play();
+            DRAIN_COUNT = 0;
+            console.log('MAX_DRAIN_COUNT: PAUSE/PLAY');
+        }
     }
 
     function findReactNode(root, constraint) {
@@ -505,8 +519,19 @@
     //     }
 
     function stuckBuffering() {
+        // if (videoPlayer?.getState() != PLAYER_STATE) {
+        //     PLAYER_STATE = videoPlayer?.getState();
+        //     console.log(PLAYER_STATE);
+        // }
+
         if (videoPlayer?.getState() != PLAYER_STATE) {
             PLAYER_STATE = videoPlayer?.getState();
+            if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing') {
+                videoPlayer?.seekTo(videoPlayer?.getPosition() - 1.5);
+                changeTargetLatency(0.25);
+                console.log('Seeking backwards');
+            }
+            PREVIOUS_PLAYER_STATE = PLAYER_STATE;
             console.log(PLAYER_STATE);
         }
 
