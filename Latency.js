@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.3
+// @version      3.4
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -48,21 +48,21 @@
     let LATENCY_PROBLEM_COUNTER = 0;
     let MAX_LATENCY_PROBLEMS = 3;
     let LAST_LATENCY_PROBLEM;
-    let LATENCY_PROBLEM_COOLDOWN = 120000; // 2 minutes in milliseconds
+    let LATENCY_PROBLEM_COOLDOWN = 150000; // 2 minutes in milliseconds
     let SEEK_COOLDOWN = false;
 
     // let PAUSE_PLAY_COOLDOWN = false;
     // let PAUSE_PLAY_COOLDOWN_TIMER = 3000;
 
     let BUFFER_COUNT = 0;
-    let MAX_BUFFER_COUNT = 10;
+    let MAX_BUFFER_COUNT = 15;
     let BUFFER_STATE;
 
-    let DRAIN_COUNT = 0;
-    let MAX_DRAIN_COUNT = 10;
+    // let DRAIN_COUNT = 0;
+    // let MAX_DRAIN_COUNT = 15;
 
     let READY_COUNT = 0;
-    let MAX_READY_COUNT = 10;
+    let MAX_READY_COUNT = 15;
 
     let playbackRate = 1.0;
     let videoPlayer;
@@ -350,31 +350,33 @@
             LATENCY_PROBLEM_COUNTER += 1;
             LAST_LATENCY_PROBLEM = now;
 
-            if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && !SEEK_COOLDOWN) {
-                // Go back a couple seconds to avoid buffering and raise target latency
-//                 videoPlayer?.seekTo(videoPlayer?.getPosition() - 1.5);
-//                 console.log('Seeking backwards');
-//                 changeTargetLatency(0.25)
+            // Try NOT returning latestBuffer if it's too low; this changes speed too much. We'll handle it if it actually buffers.
 
-//                 // SEEK_COOLDOWN can only be reset if BUFFER_STATE changes to Filling so we don't get caught in a loop.
-//                 SEEK_COOLDOWN = true;
-//                 LATENCY_PROBLEM = true;
-//                 LATENCY_PROBLEM_COUNTER = 0;
-                // Return a number that doesnt mess with the speed.
-                return TARGET_LATENCY;
+            // if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && !SEEK_COOLDOWN) {
+            //     // Go back a couple seconds to avoid buffering and raise target latency
+            //     videoPlayer?.seekTo(videoPlayer?.getPosition() - 1.5);
+            //     console.log('Seeking backwards');
+            //     changeTargetLatency(0.25)
 
-            } else if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && SEEK_COOLDOWN) {
-                // We already tried seeking backwards and buffer issue persists
-//                 console.log('Buffer still draining: PAUSE/PLAY');
-//                 videoPlayer?.pause();
-//                 videoPlayer?.play();
+            // // SEEK_COOLDOWN can only be reset if BUFFER_STATE changes to Filling so we don't get caught in a loop.
+            // SEEK_COOLDOWN = true;
+            // LATENCY_PROBLEM = true;
+            // LATENCY_PROBLEM_COUNTER = 0;
+            // // Return a number that doesnt mess with the speed.
+            // return TARGET_LATENCY;
 
-//                 LATENCY_PROBLEM = true;
-//                 LATENCY_PROBLEM_COUNTER = 0;
-                // Return a number that doesnt mess with the speed.
-                return TARGET_LATENCY;
-            }
-            return latestBuffer;
+            // } else if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && SEEK_COOLDOWN) {
+            //     // We already tried seeking backwards and buffer issue persists
+            //     console.log('Buffer still draining: PAUSE/PLAY');
+            //     videoPlayer?.pause();
+            //     videoPlayer?.play();
+
+            //     LATENCY_PROBLEM = true;
+            //     LATENCY_PROBLEM_COUNTER = 0;
+            //     // Return a number that doesnt mess with the speed.
+            //     return TARGET_LATENCY;
+            // }
+            // return latestBuffer;
 
         } else {
             LATENCY_PROBLEM = false;
@@ -417,6 +419,23 @@
         videoPlayer = null;
     }
 
+    //     function setLatencyTextColor(latencyTextElement) {
+    //         if (!latencyTextElement.node || !bufferData.latest || !latencyData.latest) return;
+
+    //         if (bufferData.latest > latencyData.latest + UNSTABLE_BUFFER_SEPARATION) {
+    //             latencyTextElement.node.style.color = 'orange';
+    //             latencyTextElement.node.style.opacity = '.8';
+    //         } else if (LATENCY_PROBLEM) {
+    //             latencyTextElement.node.style.color = 'red';
+    //             latencyTextElement.node.style.opacity = '1';
+    //             temporarilyShowElement(screenElement.graph);
+    //         } else {
+    //             latencyTextElement.node.style.color = 'white';
+    //             // Go to back to whatever opacity it was before
+    //             latencyTextElement.node.style.opacity = latencyTextElement.opacity.current;
+    //         }
+    //     }
+
     function setLatencyTextColor(latencyTextElement) {
         if (!latencyTextElement.node || !bufferData.latest || !latencyData.latest) return;
 
@@ -428,8 +447,20 @@
             latencyTextElement.node.style.opacity = '1';
             temporarilyShowElement(screenElement.graph);
         } else {
-            latencyTextElement.node.style.color = 'white';
-            // Go to back to whatever opacity it was before
+            const now = Date.now();
+            if (LAST_LATENCY_PROBLEM && TARGET_LATENCY > 1) {
+                // Calculate progress percentage
+                const progress = Math.min((now - LAST_LATENCY_PROBLEM) / LATENCY_PROBLEM_COOLDOWN, 1);
+
+                // Convert progress to RGB values (white to green transition)
+                // White is rgb(255,255,255) and green is rgb(0,255,0)
+                // We'll transition the red and blue components from 255 to 0
+                const component = Math.round(255 * (1 - progress));
+                latencyTextElement.node.style.color = `rgb(${component},255,${component})`;
+            } else {
+                latencyTextElement.node.style.color = 'white';
+            }
+            // Go back to whatever opacity it was before
             latencyTextElement.node.style.opacity = latencyTextElement.opacity.current;
         }
     }
@@ -450,20 +481,21 @@
         if ((videoPlayer?.getBuffered().end - videoPlayer?.getBufferedRanges().video[0].end) > 0) {
             BUFFER_STATE = 'Filling';
             SEEK_COOLDOWN = false;
-            DRAIN_COUNT = 0;
+            // DRAIN_COUNT = 0;
         } else {
             BUFFER_STATE ='Draining';
-            DRAIN_COUNT += 1;
+            // DRAIN_COUNT += 1;
         }
         // console.log(BUFFER_STATE);
 
         // Doesnt work on normal latency streams
-        if (DRAIN_COUNT >= MAX_DRAIN_COUNT) {
-            videoPlayer?.pause();
-            videoPlayer?.play();
-            DRAIN_COUNT = 0;
-            console.log('MAX_DRAIN_COUNT: PAUSE/PLAY');
-        }
+        // if (DRAIN_COUNT >= MAX_DRAIN_COUNT) {
+        //     videoPlayer?.pause();
+        //     videoPlayer?.play();
+        //     changeTargetLatency(0.25)
+        //     DRAIN_COUNT = 0;
+        //     console.log('MAX_DRAIN_COUNT: PAUSE/PLAY');
+        // }
     }
 
     function findReactNode(root, constraint) {
@@ -519,23 +551,27 @@
     //     }
 
     function stuckBuffering() {
-        // if (videoPlayer?.getState() != PLAYER_STATE) {
-        //     PLAYER_STATE = videoPlayer?.getState();
-        //     console.log(PLAYER_STATE);
-        // }
+        PLAYER_STATE = videoPlayer?.getState();
 
-        if (videoPlayer?.getState() != PLAYER_STATE) {
-            PLAYER_STATE = videoPlayer?.getState();
-            if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing') {
-                videoPlayer?.seekTo(videoPlayer?.getPosition() - 1.5);
-                changeTargetLatency(0.25);
-                console.log('Seeking backwards');
-            }
-            PREVIOUS_PLAYER_STATE = PLAYER_STATE;
+        if (PREVIOUS_PLAYER_STATE != PLAYER_STATE) {
             console.log(PLAYER_STATE);
         }
 
-        if (videoPlayer?.getState() == 'Buffering') {
+        if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && !SEEK_COOLDOWN) {
+            videoPlayer?.seekTo(videoPlayer?.getPosition() - 1.5);
+            changeTargetLatency(0.25);
+            SEEK_COOLDOWN = true;
+            console.log('Seeking backwards');
+        } else if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && SEEK_COOLDOWN) {
+            videoPlayer?.pause();
+            videoPlayer?.play();
+            SEEK_COOLDOWN = false;
+            console.log('Buffer still draining: PAUSE/PLAY');
+        }
+        PREVIOUS_PLAYER_STATE = PLAYER_STATE;
+        console.log(PLAYER_STATE);
+
+        if (PLAYER_STATE == 'Buffering') {
             BUFFER_COUNT += 1;
             if (BUFFER_COUNT >= MAX_BUFFER_COUNT) {
                 console.log('Buffering too long: PAUSE/PLAY');
@@ -549,7 +585,7 @@
         }
 
         // Sometimes PAUSE/PLAY will cause the player to get stuck in Ready state.
-        if (videoPlayer?.getState() == 'Ready') {
+        if (PLAYER_STATE == 'Ready') {
             READY_COUNT += 1;
             if (READY_COUNT >= MAX_READY_COUNT) {
                 console.log('Ready too long: PAUSE/PLAY');
