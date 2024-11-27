@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.9
+// @version      2.0
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -20,11 +20,21 @@
     let brightness = 1;
     let currentUser = getCookie('name');
     let observer;
+    let tildeHeld = false;
 
-    // Adjust brightness with "+" and "_"
     document.addEventListener('keydown', function(event) {
         const editor = document.querySelector('.chat-wysiwyg-input__editor');
-        if (event.key === '`') {
+        if (event.key === '~') {
+            event.preventDefault();
+            if (!tildeHeld) {
+                tildeHeld = true;
+                const messages = document.querySelectorAll('.chat-line__message, .chat-line__status');
+                messages.forEach(message => {
+                    message.style.display = 'block';
+                    message.style.opacity = brightness;
+                });
+            }
+        } else if (event.key === '`') {
             event.preventDefault();
             editor?.focus();
         } else if (event.key === 'Enter' && !event.shiftKey) {
@@ -43,6 +53,16 @@
             requestAnimationFrame(() => {
                 messageBrightness();
                 chatWindowOpacity();
+            });
+        }
+    });
+
+    document.addEventListener('keyup', function(event) {
+        if (event.key === '~') {
+            tildeHeld = false;
+            // Re-process all messages with normal filtering
+            document.querySelectorAll('.chat-line__message, .chat-line__status').forEach(message => {
+                newMessageHandler(message);
             });
         }
     });
@@ -135,7 +155,7 @@
         let badges = message.querySelectorAll('.chat-badge');
         for (let element of badges) {
             let altAttr = element.getAttribute('alt');
-            if (!altAttr.match(/Subscriber|Founder|Verified|Broadcaster|VIP|Moderator|Bot|Staff/)) {
+            if (!altAttr.match(/Subscriber|Founder|Verified|Broadcaster|VIP|Moderator|Bot|Staff|Predicted/)) {
                 element.remove();
                 continue;
             }
@@ -216,6 +236,8 @@
     }
 
     function newMessageHandler(message) {
+        if (tildeHeld) return;
+
         fadeInScheduleFadeOut(message);
 
         let streamer = window.location.pathname.substring(1);
@@ -276,10 +298,9 @@
 
         // Highlight first time chats
         const props = getMessageProps(message);
-        if (props?.message?.isFirstMsg && usernameElement?.style && textElement?.style) {
-            usernameElement.style.fontStyle = 'italic';
-            textElement.style.fontWeight = 'bold';
-            textElement.style.fontStyle = 'italic';
+        if (props?.message?.isFirstMsg && message?.style) {
+            message.style.fontStyle = 'italic';
+            message.style.fontWeight = 'bold';
         }
 
         // Hide the red line in chat that just says "New" || Hide bits
