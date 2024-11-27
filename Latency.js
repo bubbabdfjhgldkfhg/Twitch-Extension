@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.5
+// @version      3.6
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -25,7 +25,7 @@
     let GRAPH_LINE_THICKNESS = 2.0;
     let NUMBER_COLOR_OPACITY_TRANSITION_DURATION = 300; // ms
 
-    let latencyTargetLow = 1.25; // Low latency default
+    let latencyTargetLow = 1.00; // Low latency default
     let latencyTargetNormal = 4.25; // Normal latency default
     let unstableBufferSeparationLowLatency = 1.5; // Low latency default
     let unstableBufferSeparationNormalLatency = 10; // Normal latency default
