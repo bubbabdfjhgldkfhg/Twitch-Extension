@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Auto Volume 3
+// @name         Auto Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.2
+// @version      0.1
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
-// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%203.js
-// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume%203.js
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
 // @match        https://www.twitch.tv/*
 // @grant        none
 // ==/UserScript==
