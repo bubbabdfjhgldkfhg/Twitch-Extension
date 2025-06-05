@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.0
+// @version      2.2
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -15,15 +15,15 @@
 (function() {
     'use strict';
 
-    let fadeoutDuration = 25 * 1000;
-    let maxVisibleMessages = 15;
+    let fadeoutDuration = 18 * 1000;
+    let maxVisibleMessages = 10;
     let brightness = 1;
     let currentUser = getCookie('name');
     let observer;
     let tildeHeld = false;
 
     document.addEventListener('keydown', function(event) {
-        const editor = document.querySelector('.chat-wysiwyg-input__editor');
+        // const editor = document.querySelector('.chat-wysiwyg-input__editor');
         if (event.key === '~') {
             event.preventDefault();
             if (!tildeHeld) {
@@ -34,14 +34,15 @@
                     message.style.opacity = brightness;
                 });
             }
-        } else if (event.key === '`') {
-            event.preventDefault();
-            editor?.focus();
-        } else if (event.key === 'Enter' && !event.shiftKey) {
-            editor?.blur();
-        } else if (event.key === 'Escape' && document.activeElement === editor) {
-            event.preventDefault();
-            editor.blur();
+            // } else if (event.key === '`') {
+            //     // Makes it too easy to type stupid shit
+            //     event.preventDefault();
+            //     editor?.focus();
+            // } else if (event.key === 'Enter' && !event.shiftKey) {
+            //     editor?.blur();
+            // } else if (event.key === 'Escape' && document.activeElement === editor) {
+            //     event.preventDefault();
+            //     editor.blur();
         } else if (event.key === '_' && brightness > 0.2) {
             brightness = parseFloat((brightness - 0.1).toFixed(1));
             requestAnimationFrame(() => {
@@ -61,9 +62,7 @@
         if (event.key === '~') {
             tildeHeld = false;
             // Re-process all messages with normal filtering
-            document.querySelectorAll('.chat-line__message, .chat-line__status').forEach(message => {
-                newMessageHandler(message);
-            });
+            observer = null;
         }
     });
 
@@ -104,13 +103,28 @@
         await new Promise(resolve => setTimeout(resolve, 0));
         chatInputContainer.style.transition = 'opacity .25s';
 
+        // Change the placeholder text
+        // let placeholderElement;
+        // while (!placeholderElement) {
+        //     await new Promise(resolve => setTimeout(resolve, 10));
+        //     placeholderElement = chatInputContainer.querySelector('.chat-wysiwyg-input__placeholder');
+        //     if (placeholderElement) {
+        //         placeholderElement.textContent = 'Say something positive';
+        //     } else {
+        //         console.log('Placeholder element not found.');
+        //     }
+        // }
+
         // Add event listeners for focus and hover to adjust opacity
         chatInputContainer.addEventListener('focusin', show);
         chatInputContainer.addEventListener('focusout', hide);
     }
 
     async function fadeOverflowMessages(chatContainer) {
+        if (tildeHeld) return;
         await new Promise(resolve => setTimeout(resolve, 0));
+
+        // console.log('Running fadeOverflowMessages');
 
         let visibleMessages = getVisibleMessages();
         let numMessagesToFade = Math.max(0, visibleMessages.length - maxVisibleMessages);
@@ -155,7 +169,7 @@
         let badges = message.querySelectorAll('.chat-badge');
         for (let element of badges) {
             let altAttr = element.getAttribute('alt');
-            if (!altAttr.match(/Subscriber|Founder|Verified|Broadcaster|VIP|Moderator|Bot|Staff|Predicted/)) {
+            if (!altAttr.match(/Subscriber|Founder|Verified|Broadcaster|VIP|Moderator|Bot|Staff/)) {
                 element.remove();
                 continue;
             }
@@ -179,8 +193,8 @@
     function isSideConversation(message) {
         let streamer = window.location.pathname.substring(1);
         // Hide replies that aren't to/from the current user
-        let isReply = message.querySelector('p[title^="Reply"]');
-        if (isReply && !isReply.textContent.includes(currentUser)) {
+        let isReply = message.getAttribute('aria-label')?.startsWith('Replying');
+        if (isReply && !message.textContent.includes(currentUser)) {
             return true;
         }
         // Hide mentions that aren't to the current user || current streamer
@@ -236,9 +250,10 @@
     }
 
     function newMessageHandler(message) {
-        if (tildeHeld) return;
-
+        hideBadgesAndColorNames(message);
         fadeInScheduleFadeOut(message);
+
+        if (tildeHeld) return;
 
         let streamer = window.location.pathname.substring(1);
         let usernameElement = message.querySelector('.chat-author__display-name');
@@ -310,6 +325,8 @@
             return;
         }
 
+        // hideBadgesAndColorNames(message);
+
         // Hide streamer chatbots
         if (username?.toLowerCase().includes(streamer?.toLowerCase()) && linkElement) {
             // console.log('Hid streamer bot message', linkElement);
@@ -324,11 +341,11 @@
             return;
         }
 
-        // if (hasCyrillic(text)) {
-        //     message.style.display = 'none';
-        //     console.log('Removing cyrillic:', text);
-        //     return;
-        // }
+        if (hasCyrillic(text)) {
+            // message.style.display = 'none';
+            // console.log('Removing cyrillic:', text);
+            return;
+        }
 
         // Hide chat commands (Messages that start with '!')
         if (text?.startsWith('!')) {
@@ -336,9 +353,10 @@
             return;
         }
 
-        hideBadgesAndColorNames(message);
+        // Place higher to make sure it runs so styles are consistent when tildeHeld
+        // hideBadgesAndColorNames(message);
         hideDuplicateEmotes(message);
-        clipCardAppearance(message);
+        clipCardAppearance(message); // Does nothing
     }
 
     function chatObserver(chatContainer) {
@@ -360,8 +378,8 @@
 
                     fadeOverflowMessages(chatContainer);
 
-                    let chatInput = node.querySelector('.chat-input');
-                    if (chatInput) applyChatInputStyles(chatInput);
+                    // let chatInput = node.querySelector('.chat-input');
+                    // if (chatInput) applyChatInputStyles(chatInput);
 
                     let chatHeader = node.querySelector('.stream-chat-header');
                     if (chatHeader) chatHeader.style.setProperty('display', 'none', 'important');
@@ -377,6 +395,7 @@
         let chatContainer = document.querySelector('.chat-shell')
         if (chatContainer && observer?.targetElement != chatContainer) {
             chatShellFound(chatContainer);
+            // fadeOverflowMessages(chatContainer);
         }
     }, 100);
 
@@ -389,30 +408,8 @@
         observer = chatObserver(chatContainer);
         observer.targetElement = chatContainer;
         // Setup chat input box behavior and appearance
-        let chatInput = chatContainer.querySelector('.chat-input');
-        if (chatInput) applyChatInputStyles(chatInput);
+        // let chatInput = chatContainer.querySelector('.chat-input');
+        // if (chatInput) applyChatInputStyles(chatInput);
     }
-
-    // Probably better than constantly polling
-    function handlePageChange() {
-        // setTimeout(function() {
-        //     if (observer) observer.targetElement = null;
-        // }, 500)
-    }
-
-    // Enhance navigation handling by overriding history methods.
-    (function(history){
-        const overrideHistoryMethod = (methodName) => {
-            const original = history[methodName];
-            history[methodName] = function(state) {
-                const result = original.apply(this, arguments);
-                handlePageChange();
-                return result;
-            };
-        };
-        overrideHistoryMethod('pushState');
-        overrideHistoryMethod('replaceState');
-    })(window.history);
-    window.addEventListener('popstate', handlePageChange);
 
 })();
