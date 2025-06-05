@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.6
+// @version      3.7
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -15,7 +15,7 @@
 (function() {
     'use strict';
 
-    let MAIN_POLLING_INTERVAL = 100; // Milliseconds
+    let MAIN_POLLING_INTERVAL = 250; // Milliseconds
     let DESIRED_HISTORY_LENGTH = 20; // Seconds
     let MAX_DATA_POINTS = (DESIRED_HISTORY_LENGTH*1000) / MAIN_POLLING_INTERVAL;
     MAX_DATA_POINTS = parseFloat(MAX_DATA_POINTS.toFixed(0));
@@ -25,9 +25,9 @@
     let GRAPH_LINE_THICKNESS = 2.0;
     let NUMBER_COLOR_OPACITY_TRANSITION_DURATION = 300; // ms
 
-    let latencyTargetLow = 1.00; // Low latency default
-    let latencyTargetNormal = 4.25; // Normal latency default
-    let unstableBufferSeparationLowLatency = 1.5; // Low latency default
+    let latencyTargetLow = 0.75; // Low latency default
+    let latencyTargetNormal = 4.00; // Normal latency default
+    let unstableBufferSeparationLowLatency = 2; // Low latency default
     let unstableBufferSeparationNormalLatency = 10; // Normal latency default
     let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
     let MINIMUM_BUFFER = 0.75;
@@ -35,34 +35,30 @@
     let LATENCY_SETTINGS = {}; // Dictionary to store pathname and target latency
     let TARGET_LATENCY_MIN = 0.75;
     let TARGET_LATENCY_TOLERANCE = 0.13; // Latency jitter to ignore
-    let NUM_LATENCY_VALS_TO_AVG = 3; // Average together the previous x latencies
+    let NUM_LATENCY_VALS_TO_AVG = 3; // Average the previous x latencies together
     let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.2; // Lower number is more aggresive
     let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
     let SPEED_MIN = 0.07;
-    let SPEED_MAX = 1.25;
+    let SPEED_MAX = 1.15;
 
-    let newPageStatsCooldownTimer = 2500;
+    let newPageStatsCooldownTimer = 3000;
     let newPageStatsCooldownActive = false;
+    let newPageStatsCooldownTimeout;
 
     let LATENCY_PROBLEM = false;
     let LATENCY_PROBLEM_COUNTER = 0;
     let MAX_LATENCY_PROBLEMS = 3;
     let LAST_LATENCY_PROBLEM;
-    let LATENCY_PROBLEM_COOLDOWN = 150000; // 2 minutes in milliseconds
+    let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 minutes in milliseconds
     let SEEK_COOLDOWN = false;
-
-    // let PAUSE_PLAY_COOLDOWN = false;
-    // let PAUSE_PLAY_COOLDOWN_TIMER = 3000;
+    let SEEK_BACKWARD_SECONDS = 2.5;
 
     let BUFFER_COUNT = 0;
-    let MAX_BUFFER_COUNT = 15;
+    let MAX_BUFFER_COUNT = 20;
     let BUFFER_STATE;
 
-    // let DRAIN_COUNT = 0;
-    // let MAX_DRAIN_COUNT = 15;
-
     let READY_COUNT = 0;
-    let MAX_READY_COUNT = 15;
+    let MAX_READY_COUNT = 20;
 
     let playbackRate = 1.0;
     let videoPlayer;
@@ -116,7 +112,7 @@
                 y: { duration: 0 }
             },
             scales: {
-                'latency': { beginAtZero: false, min: 0.33, display: false },
+                'latency': { beginAtZero: false, min: 0.25, display: false },
                 'frames': { beginAtZero: true, display: false },
                 'bitrate': { type: 'logarithmic', beginAtZero: true, display: false },
                 x: { display: false }
@@ -156,25 +152,30 @@
                 break;
             case ']':
                 event.preventDefault();
-                if (TARGET_LATENCY > TARGET_LATENCY_MIN) changeTargetLatency(-0.25);
+                changeTargetLatency(-0.25);
                 break;
         }
     });
 
     function changeTargetLatency(delta) {
+        if (newPageStatsCooldownActive) {
+            return;
+        }
         if (isNaN(delta) || !delta || delta == -Infinity || isNaN(TARGET_LATENCY) || !TARGET_LATENCY) {
             return;
         }
+        if (TARGET_LATENCY + delta < TARGET_LATENCY_MIN) {
+            return;
+        }
+
         TARGET_LATENCY += delta;
+
         // Save the pathname and TARGET_LATENCY to the dictionary
         let pathname = window.location.pathname;
-        // if (!LATENCY_SETTINGS[pathname]) {
-        //     console.log('Creating', pathname, 'in LATENCY_SETTINGS with:', TARGET_LATENCY);
-        // }
         LATENCY_SETTINGS[pathname] = TARGET_LATENCY;
+
         updateLatencyTextElement('target-latency-text', TARGET_LATENCY);
         temporarilyShowElement(screenElement.targetLatency);
-        console.log(pathname, LATENCY_SETTINGS[pathname], 'sec');
     }
 
     function temporarilyShowElement(element) {
@@ -331,7 +332,7 @@
 
         let now = Date.now();
         // Lower latency if last problem hasn't happened in a while
-        if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN && TARGET_LATENCY > 1) {
+        if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN) {
             changeTargetLatency(-0.25)
             LAST_LATENCY_PROBLEM = now;
         }
@@ -346,7 +347,8 @@
             LATENCY_PROBLEM = true;
             LAST_LATENCY_PROBLEM = now;
             LATENCY_PROBLEM_COUNTER = 0;
-            return latestBuffer;
+            // return latestBuffer;
+            return latestLatency;
 
         } else if (latestBuffer < MINIMUM_BUFFER) {
             // Buffer too low
@@ -405,10 +407,15 @@
 
     function handlePageChange() {
         LAST_LATENCY_PROBLEM = Date.now();
+
+        if (newPageStatsCooldownTimeout) {
+            clearTimeout(newPageStatsCooldownTimeout); // Clear existing timeout
+        }
         newPageStatsCooldownActive = true;
-        setTimeout(() => {
+        newPageStatsCooldownTimeout = setTimeout(() => {
             newPageStatsCooldownActive = false;
         }, newPageStatsCooldownTimer);
+
         // Don't carry over residual speed from last channel
         setSpeed(1);
         // First few latency values on page load can't be trusted
@@ -439,35 +446,6 @@
             latencyTextElement.node.style.opacity = latencyTextElement.opacity.current;
         }
     }
-
-    // function setLatencyTextColor(latencyTextElement) {
-    //     if (!latencyTextElement.node || !bufferData.latest || !latencyData.latest) return;
-
-    // if (bufferData.latest > latencyData.latest + UNSTABLE_BUFFER_SEPARATION) {
-    //     latencyTextElement.node.style.color = 'orange';
-    //     latencyTextElement.node.style.opacity = '.8';
-    // } else if (LATENCY_PROBLEM) {
-    //     latencyTextElement.node.style.color = 'red';
-    //     latencyTextElement.node.style.opacity = '1';
-    //     temporarilyShowElement(screenElement.graph);
-    // } else {
-    //     const now = Date.now();
-    //     if (LAST_LATENCY_PROBLEM && TARGET_LATENCY > 1) {
-    //         // Calculate progress percentage
-    //         const progress = Math.min((now - LAST_LATENCY_PROBLEM) / LATENCY_PROBLEM_COOLDOWN, 1);
-
-    //             // Convert progress to RGB values (white to green transition)
-    //             // White is rgb(255,255,255) and green is rgb(0,255,0)
-    //             // We'll transition the red and blue components from 255 to 0
-    //             const component = Math.round(255 * (1 - progress));
-    //             latencyTextElement.node.style.color = `rgb(${component},255,${component})`;
-    //         } else {
-    //             latencyTextElement.node.style.color = 'white';
-    //         }
-    //         // Go back to whatever opacity it was before
-    //         latencyTextElement.node.style.opacity = latencyTextElement.opacity.current;
-    //     }
-    // }
 
     function getLatestVideoStats() {
         let pathname = window.location.pathname;
@@ -559,17 +537,19 @@
         PLAYER_STATE = videoPlayer?.getState();
 
         if (PREVIOUS_PLAYER_STATE != PLAYER_STATE) {
-            console.log(PLAYER_STATE);
+            // console.log(PLAYER_STATE);
         }
 
         if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && !SEEK_COOLDOWN) {
-            videoPlayer?.seekTo(videoPlayer?.getPosition() - 1);
+            videoPlayer?.seekTo(videoPlayer?.getPosition() - SEEK_BACKWARD_SECONDS);
             changeTargetLatency(0.25);
             SEEK_COOLDOWN = true;
-            console.log('Seeking backwards');
+            // console.log('Seeking backwards');
+        // SEEK_COOLDOWN can only be set to false if BUFFER_STATE = 'Filling'. That's how we know.
         } else if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && SEEK_COOLDOWN) {
             videoPlayer?.pause();
             videoPlayer?.play();
+            changeTargetLatency(-0.25); // Undo the latency change because that wasn't the issue.
             SEEK_COOLDOWN = false;
             console.log('Buffer still draining: PAUSE/PLAY');
         }
