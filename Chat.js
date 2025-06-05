@@ -457,6 +457,8 @@
         return observer;
     }
 
+    let theaterStylesApplied = false;
+
     if (!testing) {
         setInterval(function() {
             let chatContainer = document.querySelector('.chat-shell')
@@ -464,11 +466,15 @@
                 chatShellFound(chatContainer);
                 // fadeOverflowMessages(chatContainer);
             }
-            applyTheaterStyles();
         }, 100);
     }
 
     function chatShellFound(chatContainer) {
+        if (!theaterStylesApplied) {
+            applyTheaterStyles();
+            theaterStylesApplied = true;
+        }
+
         // Set initial appearance for anything that already loaded
         chatWindowOpacity();
         chatContainer.querySelectorAll('.chat-line__message, .chat-line__status').forEach(message => newMessageHandler(message));
