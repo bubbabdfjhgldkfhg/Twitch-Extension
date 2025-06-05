@@ -233,10 +233,27 @@
     }
 
     function clipCardAppearance(message) {
-        // Hide clip card background/borders and URL
-        // twitch.tv##.chat-card:upward(2):style(background: none !important)
-        // twitch.tv##.chat-card:upward(3):style(box-shadow: none !important; border: none !important)
-        // twitch.tv##.chat-line__message:has(.chat-card) .link-fragment
+        const clipCard = message.querySelector('.chat-card');
+        if (!clipCard) return;
+
+        // Hide the raw clip URL text
+        const link = message.querySelector('.link-fragment');
+        if (link) {
+            link.style.setProperty('display', 'none', 'important');
+        }
+
+        // Remove card container background two levels up
+        let parentTwo = clipCard.parentElement?.parentElement;
+        if (parentTwo) {
+            parentTwo.style.setProperty('background', 'none', 'important');
+        }
+
+        // Remove border and shadow on the outer wrapper
+        let parentThree = parentTwo?.parentElement;
+        if (parentThree) {
+            parentThree.style.setProperty('box-shadow', 'none', 'important');
+            parentThree.style.setProperty('border-style', 'none', 'important');
+        }
     }
 
     function newMessageHandler(message) {
@@ -407,7 +424,8 @@
     if (testing && typeof module !== 'undefined') {
         module.exports = {
             isSideConversation,
-            hasCyrillic
+            hasCyrillic,
+            clipCardAppearance
         };
     }
 
