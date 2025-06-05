@@ -15,6 +15,8 @@
 (function() {
     'use strict';
 
+    const testing = typeof module !== 'undefined' && module.exports;
+
     let fadeoutDuration = 18 * 1000;
     let maxVisibleMessages = 10;
     let brightness = 1;
@@ -379,13 +381,15 @@
         return observer;
     }
 
-    setInterval(function() {
-        let chatContainer = document.querySelector('.chat-shell')
-        if (chatContainer && observer?.targetElement != chatContainer) {
-            chatShellFound(chatContainer);
-            // fadeOverflowMessages(chatContainer);
-        }
-    }, 100);
+    if (!testing) {
+        setInterval(function() {
+            let chatContainer = document.querySelector('.chat-shell')
+            if (chatContainer && observer?.targetElement != chatContainer) {
+                chatShellFound(chatContainer);
+                // fadeOverflowMessages(chatContainer);
+            }
+        }, 100);
+    }
 
     function chatShellFound(chatContainer) {
         // Set initial appearance for anything that already loaded
@@ -398,6 +402,13 @@
         // Setup chat input box behavior and appearance
         // let chatInput = chatContainer.querySelector('.chat-input');
         // if (chatInput) applyChatInputStyles(chatInput);
+    }
+
+    if (testing && typeof module !== 'undefined') {
+        module.exports = {
+            isSideConversation,
+            hasCyrillic
+        };
     }
 
 })();
