@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.7
+// @version      2.3
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -89,65 +89,6 @@
             return parts.pop().split(';').shift();
         }
         return null;
-    }
-
-    function applyTheaterStyles() {
-        const player = document.querySelector('.persistent-player--theatre');
-        if (player) {
-            player.style.setProperty('width', '100%', 'important');
-        }
-
-        if (document.querySelector('.bttv-swap-chat .persistent-player--theatre')) {
-            const hideSelectors = [
-                '.top-nav',
-                '.side-nav',
-                '.channel-info-content',
-                '.right-column__toggle-visibility',
-                '.video-chat__header',
-                '.stream-chat-header'
-            ];
-            hideSelectors.forEach(sel => {
-                document.querySelectorAll(sel).forEach(el => {
-                    el.style.setProperty('display', 'none', 'important');
-                });
-            });
-        }
-
-        if (document.querySelector('.right-column--theatre')) {
-            document.querySelectorAll('.top-bar').forEach(el => {
-                el.style.setProperty('top', 'max(0px, calc((100vh - 56.25vw)/2))', 'important');
-                el.style.setProperty('background', 'none', 'important');
-                el.style.setProperty('border', 'none', 'important');
-            });
-
-            document.querySelectorAll('.player-controls, .chat-room, .chat-input-tray__open, .chat-input-container__open').forEach(el => {
-                el.style.setProperty('background', 'none', 'important');
-                el.style.setProperty('border', 'none', 'important');
-            });
-
-            document.querySelectorAll('.channel-root__right-column > div').forEach(el => {
-                el.style.setProperty('background', 'none', 'important');
-                el.style.setProperty('border', 'none', 'important');
-            });
-
-            const rightCol = document.querySelector('.right-column--theatre');
-            if (rightCol) {
-                rightCol.style.setProperty('height', 'min(calc(100vh - (100vh - 56.25vw)/2), 100vh)', 'important');
-                rightCol.style.setProperty('top', 'max(0px, calc((100vh - 56.25vw)/2))', 'important');
-            }
-        }
-
-        document.querySelectorAll('.chat-input').forEach(el => {
-            el.style.setProperty('padding-bottom', '1rem', 'important');
-        });
-
-        if (document.querySelector('.bttv-swap-chat') && document.querySelector('.chat-shell__expanded')) {
-            document.querySelectorAll('.top-bar, .player-controls').forEach(el => {
-                el.style.setProperty('width', 'calc(100% - 34rem)', 'important');
-                el.style.setProperty('left', '34rem', 'important');
-                el.style.setProperty('opacity', '.7', 'important');
-            });
-        }
     }
 
     // TODO: Properly distinguish theater mode
@@ -464,7 +405,6 @@
                 chatShellFound(chatContainer);
                 // fadeOverflowMessages(chatContainer);
             }
-            applyTheaterStyles();
         }, 100);
     }
 
