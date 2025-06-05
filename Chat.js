@@ -141,7 +141,7 @@
             el.style.setProperty('padding-bottom', '1rem', 'important');
         });
 
-        if (document.querySelector('.bttv-swap-chat .persistent-player--theatre .chat-shell__expanded')) {
+        if (document.querySelector('.bttv-swap-chat') && document.querySelector('.chat-shell__expanded')) {
             document.querySelectorAll('.top-bar, .player-controls').forEach(el => {
                 el.style.setProperty('width', 'calc(100% - 34rem)', 'important');
                 el.style.setProperty('left', '34rem', 'important');
