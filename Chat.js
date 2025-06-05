@@ -103,18 +103,6 @@
         await new Promise(resolve => setTimeout(resolve, 0));
         chatInputContainer.style.transition = 'opacity .25s';
 
-        // Change the placeholder text
-        // let placeholderElement;
-        // while (!placeholderElement) {
-        //     await new Promise(resolve => setTimeout(resolve, 10));
-        //     placeholderElement = chatInputContainer.querySelector('.chat-wysiwyg-input__placeholder');
-        //     if (placeholderElement) {
-        //         placeholderElement.textContent = 'Say something positive';
-        //     } else {
-        //         console.log('Placeholder element not found.');
-        //     }
-        // }
-
         // Add event listeners for focus and hover to adjust opacity
         chatInputContainer.addEventListener('focusin', show);
         chatInputContainer.addEventListener('focusout', hide);
