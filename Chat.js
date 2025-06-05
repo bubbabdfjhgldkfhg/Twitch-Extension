@@ -135,13 +135,20 @@
                 rightCol.style.setProperty('height', 'min(calc(100vh - (100vh - 56.25vw)/2), 100vh)', 'important');
                 rightCol.style.setProperty('top', 'max(0px, calc((100vh - 56.25vw)/2))', 'important');
             }
+
+            // Keep player controls from overlapping the chat
+            document.querySelectorAll('.top-bar, .player-controls').forEach(el => {
+                el.style.setProperty('width', 'calc(100% - 34rem)', 'important');
+                el.style.removeProperty('left');
+            });
         }
 
         document.querySelectorAll('.chat-input').forEach(el => {
             el.style.setProperty('padding-bottom', '1rem', 'important');
         });
 
-        if (document.querySelector('.bttv-swap-chat .persistent-player--theatre .chat-shell__expanded')) {
+        const swapChat = document.querySelector('.bttv-swap-chat');
+        if (swapChat && swapChat.querySelector('.persistent-player--theatre') && swapChat.querySelector('.chat-shell__expanded')) {
             document.querySelectorAll('.top-bar, .player-controls').forEach(el => {
                 el.style.setProperty('width', 'calc(100% - 34rem)', 'important');
                 el.style.setProperty('left', '34rem', 'important');
