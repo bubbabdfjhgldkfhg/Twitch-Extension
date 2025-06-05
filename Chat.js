@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.4
+// @version      2.5
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
