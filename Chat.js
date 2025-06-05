@@ -92,6 +92,12 @@
     }
 
     function applyTheaterStyles() {
+        const isTheater = document.querySelector('.right-column--theatre') ||
+                          document.querySelector('.persistent-player--theatre');
+        if (!isTheater) {
+            return false;
+        }
+
         const player = document.querySelector('.persistent-player--theatre');
         if (player) {
             player.style.setProperty('width', '100%', 'important');
@@ -148,6 +154,8 @@
                 el.style.setProperty('opacity', '.7', 'important');
             });
         }
+
+        return true;
     }
 
     // TODO: Properly distinguish theater mode
@@ -461,18 +469,25 @@
 
     if (!testing) {
         setInterval(function() {
-            let chatContainer = document.querySelector('.chat-shell')
+            let chatContainer = document.querySelector('.chat-shell');
             if (chatContainer && observer?.targetElement != chatContainer) {
                 chatShellFound(chatContainer);
-                // fadeOverflowMessages(chatContainer);
+            }
+
+            const inTheater = document.querySelector('.right-column--theatre') ||
+                              document.querySelector('.persistent-player--theatre');
+
+            if (inTheater && !theaterStylesApplied) {
+                theaterStylesApplied = applyTheaterStyles();
+            } else if (!inTheater) {
+                theaterStylesApplied = false;
             }
         }, 100);
     }
 
     function chatShellFound(chatContainer) {
         if (!theaterStylesApplied) {
-            applyTheaterStyles();
-            theaterStylesApplied = true;
+            theaterStylesApplied = applyTheaterStyles();
         }
 
         // Set initial appearance for anything that already loaded
