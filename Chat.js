@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.9
+// @version      2.7
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -92,12 +92,6 @@
     }
 
     function applyTheaterStyles() {
-        const isTheater = document.querySelector('.right-column--theatre') ||
-                          document.querySelector('.persistent-player--theatre');
-        if (!isTheater) {
-            return false;
-        }
-
         const player = document.querySelector('.persistent-player--theatre');
         if (player) {
             player.style.setProperty('width', '100%', 'important');
@@ -154,8 +148,6 @@
                 el.style.setProperty('opacity', '.7', 'important');
             });
         }
-
-        return true;
     }
 
     // TODO: Properly distinguish theater mode
@@ -465,31 +457,18 @@
         return observer;
     }
 
-    let theaterStylesApplied = false;
-
     if (!testing) {
         setInterval(function() {
-            let chatContainer = document.querySelector('.chat-shell');
+            let chatContainer = document.querySelector('.chat-shell')
             if (chatContainer && observer?.targetElement != chatContainer) {
                 chatShellFound(chatContainer);
+                // fadeOverflowMessages(chatContainer);
             }
-
-            const inTheater = document.querySelector('.right-column--theatre') ||
-                              document.querySelector('.persistent-player--theatre');
-
-            if (inTheater && !theaterStylesApplied) {
-                theaterStylesApplied = applyTheaterStyles();
-            } else if (!inTheater) {
-                theaterStylesApplied = false;
-            }
+            applyTheaterStyles();
         }, 100);
     }
 
     function chatShellFound(chatContainer) {
-        if (!theaterStylesApplied) {
-            theaterStylesApplied = applyTheaterStyles();
-        }
-
         // Set initial appearance for anything that already loaded
         chatWindowOpacity();
         chatContainer.querySelectorAll('.chat-line__message, .chat-line__status').forEach(message => newMessageHandler(message));
