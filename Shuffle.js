@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.0
+// @version      1.1
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -41,13 +41,13 @@ const svgPaths = {
     let shuffleType = 'followed'; // Default (the options are ['followed', 'recommended', 'discover'])
 
     // The channel timer determines how long to stay on each channel in continuous shuffle mode (1000 * seconds = milliseconds)
-    let followedChannelTimer = 1000 * 20;
-    let recommendedChannelTimer = 1000 * 18;
-    let discoverChannelTimer = 1000 * 7.5;
+    let followedChannelTimer = 1000 * 25;
+    let recommendedChannelTimer = 1000 * 20;
+    let discoverChannelTimer = 1000 * 7;
     let rotationTimer = followedChannelTimer; // Default (keep this the same as the shuffle type, the options are above.)
 
     let newChannelCooldownTimer = 1000 * 2.6; // Minimum delay between channel clicks. Things break if you go too fast.
-    let maxSimilarChannelClicks = 7; // How many channels deep to go in 'discover' mode.
+    let maxSimilarChannelClicks = 15; // How many channels deep to go in 'discover' mode.
 
     // ===========================
     //        END CONFIG
@@ -169,7 +169,7 @@ const svgPaths = {
 
         // Get all channels on screen
         let followedChannels = getChannelsBySection("Followed Channels");
-        let recommendedChannels = getChannelsBySection("Recommended Channels");
+        let recommendedChannels = getChannelsBySection("Live Channels");
         let similarChannels = getChannelsBySection("Viewers Also Watch");
 
         // Check if any channels were found
