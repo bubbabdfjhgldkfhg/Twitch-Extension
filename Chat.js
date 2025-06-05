@@ -458,13 +458,13 @@
     }
 
     if (!testing) {
+        applyTheaterStyles();
         setInterval(function() {
             let chatContainer = document.querySelector('.chat-shell')
             if (chatContainer && observer?.targetElement != chatContainer) {
                 chatShellFound(chatContainer);
                 // fadeOverflowMessages(chatContainer);
             }
-            applyTheaterStyles();
         }, 100);
     }
 
