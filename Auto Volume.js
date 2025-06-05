@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.1
+// @version      0.2
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
@@ -33,17 +33,19 @@
     let gainNode;
     let rafId;
     let newPageCooldownActive;
+    let newPageCooldownTimer = 1800;
     let currentVolume = 1.0;
 
     const BLOCK_SIZE = 4096;
-    const LUFS_WINDOW = 1000;
-    const PLOT_POINTS = 800;
+    const LUFS_WINDOW = 1500;
+
+    let shortTermLUFSWindow = 5; // Smaller window is more reactive to sharp spikes.
 
     let lastVolumeAdjustment = 0;
-    const VOLUME_CHANGER_MODIFIER = 40; // Lower is more aggressive
-    const VOLUME_DOWN_COOLDOWN = 250; // Faster response for sudden loud sounds
-    const VOLUME_UP_COOLDOWN = 10000;
-    const MAX_DB_THRESHOLD = -25;
+    const VOLUME_CHANGER_MODIFIER = 80; // Lower is more aggressive
+    const VOLUME_DOWN_COOLDOWN = 500; // Faster response for sudden loud sounds
+    const VOLUME_UP_COOLDOWN = 5000;
+    const MAX_DB_THRESHOLD = -30;
     const MIN_DB_THRESHOLD = -32;
     const MAX_VOLUME = 1;
     const MIN_VOLUME = 0.01;
@@ -66,9 +68,9 @@
 
     let blockBuffer = new Float32Array(BLOCK_SIZE);
     let blockBufferIndex = 0;
-    let lufsBuffer = Array(LUFS_WINDOW).fill(-41.5);
+    let lufsBuffer = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
     // let lufsBuffer = [];
-    let plotData = Array(PLOT_POINTS).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
+    let plotData = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
     let canvas;
     let ctx;
 
@@ -400,7 +402,7 @@
                     if (lufsBuffer.length > LUFS_WINDOW) {
                         lufsBuffer.shift();
                     }
-                    const shortTermLUFS = lufsBuffer.slice(-10).reduce((sum, value) => sum + value, 0) / 10;
+                    const shortTermLUFS = lufsBuffer.slice(-shortTermLUFSWindow).reduce((sum, value) => sum + value, 0) / shortTermLUFSWindow;
                     const averageLUFS = lufsBuffer.reduce((sum, value) => sum + value, 0) / lufsBuffer.length;
 
                     if (DEBUG_MODE) {
@@ -421,41 +423,11 @@
                             }
                         }
                     }
-                    // if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
-                    //     if (Math.max(...lufsBuffer) < MIN_DB_THRESHOLD) {
-                    //         let adjustment = Math.min(0.05, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER);
-                    //         adjustment = parseFloat(adjustment.toFixed(2));
-                    //         if (adjustment) {
-                    //             debug('Volume up adjustment', {
-                    //                 adjustment,
-                    //                 reason: 'Below min threshold'
-                    //             });
-                    //             adjustVolume(adjustment);
-                    //             lastVolumeAdjustment = Date.now();
-                    //         }
-                    //     }
-                    // }
 
 
-
-
-                    // if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
-                    //     if (averageLUFS > -43.5) {
-                    //         let adjustment = Math.max(-0.02, (-43.5-averageLUFS)/VOLUME_CHANGER_MODIFIER);
-                    //         adjustment = parseFloat(adjustment.toFixed(2));
-                    //         if (adjustment) {
-                    //             debug('Volume down adjustment', {
-                    //                 adjustment,
-                    //                 reason: 'Above max threshold'
-                    //             });
-                    //             adjustVolume(adjustment);
-                    //             lastVolumeAdjustment = Date.now();
-                    //         }
-                    //     }
-                    // }
                     if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
-                        if (averageLUFS < -42 && Math.max(...plotData) < MAX_DB_THRESHOLD) {
-                            let adjustment = Math.min(0.02, (-41-averageLUFS)/VOLUME_CHANGER_MODIFIER);
+                        if (Math.max(...lufsBuffer) < MIN_DB_THRESHOLD) {
+                            let adjustment = Math.min(0.01, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER);
                             adjustment = parseFloat(adjustment.toFixed(2));
                             if (adjustment) {
                                 debug('Volume up adjustment', {
@@ -467,6 +439,22 @@
                             }
                         }
                     }
+
+
+                    // if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
+                    //     if (averageLUFS < MIN_DB_THRESHOLD && Math.max(...plotData) < MAX_DB_THRESHOLD) {
+                    //         let adjustment = Math.min(0.02, (MIN_DB_THRESHOLD - averageLUFS)/VOLUME_CHANGER_MODIFIER);
+                    //         adjustment = parseFloat(adjustment.toFixed(2));
+                    //         if (adjustment) {
+                    //             debug('Volume up adjustment', {
+                    //                 adjustment,
+                    //                 reason: 'Below min threshold'
+                    //             });
+                    //             adjustVolume(adjustment);
+                    //             lastVolumeAdjustment = Date.now();
+                    //         }
+                    //     }
+                    // }
 
 
 
@@ -502,10 +490,10 @@
                 syncGainWithVolume(newPageVolume);
             }
             newPageCooldownActive = false;
-        }, 2000);
+        }, newPageCooldownTimer);
 
         blockBufferIndex = 0;
-        lufsBuffer = Array(LUFS_WINDOW).fill(-41.5);
+        lufsBuffer = Array(LUFS_WINDOW).fill(MIN_DB_THRESHOLD);
         blockBuffer = new Float32Array(BLOCK_SIZE);
     }
 
