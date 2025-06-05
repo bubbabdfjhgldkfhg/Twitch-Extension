@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat Toggle Hotkey
-// @version      0.1
-// @description  Toggle Twitch chat with 'r' key
+// @version      0.2
+// @description  Toggle Twitch chat with 'c' key
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Chat%20Toggle%20Hotkey.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Chat%20Toggle%20Hotkey.js
 // @match        *://*.twitch.tv/*
@@ -92,7 +92,7 @@
                     return;
                 }
 
-                if (event.key.toLowerCase() === 'r') {
+                if (event.key.toLowerCase() === 'c') {
                     if (cooldownActive) {
                         debug('Cooldown active, ignoring toggle');
                         return;
