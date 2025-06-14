@@ -284,7 +284,7 @@ const svgPaths = {
         // if (newPaths.path2) paths[1].setAttribute('d', newPaths.path2);
     }
 
-    function insertButton(type, clickHandler, svgPaths, color) {
+    function insertButton(type, clickHandler, svgPaths, color, scale = 1) {
         const controlGroup = document.querySelector('[class*="player-controls__left-control-group"]');
         if (!controlGroup) return;
 
@@ -317,7 +317,7 @@ const svgPaths = {
 
         // Create the SVG element
         const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svgElement.setAttribute('style', `color: ${color}`);
+        svgElement.setAttribute('style', `color: ${color}; transform: scale(${scale}); transform-origin: center; overflow: visible;`);
         svgElement.setAttribute('width', '20');
         svgElement.setAttribute('height', '20');
         svgElement.setAttribute('fill', 'currentColor');
@@ -346,7 +346,7 @@ const svgPaths = {
     setInterval(function() {
         insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, 'red');
         insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], 'white');
-        insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff');
+        insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff', 1.1);
 
         // Turn the snooze button red if the current channel is snoozed
         let snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
