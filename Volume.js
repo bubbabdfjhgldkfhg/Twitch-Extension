@@ -28,13 +28,11 @@
         }
     }
 
-    const defaultVolume = 0.5;
+    let defaultVolume = 0.5;
     debug('Script initialized with default volume:', defaultVolume);
 
     let observer;
-    let checkSliderInterval;
     let isAdjustingVolume = false; // Flag to prevent detecting our own updates
-    let handlingPathChange = false // Flag to prevent reacting to the same path change twice
 
     // Function to get the React internal instance from a DOM element
     function getReactInstance(element) {
