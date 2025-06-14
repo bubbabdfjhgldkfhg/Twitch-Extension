@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.4
+// @version      0.5
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
@@ -75,6 +75,7 @@
     let lufsBuffer = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
     // let lufsBuffer = [];
     let plotData = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
+    let plotDataIndex = 0;
     let canvas;
     let ctx;
 
@@ -321,9 +322,9 @@
     }
 
     function updatePlot(shortTermLUFS, averageLUFS) {
-        // Update data
-        plotData.push(shortTermLUFS);
-        plotData.shift();
+        // Update ring buffer
+        plotData[plotDataIndex] = shortTermLUFS;
+        plotDataIndex = (plotDataIndex + 1) % plotData.length;
 
         // Clear canvas
         ctx.fillStyle = 'black';
@@ -369,10 +370,12 @@
         ctx.lineTo(canvas.width, toY(MIN_DB_THRESHOLD));
         ctx.stroke();
 
-        // Draw LUFS history
+        // Draw LUFS history using ring buffer
         ctx.strokeStyle = 'cyan';
         ctx.beginPath();
-        plotData.forEach((lufs, i) => {
+        for (let i = 0; i < plotData.length; i++) {
+            const idx = (plotDataIndex + i) % plotData.length;
+            const lufs = plotData[idx];
             const x = (i / plotData.length) * canvas.width;
             const y = toY(lufs);
             if (i === 0) {
@@ -380,7 +383,7 @@
             } else {
                 ctx.lineTo(x, y);
             }
-        });
+        }
         ctx.stroke();
 
         // Draw legend
