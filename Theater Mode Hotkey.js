@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Theater Mode Hotkey
-// @version      0.4
+// @version      0.5
 // @description  Enable theater mode with 't' and modify 'f' fullscreen behavior
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Theater%20Mode%20Hotkey.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Theater%20Mode%20Hotkey.js
@@ -13,6 +13,8 @@
     'use strict';
     let DEBUG_MODE = false;
     let cooldownActive = false;
+    let keydownListenerRegistered = false;
+    let keydownHandler;
 
     function debug(...args) {
         if (DEBUG_MODE) {
@@ -74,7 +76,11 @@
 
         if (theatreModeComponent) {
             debug('Theatre mode component found, setting up event listener');
-            document.addEventListener("keydown", function(event) {
+            if (keydownListenerRegistered) {
+                document.removeEventListener("keydown", keydownHandler, true);
+                keydownListenerRegistered = false;
+            }
+            keydownHandler = function(event) {
                 debug('Keydown event:', { key: event.key, metaKey: event.metaKey, target: event.target.tagName });
 
                 if (event.metaKey) {
@@ -103,7 +109,9 @@
                         theatreModeComponent.toggleTheatreMode();
                         break;
                 }
-            }, true);
+            };
+            document.addEventListener("keydown", keydownHandler, true);
+            keydownListenerRegistered = true;
         } else {
             debug('ERROR: Theatre mode component not found');
         }
