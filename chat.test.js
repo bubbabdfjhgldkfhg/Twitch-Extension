@@ -60,4 +60,34 @@ describe('chat utilities', () => {
     expect(level3.style.boxShadow).toBe('none');
     expect(level3.style.border).toBe('none');
   });
+
+  test('clipCardAppearance handles real Twitch markup', () => {
+    const html = `<div class="chat-line__message">
+      <span>
+        <a class="link-fragment" href="https://www.twitch.tv/test/clip/abc">https://www.twitch.tv/test/clip/abc</a>
+        <div class="kfgjoR">
+          <div class="erSjEY">
+            <a><div class="chat-card"></div></a>
+          </div>
+        </div>
+      </span>
+    </div>`;
+
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    const message = container.firstElementChild;
+
+    clipCardAppearance(message);
+
+    const link = message.querySelector('.link-fragment');
+    expect(link.style.display).toBe('none');
+
+    const card = message.querySelector('.chat-card');
+    const level2 = card.parentElement.parentElement; // erSjEY
+    const level3 = level2.parentElement; // kfgjoR
+
+    expect(level2.style.background).toBe('none');
+    expect(level3.style.boxShadow).toBe('none');
+    expect(level3.style.borderStyle).toBe('none');
+  });
 });
