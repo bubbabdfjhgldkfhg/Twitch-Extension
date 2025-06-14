@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.4
+// @version      2.5
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -376,12 +376,14 @@
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-                    if (node.classList.contains('chat-line__message, .chat-line__status')) {
-                        newMessageHandler(node);
+                    let message;
+                    if (node.matches('.chat-line__message, .chat-line__status')) {
+                        message = node;
+                    } else {
+                        message = node.querySelector('.chat-line__message, .chat-line__status');
                     }
-                    let message = node.querySelectorAll('.chat-line__message, .chat-line__status')
-                    if (message && message.length) {
-                        newMessageHandler(message[0]);
+                    if (message) {
+                        newMessageHandler(message);
                     }
 
                     fadeOverflowMessages(chatContainer);
