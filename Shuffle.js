@@ -285,11 +285,11 @@ const svgPaths = {
     }
 
     function insertButton(type, clickHandler, svgPaths, color) {
-        const controlGroup = document.querySelector('.cFsYRp.player-controls__left-control-group');
+        const controlGroup = document.querySelector('[class*="player-controls__left-control-group"]');
         if (!controlGroup) return;
 
-        const pauseButton = controlGroup.querySelector('.InjectLayout-sc-1i43xsx-0.kBtJDm');
-        if (!pauseButton) return;
+        const volumeContainer = controlGroup.querySelector('.volume-slider__slider-container');
+        if (!volumeContainer) return;
 
         const existingButton = controlGroup.querySelector(`button[data-a-target="player-${type}-button"]`);
         if (existingButton) return;
@@ -326,7 +326,7 @@ const svgPaths = {
         }
 
         button.appendChild(svgElement);
-        pauseButton.insertAdjacentElement('afterend', button);
+        volumeContainer.insertAdjacentElement('beforebegin', button);
     }
 
     setInterval(function() {
