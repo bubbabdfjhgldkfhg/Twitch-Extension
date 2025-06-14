@@ -421,6 +421,9 @@
         // Set initial appearance for anything that already loaded
         chatWindowOpacity();
         chatContainer.querySelectorAll('.chat-line__message, .chat-line__status').forEach(message => newMessageHandler(message));
+
+        fadeOverflowMessages(chatContainer);
+
         // Create long-term observer
         observer?.disconnect();
         observer = chatObserver(chatContainer);
