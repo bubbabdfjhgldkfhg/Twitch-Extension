@@ -288,8 +288,8 @@ const svgPaths = {
         const controlGroup = document.querySelector('[class*="player-controls__left-control-group"]');
         if (!controlGroup) return;
 
-        const volumeContainer = controlGroup.querySelector('.volume-slider__slider-container');
-        if (!volumeContainer) return;
+        const muteButton = controlGroup.querySelector('button[data-a-target="player-mute-unmute-button"]');
+        if (!muteButton) return;
 
         const existingButton = controlGroup.querySelector(`button[data-a-target="player-${type}-button"]`);
         if (existingButton) return;
@@ -326,7 +326,7 @@ const svgPaths = {
         }
 
         button.appendChild(svgElement);
-        volumeContainer.insertAdjacentElement('beforebegin', button);
+        muteButton.insertAdjacentElement('beforebegin', button);
     }
 
     setInterval(function() {
