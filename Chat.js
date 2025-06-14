@@ -256,6 +256,55 @@
         }
     }
 
+    // Get the React internal instance from a DOM element
+    function getReactInstance(element) {
+        for (const key in element) {
+            if (key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$')) {
+                return element[key];
+            }
+        }
+        return null;
+    }
+
+    // Search React parent components up to a maximum depth
+    function searchReactParents(node, predicate, maxDepth = 15, depth = 0) {
+        try {
+            if (predicate(node)) {
+                return node;
+            }
+        } catch (_) {}
+
+        if (!node || depth > maxDepth) {
+            return null;
+        }
+
+        const {return: parent} = node;
+        if (parent) {
+            return searchReactParents(parent, predicate, maxDepth, depth + 1);
+        }
+
+        return null;
+    }
+
+    // Get the React component that contains the `props`
+    function getMessageProps(element) {
+        try {
+            const node = searchReactParents(
+                getReactInstance(element),
+                n => n.memoizedProps && n.memoizedProps.message != null,
+                30
+            );
+            if (node) {
+                return node.memoizedProps;
+            } else {
+                console.warn("React node with message props not found.");
+            }
+        } catch (e) {
+            console.error("Failed to retrieve the message props:", e);
+        }
+        return null;
+    }
+
     function newMessageHandler(message) {
         hideBadgesAndColorNames(message);
         fadeInScheduleFadeOut(message);
@@ -269,54 +318,6 @@
         let text = textElement ? textElement.textContent : '';
         let linkElement = message.querySelector('.link-fragment');
 
-        // Function to get the React internal instance from a DOM element
-        function getReactInstance(element) {
-            for (const key in element) {
-                if (key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$')) {
-                    return element[key];
-                }
-            }
-            return null;
-        }
-
-        // Function to search React parent components up to a maximum depth
-        function searchReactParents(node, predicate, maxDepth = 15, depth = 0) {
-            try {
-                if (predicate(node)) {
-                    return node;
-                }
-            } catch (_) {}
-
-            if (!node || depth > maxDepth) {
-                return null;
-            }
-
-            const {return: parent} = node;
-            if (parent) {
-                return searchReactParents(parent, predicate, maxDepth, depth + 1);
-            }
-
-            return null;
-        }
-
-        // Function to get the React component that contains the `props`
-        function getMessageProps(element) {
-            try {
-                const node = searchReactParents(
-                    getReactInstance(element),
-                    n => n.memoizedProps && n.memoizedProps.message != null,
-                    30
-                );
-                if (node) {
-                    return node.memoizedProps;
-                } else {
-                    console.warn("React node with message props not found.");
-                }
-            } catch (e) {
-                console.error("Failed to retrieve the message props:", e);
-            }
-            return null;
-        }
 
         // Highlight first time chats
         const props = getMessageProps(message);
