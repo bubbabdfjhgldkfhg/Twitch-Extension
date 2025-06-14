@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Chat Toggle Hotkey
-// @version      0.2
+// @version      0.3
 // @description  Toggle Twitch chat with 'c' key
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Chat%20Toggle%20Hotkey.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Chat%20Toggle%20Hotkey.js
@@ -12,6 +12,8 @@
     'use strict';
     let DEBUG_MODE = false;
     let cooldownActive = false;
+    let keydownListenerRegistered = false;
+    let keydownHandler;
 
     function debug(...args) {
         if (DEBUG_MODE) {
@@ -77,7 +79,11 @@
 
         if (rightColumnComponent) {
             debug('Right column component found, setting up event listener');
-            document.addEventListener("keydown", function(event) {
+            if (keydownListenerRegistered) {
+                document.removeEventListener("keydown", keydownHandler, true);
+                keydownListenerRegistered = false;
+            }
+            keydownHandler = function(event) {
                 debug('Keydown event:', { key: event.key, metaKey: event.metaKey, target: event.target.tagName });
 
                 // Don't trigger if user is typing in an input field
@@ -114,7 +120,9 @@
                         rightColumnComponent.props.expandRightColumn();
                     }
                 }
-            }, true);
+            };
+            document.addEventListener("keydown", keydownHandler, true);
+            keydownListenerRegistered = true;
         } else {
             debug('ERROR: Right column component not found');
         }
