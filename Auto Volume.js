@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.2
+// @version      0.4
 // @description  Analyze audio levels of a Twitch stream using LUFS measurement with visualization
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
@@ -68,6 +68,10 @@
 
     let blockBuffer = new Float32Array(BLOCK_SIZE);
     let blockBufferIndex = 0;
+    let tempSamples;
+    let preFilterBuffer;
+    let headphoneBuffer;
+    let kWeightingBuffer;
     let lufsBuffer = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
     // let lufsBuffer = [];
     let plotData = Array(LUFS_WINDOW).fill((MIN_DB_THRESHOLD + MAX_DB_THRESHOLD)/2);
@@ -85,6 +89,11 @@
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
         analyser.fftSize = BLOCK_SIZE * 2;
+
+        tempSamples = new Float32Array(analyser.frequencyBinCount);
+        preFilterBuffer = new Float32Array(BLOCK_SIZE);
+        headphoneBuffer = new Float32Array(BLOCK_SIZE);
+        kWeightingBuffer = new Float32Array(BLOCK_SIZE);
 
         gainNode = audioContext.createGain();
         gainNode.gain.value = 1.0;
@@ -155,7 +164,7 @@
     }
 
     function headphoneFilter(buffer) {
-        const filtered = new Float32Array(buffer.length);
+        const filtered = headphoneBuffer;
         const b = HEADPHONE_FILTER.b;
         const a = HEADPHONE_FILTER.a;
 
@@ -207,7 +216,7 @@
         const b = FILTER_COEFFICIENTS.b; // Use existing coefficients
         const a = FILTER_COEFFICIENTS.a; // Use existing coefficients
 
-        const filtered = new Float32Array(buffer.length);
+        const filtered = preFilterBuffer;
 
         // Initialize first samples
         filtered[0] = b[0] * buffer[0];
@@ -229,7 +238,7 @@
         const b = [1.0, -2.0, 1.0];
         const a = [1.0, -1.99004745483398, 0.99007225036621];
 
-        const filtered = new Float32Array(buffer.length);
+        const filtered = kWeightingBuffer;
 
         // Initialize first samples
         filtered[0] = b[0] * buffer[0];
@@ -387,11 +396,10 @@
 
     function updateLevel() {
         if (!newPageCooldownActive) {
-            const array = new Float32Array(analyser.frequencyBinCount);
-            analyser.getFloatTimeDomainData(array);
+            analyser.getFloatTimeDomainData(tempSamples);
 
-            for (let i = 0; i < array.length; i++) {
-                blockBuffer[blockBufferIndex] = array[i];
+            for (let i = 0; i < tempSamples.length; i++) {
+                blockBuffer[blockBufferIndex] = tempSamples[i];
                 blockBufferIndex++;
 
                 if (blockBufferIndex >= BLOCK_SIZE) {
