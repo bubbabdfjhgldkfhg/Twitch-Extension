@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.7
+// @version      2.8
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -63,8 +63,9 @@
     document.addEventListener('keyup', function(event) {
         if (event.key === '~') {
             tildeHeld = false;
-            if (observer?.targetElement) {
-                fadeOverflowMessages(observer.targetElement);
+            const container = observer?.targetElement;
+            if (container) {
+                fadeOverflowMessages(container);
             }
             // Re-process all messages with normal filtering
             observer?.disconnect();
@@ -115,12 +116,12 @@
     }
 
     async function fadeOverflowMessages(chatContainer) {
-        if (tildeHeld) return;
+        if (tildeHeld || !chatContainer) return;
         await new Promise(resolve => setTimeout(resolve, 0));
 
         // console.log('Running fadeOverflowMessages');
 
-        let visibleMessages = getVisibleMessages();
+        let visibleMessages = getVisibleMessages(chatContainer);
         let numMessagesToFade = Math.max(0, visibleMessages.length - maxVisibleMessages);
 
         setTimeout(() => { // Needs to run slightly after fadeInScheduleFadeOut so the opacity doesnt get overridden
@@ -132,8 +133,9 @@
         }, 10);
     }
 
-    function getVisibleMessages() {
-        let chatMessages = observer.targetElement.querySelectorAll('.chat-line__message, .chat-line__status');
+    function getVisibleMessages(container = observer?.targetElement) {
+        if (!container) return [];
+        let chatMessages = container.querySelectorAll('.chat-line__message, .chat-line__status');
         return Array.from(chatMessages).filter(message => message.style.opacity !== '0' && message.style.display !== 'none');
     }
 
