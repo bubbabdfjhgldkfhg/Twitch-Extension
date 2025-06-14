@@ -294,45 +294,59 @@ const svgPaths = {
         const existingButton = controlGroup.querySelector(`button[data-a-target="player-${type}-button"]`);
         if (existingButton) return;
 
-        // Create the button element
+        // Create the button element based on the mute button so spacing matches
         const button = document.createElement('button');
         button.addEventListener('click', clickHandler);
 
+        // Copy the class list from the mute button to keep styling consistent
+        button.className = muteButton.className;
+
         // Set attributes
-        button.className = 'ScCoreButton-sc-ocjdkq-0 caieTg ScButtonIcon-sc-9yap0r-0 dOOPAe';
         button.setAttribute('aria-label', type.charAt(0).toUpperCase() + type.slice(1));
         button.setAttribute('aria-haspopup', 'menu');
         button.setAttribute('data-a-target', `player-${type}-button`);
 
-        // Create the SVG element
-        const svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svgElement.setAttribute("style", "color: ${color}");
-        svgElement.setAttribute("width", "16");
-        svgElement.setAttribute("height", "16");
-        svgElement.setAttribute("fill", "currentColor");
-        svgElement.setAttribute("viewBox", "0 0 16 16");
+        // Create SVG wrapper hierarchy similar to Twitch buttons
+        const figure = muteButton.querySelector('div[class^="ButtonIconFigure"]');
+        const figureEl = figure ? figure.cloneNode(false) : document.createElement('div');
+        if (figure) figureEl.className = figure.className;
 
-        const pathElement1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        pathElement1.setAttribute("fill-rule", "evenodd");
-        pathElement1.setAttribute("d", svgPaths.path1);
-        pathElement1.setAttribute("fill", color);
+        const wrapper = muteButton.querySelector('div[class^="ScSvgWrapper"]');
+        const wrapperEl = wrapper ? wrapper.cloneNode(false) : document.createElement('div');
+        if (wrapper) wrapperEl.className = wrapper.className;
+
+        // Create the SVG element
+        const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svgElement.setAttribute('style', `color: ${color}`);
+        svgElement.setAttribute('width', '20');
+        svgElement.setAttribute('height', '20');
+        svgElement.setAttribute('fill', 'currentColor');
+        svgElement.setAttribute('viewBox', '0 0 16 16');
+
+        const pathElement1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pathElement1.setAttribute('fill-rule', 'evenodd');
+        pathElement1.setAttribute('d', svgPaths.path1);
+        pathElement1.setAttribute('fill', color);
         svgElement.appendChild(pathElement1);
 
         if (svgPaths.path2) {
-            const pathElement2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            pathElement2.setAttribute("d", svgPaths.path2);
-            pathElement2.setAttribute("fill", color);
+            const pathElement2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathElement2.setAttribute('d', svgPaths.path2);
+            pathElement2.setAttribute('fill', color);
             svgElement.appendChild(pathElement2);
         }
 
-        button.appendChild(svgElement);
+        wrapperEl.appendChild(svgElement);
+        figureEl.appendChild(wrapperEl);
+        button.appendChild(figureEl);
+
         muteButton.insertAdjacentElement('beforebegin', button);
     }
 
     setInterval(function() {
-        insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, "red");
-        insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, "#b380ff");
-        insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], "white");
+        insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, 'red');
+        insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], 'white');
+        insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff');
 
         // Turn the snooze button red if the current channel is snoozed
         let snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
