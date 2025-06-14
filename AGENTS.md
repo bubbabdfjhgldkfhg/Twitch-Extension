@@ -1,0 +1,1 @@
+- Script files containing a `@version` metadata line must have their version number incremented with each pull request.
