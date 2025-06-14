@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.6
+// @version      1.7
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -344,8 +344,8 @@ const svgPaths = {
     }
 
     setInterval(function() {
-        insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, 'red');
         insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], 'white', 0.9);
+        insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, 'red');
         insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff', 1.1);
 
         // Turn the snooze button red if the current channel is snoozed
