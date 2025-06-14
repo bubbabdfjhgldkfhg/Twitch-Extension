@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.6
+// @version      2.7
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -63,6 +63,9 @@
     document.addEventListener('keyup', function(event) {
         if (event.key === '~') {
             tildeHeld = false;
+            if (observer?.targetElement) {
+                fadeOverflowMessages(observer.targetElement);
+            }
             // Re-process all messages with normal filtering
             observer?.disconnect();
             observer = null;
