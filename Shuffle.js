@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.2
+// @version      2.3
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -85,6 +85,7 @@ const svgPaths = {
         let paths = toggleButton.querySelectorAll('path');
         const isSnoozed = snoozedList.includes(window.location.pathname);
         const icon = isSnoozed ? getSnoozePaths() : svgPaths[shuffleType];
+        const color = isSnoozed ? 'red' : (autoRotateEnabled ? '#b380ff' : 'white');
         paths[0].setAttribute('d', icon.path1);
         if (icon.clip === 'left') paths[0].setAttribute('clip-path', 'url(#follow-toggle-clip)');
         else paths[0].removeAttribute('clip-path');
@@ -93,13 +94,13 @@ const svgPaths = {
             else {
                 const p2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 p2.setAttribute('d', icon.path2);
-                p2.setAttribute('fill', isSnoozed ? 'red' : 'white');
+                p2.setAttribute('fill', color);
                 toggleButton.querySelector('svg').appendChild(p2);
             }
         } else if (paths[1]) {
             paths[1].remove();
         }
-        paths.forEach(p => p.setAttribute('fill', isSnoozed ? 'red' : 'white'));
+        paths.forEach(p => p.setAttribute('fill', color));
     }
 
     function newChannelCooldown() {
@@ -267,17 +268,11 @@ const svgPaths = {
     }
 
     function channelRotationTimer(action = 'toggle') {
-        const continuousButton = document.querySelector('button[data-a-target="player-continuous-button"]');
-        const wrapper = continuousButton ? continuousButton.querySelector('div[class^="ScSvgWrapper"]') : null;
-
         if (autoRotateEnabled) {
             if (action == 'disable' || action == 'toggle') {
                 autoRotateEnabled = false;
                 resetChannelRotationTimer();
-                // Change color back to white
-                if (continuousButton) continuousButton.style.display = 'none';
-                if (wrapper) wrapper.style.animation = '';
-                // continuousButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', 'white'));
+                updateFollowToggleIcon();
             }
         }
         else if (!autoRotateEnabled) {
@@ -285,10 +280,7 @@ const svgPaths = {
                 autoRotateEnabled = true;
                 clickRandomChannel(); // Run immediately, then start timer.
                 resetChannelRotationTimer();
-                // Change color to purple
-                if (continuousButton) continuousButton.style.display = 'inline-flex';
-                if (wrapper) wrapper.style.animation = 'shuffleRotate 6s linear infinite';
-                // continuousButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', '#b380ff'));
+                updateFollowToggleIcon();
             }
         }
     }
@@ -408,20 +400,8 @@ const svgPaths = {
 
     setInterval(function() {
         insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], 'white', 0.8);
-        insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff', 1);
 
         updateFollowToggleIcon();
-        // Make sure the Continuous button is purple if turned on
-        let continuousButton = document.querySelector('button[data-a-target="player-continuous-button"]');
-        let wrapper = continuousButton ? continuousButton.querySelector('div[class^="ScSvgWrapper"]') : null;
-        if (autoRotateEnabled) {
-            if (continuousButton) continuousButton.style.display = 'inline-flex';
-            if (wrapper) wrapper.style.animation = 'shuffleRotate 6s linear infinite';
-            // continuousButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', '#b380ff'));
-        } else {
-            if (continuousButton) continuousButton.style.display = 'none';
-            if (wrapper) wrapper.style.animation = '';
-        }
 
         // Manually clicking channels resets the timer and adds them to the recently clicked queue
         if (lastClickedHrefs[lastClickedHrefs.length - 1] !== window.location.pathname) {
