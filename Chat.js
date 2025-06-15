@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.9
+// @version      2.10
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -147,11 +147,13 @@
             element.style.whiteSpace = 'nowrap';
             element.style.overflow = 'hidden';
             element.style.textOverflow = 'ellipsis';
+            element.style.display = 'inline-block';
         } else {
             element.style.maxWidth = '';
             element.style.whiteSpace = '';
             element.style.overflow = '';
             element.style.textOverflow = '';
+            element.style.display = '';
         }
     }
 
