@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.8
+// @version      2.9
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -35,6 +35,7 @@
                     message.style.display = 'block';
                     message.style.opacity = brightness;
                 });
+                toggleAllTruncation(false);
             }
             // } else if (event.key === '`') {
             //     // Makes it too easy to type stupid shit
@@ -70,6 +71,7 @@
             // Re-process all messages with normal filtering
             observer?.disconnect();
             observer = null;
+            toggleAllTruncation(true);
         }
     });
 
@@ -137,6 +139,26 @@
         if (!container) return [];
         let chatMessages = container.querySelectorAll('.chat-line__message, .chat-line__status');
         return Array.from(chatMessages).filter(message => message.style.opacity !== '0' && message.style.display !== 'none');
+    }
+
+    function applyTextTruncation(element, enable) {
+        if (enable) {
+            element.style.maxWidth = '100ch';
+            element.style.whiteSpace = 'nowrap';
+            element.style.overflow = 'hidden';
+            element.style.textOverflow = 'ellipsis';
+        } else {
+            element.style.maxWidth = '';
+            element.style.whiteSpace = '';
+            element.style.overflow = '';
+            element.style.textOverflow = '';
+        }
+    }
+
+    function toggleAllTruncation(enable) {
+        document.querySelectorAll('.chat-line__message .text-fragment[data-truncated="true"]').forEach(el => {
+            applyTextTruncation(el, enable);
+        });
     }
 
     function fadeInScheduleFadeOut(message) {
@@ -322,6 +344,10 @@
         let username = usernameElement?.textContent;
         let textElement = message.querySelector('.text-fragment');
         let text = textElement ? textElement.textContent : '';
+        if (textElement && text.length > 100) {
+            textElement.dataset.truncated = 'true';
+            if (!tildeHeld) applyTextTruncation(textElement, true);
+        }
         let linkElement = message.querySelector('.link-fragment');
 
 
