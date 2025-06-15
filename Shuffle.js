@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.9
+// @version      2.0
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -30,18 +30,6 @@ const svgPaths = {
     discover: { path1: heartNoFill, path2: null },
     continuous: { path1: continuousShuffle1, path2: continuousShuffle2 }
 };
-
-function getSnoozePaths() {
-    switch (shuffleType) {
-        case 'followed':
-            return { path1: heartbreakFill, path2: null };
-        case 'recommended':
-            return { path1: heartbreakFill, path2: heartbreak, clip: 'left' };
-        case 'discover':
-        default:
-            return { path1: heartbreak, path2: null };
-    }
-}
 
 (function() {
     'use strict';
@@ -78,6 +66,18 @@ function getSnoozePaths() {
     let coolDownTimerId;
     let rotationTimerId = null;
     let similarChannelClickCount = 0;
+
+    function getSnoozePaths() {
+        switch (shuffleType) {
+            case 'followed':
+                return { path1: heartbreakFill, path2: null };
+            case 'recommended':
+                return { path1: heartbreakFill, path2: heartbreak, clip: 'left' };
+            case 'discover':
+            default:
+                return { path1: heartbreak, path2: null };
+        }
+    }
 
     function newChannelCooldown() {
         cooldownActive = true;
