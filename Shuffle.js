@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.0
+// @version      2.1
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -79,6 +79,27 @@ const svgPaths = {
         }
     }
 
+    function updateFollowToggleIcon() {
+        const toggleButton = document.querySelector('button[data-a-target="player-follow-toggle-button"]');
+        if (!toggleButton) return;
+        let paths = toggleButton.querySelectorAll('path');
+        const icon = snoozedList.includes(window.location.pathname) ? getSnoozePaths() : svgPaths[shuffleType];
+        paths[0].setAttribute('d', icon.path1);
+        if (icon.clip === 'left') paths[0].setAttribute('clip-path', 'url(#follow-toggle-clip)');
+        else paths[0].removeAttribute('clip-path');
+        if (icon.path2) {
+            if (paths[1]) paths[1].setAttribute('d', icon.path2);
+            else {
+                const p2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                p2.setAttribute('d', icon.path2);
+                p2.setAttribute('fill', 'white');
+                toggleButton.querySelector('svg').appendChild(p2);
+            }
+        } else if (paths[1]) {
+            paths[1].remove();
+        }
+    }
+
     function newChannelCooldown() {
         cooldownActive = true;
         clearTimeout(coolDownTimerId);
@@ -97,9 +118,7 @@ const svgPaths = {
         // Remove channel from snooze list if it's already there
         if (snoozedList.includes(window.location.pathname)) {
             snoozedList = snoozedList.filter(item => item !== window.location.pathname);
-            // Hide Unsnooze button
-            let snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
-            if (snoozeButton) snoozeButton.style.display = 'none';
+            updateFollowToggleIcon();
             return;
         }
 
@@ -309,24 +328,7 @@ const svgPaths = {
             paths[1].remove();
         }
 
-        // Update snooze button icon
-        const snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
-        if (snoozeButton) {
-            let sPaths = snoozeButton.querySelectorAll('path');
-            const snoozePaths = getSnoozePaths();
-            sPaths[0].setAttribute('d', snoozePaths.path1);
-            if (snoozePaths.clip === 'left') sPaths[0].setAttribute('clip-path', 'url(#snooze-clip)');
-            else sPaths[0].removeAttribute('clip-path');
-            if (snoozePaths.path2) {
-                if (sPaths[1]) sPaths[1].setAttribute('d', snoozePaths.path2);
-                else {
-                    const p2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    p2.setAttribute('d', snoozePaths.path2);
-                    p2.setAttribute('fill', 'red');
-                    snoozeButton.querySelector('svg').appendChild(p2);
-                }
-            } else if (sPaths[1]) sPaths[1].remove();
-        }
+        updateFollowToggleIcon();
     }
 
     function insertButton(type, clickHandler, svgPaths, color, scale = 1) {
@@ -404,18 +406,9 @@ const svgPaths = {
 
     setInterval(function() {
         insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], 'white', 0.8);
-        insertButton('snooze', () => snoozeChannel(), getSnoozePaths(), 'red', 0.85);
         insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff', 1);
 
-        // Turn the snooze button red if the current channel is snoozed
-        let snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
-        if (snoozedList.includes(window.location.pathname)) {
-            if (snoozeButton) snoozeButton.style.display = 'inline-flex';
-            // snoozeButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', 'red'));
-        } else {
-            if (snoozeButton) snoozeButton.style.display = 'none';
-            // snoozeButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', 'white'));
-        }
+        updateFollowToggleIcon();
         // Make sure the Continuous button is purple if turned on
         let continuousButton = document.querySelector('button[data-a-target="player-continuous-button"]');
         let wrapper = continuousButton ? continuousButton.querySelector('div[class^="ScSvgWrapper"]') : null;
