@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.8
+// @version      1.9
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -27,14 +27,13 @@ const svgPaths = {
     followed: { path1: heartFill, path2: null },
     recommended: { path1: heartHalfFill, path2: null },
     discover: { path1: heartNoFill, path2: null },
-    continuous: { path1: continuousShuffle1, path2: continuousShuffle2 },
     snooze: { path1: snoozePath1, path2: snoozePath2 }
 };
 
 (function() {
     'use strict';
 
-    // Add rotation keyframes for the continuous button
+    // Add rotation keyframes for the continuous arrows
     const style = document.createElement('style');
     style.textContent = `@keyframes shuffleRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
     document.head.appendChild(style);
@@ -234,17 +233,19 @@ const svgPaths = {
     }
 
     function channelRotationTimer(action = 'toggle') {
-        const continuousButton = document.querySelector('button[data-a-target="player-continuous-button"]');
-        const wrapper = continuousButton ? continuousButton.querySelector('div[class^="ScSvgWrapper"]') : null;
+        const followButton = document.querySelector('button[data-a-target="player-follow-toggle-button"]');
+        const heart = followButton ? followButton.querySelector('.heart-path') : null;
+        const arrows = followButton ? followButton.querySelector('.continuous-arrows') : null;
 
         if (autoRotateEnabled) {
             if (action == 'disable' || action == 'toggle') {
                 autoRotateEnabled = false;
                 resetChannelRotationTimer();
-                // Change color back to white
-                if (continuousButton) continuousButton.style.display = 'none';
-                if (wrapper) wrapper.style.animation = '';
-                // continuousButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', 'white'));
+                if (arrows) {
+                    arrows.style.opacity = '0';
+                    arrows.style.animation = '';
+                }
+                if (heart) heart.style.transform = 'scale(1)';
             }
         }
         else if (!autoRotateEnabled) {
@@ -252,10 +253,11 @@ const svgPaths = {
                 autoRotateEnabled = true;
                 clickRandomChannel(); // Run immediately, then start timer.
                 resetChannelRotationTimer();
-                // Change color to purple
-                if (continuousButton) continuousButton.style.display = 'inline-flex';
-                if (wrapper) wrapper.style.animation = 'shuffleRotate 6s linear infinite';
-                // continuousButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', '#b380ff'));
+                if (arrows) {
+                    arrows.style.opacity = '1';
+                    arrows.style.animation = 'shuffleRotate 6s linear infinite';
+                }
+                if (heart) heart.style.transform = 'scale(0.85)';
             }
         }
     }
@@ -335,6 +337,8 @@ const svgPaths = {
         pathElement1.setAttribute('fill-rule', 'evenodd');
         pathElement1.setAttribute('d', svgPaths.path1);
         pathElement1.setAttribute('fill', color);
+        pathElement1.classList.add('heart-path');
+        pathElement1.style.transition = 'transform 0.3s';
         svgElement.appendChild(pathElement1);
 
         if (svgPaths.path2) {
@@ -342,6 +346,21 @@ const svgPaths = {
             pathElement2.setAttribute('d', svgPaths.path2);
             pathElement2.setAttribute('fill', color);
             svgElement.appendChild(pathElement2);
+        }
+
+        if (type === 'follow-toggle') {
+            const arrowsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            arrowsGroup.classList.add('continuous-arrows');
+            arrowsGroup.setAttribute('style', 'opacity:0; transform-origin: center; transition: opacity 0.3s;');
+            const arrow1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            arrow1.setAttribute('d', continuousShuffle1);
+            arrow1.setAttribute('fill', '#b380ff');
+            const arrow2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            arrow2.setAttribute('d', continuousShuffle2);
+            arrow2.setAttribute('fill', '#b380ff');
+            arrowsGroup.appendChild(arrow1);
+            arrowsGroup.appendChild(arrow2);
+            svgElement.appendChild(arrowsGroup);
         }
 
         wrapperEl.appendChild(svgElement);
@@ -354,7 +373,6 @@ const svgPaths = {
     setInterval(function() {
         insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], 'white', 0.8);
         insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, 'red', 0.85);
-        insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff', 1);
 
         // Turn the snooze button red if the current channel is snoozed
         let snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
@@ -365,16 +383,22 @@ const svgPaths = {
             if (snoozeButton) snoozeButton.style.display = 'none';
             // snoozeButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', 'white'));
         }
-        // Make sure the Continuous button is purple if turned on
-        let continuousButton = document.querySelector('button[data-a-target="player-continuous-button"]');
-        let wrapper = continuousButton ? continuousButton.querySelector('div[class^="ScSvgWrapper"]') : null;
+        // Animate the heart and arrows if continuous mode is on
+        let followButton = document.querySelector('button[data-a-target="player-follow-toggle-button"]');
+        let heart = followButton ? followButton.querySelector('.heart-path') : null;
+        let arrows = followButton ? followButton.querySelector('.continuous-arrows') : null;
         if (autoRotateEnabled) {
-            if (continuousButton) continuousButton.style.display = 'inline-flex';
-            if (wrapper) wrapper.style.animation = 'shuffleRotate 6s linear infinite';
-            // continuousButton?.querySelectorAll('path').forEach(path => path.setAttribute('fill', '#b380ff'));
+            if (arrows) {
+                arrows.style.opacity = '1';
+                arrows.style.animation = 'shuffleRotate 6s linear infinite';
+            }
+            if (heart) heart.style.transform = 'scale(0.85)';
         } else {
-            if (continuousButton) continuousButton.style.display = 'none';
-            if (wrapper) wrapper.style.animation = '';
+            if (arrows) {
+                arrows.style.opacity = '0';
+                arrows.style.animation = '';
+            }
+            if (heart) heart.style.transform = 'scale(1)';
         }
 
         // Manually clicking channels resets the timer and adds them to the recently clicked queue
