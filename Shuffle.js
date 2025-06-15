@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.1
+// @version      2.2
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -83,7 +83,8 @@ const svgPaths = {
         const toggleButton = document.querySelector('button[data-a-target="player-follow-toggle-button"]');
         if (!toggleButton) return;
         let paths = toggleButton.querySelectorAll('path');
-        const icon = snoozedList.includes(window.location.pathname) ? getSnoozePaths() : svgPaths[shuffleType];
+        const isSnoozed = snoozedList.includes(window.location.pathname);
+        const icon = isSnoozed ? getSnoozePaths() : svgPaths[shuffleType];
         paths[0].setAttribute('d', icon.path1);
         if (icon.clip === 'left') paths[0].setAttribute('clip-path', 'url(#follow-toggle-clip)');
         else paths[0].removeAttribute('clip-path');
@@ -92,12 +93,13 @@ const svgPaths = {
             else {
                 const p2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 p2.setAttribute('d', icon.path2);
-                p2.setAttribute('fill', 'white');
+                p2.setAttribute('fill', isSnoozed ? 'red' : 'white');
                 toggleButton.querySelector('svg').appendChild(p2);
             }
         } else if (paths[1]) {
             paths[1].remove();
         }
+        paths.forEach(p => p.setAttribute('fill', isSnoozed ? 'red' : 'white'));
     }
 
     function newChannelCooldown() {
