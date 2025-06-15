@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.9
+// @version      1.10
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -35,7 +35,8 @@ const svgPaths = {
 
     // Add rotation keyframes for the continuous arrows
     const style = document.createElement('style');
-    style.textContent = `@keyframes shuffleRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+    style.textContent = `@keyframes shuffleRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes shuffleRotateScaled { from { transform: translate(0, -0.5px) rotate(0deg) scale(2); } to { transform: translate(0, -0.5px) rotate(360deg) scale(2); } }`;
     document.head.appendChild(style);
 
     // ===========================
@@ -351,7 +352,7 @@ const svgPaths = {
         if (type === 'follow-toggle') {
             const arrowsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             arrowsGroup.classList.add('continuous-arrows');
-            arrowsGroup.setAttribute('style', 'opacity:0; transform-origin: center; transition: opacity 0.3s;');
+            arrowsGroup.setAttribute('style', 'opacity:0; transform-origin:center; transform-box:fill-box; transition: opacity 0.3s;');
             const arrow1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             arrow1.setAttribute('d', continuousShuffle1);
             arrow1.setAttribute('fill', '#b380ff');
@@ -390,9 +391,9 @@ const svgPaths = {
         if (autoRotateEnabled) {
             if (arrows) {
                 arrows.style.opacity = '1';
-                arrows.style.animation = 'shuffleRotate 6s linear infinite';
+                arrows.style.animation = 'shuffleRotateScaled 6s linear infinite';
             }
-            if (heart) heart.style.transform = 'scale(0.85)';
+            if (heart) heart.style.transform = 'scale(0.75)';
         } else {
             if (arrows) {
                 arrows.style.opacity = '0';
