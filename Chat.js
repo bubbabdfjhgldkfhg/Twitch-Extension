@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.10
+// @version      2.11
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -158,7 +158,7 @@
     }
 
     function toggleAllTruncation(enable) {
-        document.querySelectorAll('.chat-line__message .text-fragment[data-truncated="true"]').forEach(el => {
+        document.querySelectorAll('.chat-line__message [data-truncated="true"]').forEach(el => {
             applyTextTruncation(el, enable);
         });
     }
@@ -344,11 +344,11 @@
         let streamer = window.location.pathname.substring(1);
         let usernameElement = message.querySelector('.chat-author__display-name');
         let username = usernameElement?.textContent;
-        let textElement = message.querySelector('.text-fragment');
-        let text = textElement ? textElement.textContent : '';
-        if (textElement && text.length > 100) {
-            textElement.dataset.truncated = 'true';
-            if (!tildeHeld) applyTextTruncation(textElement, true);
+        let bodyElement = message.querySelector('[data-a-target="chat-line-message-body"]');
+        let text = bodyElement ? bodyElement.textContent : '';
+        if (bodyElement && text.length > 100) {
+            bodyElement.dataset.truncated = 'true';
+            if (!tildeHeld) applyTextTruncation(bodyElement, true);
         }
         let linkElement = message.querySelector('.link-fragment');
 
@@ -465,7 +465,8 @@
         module.exports = {
             isSideConversation,
             hasCyrillic,
-            clipCardAppearance
+            clipCardAppearance,
+            newMessageHandler
         };
     }
 

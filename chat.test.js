@@ -3,6 +3,7 @@ const {JSDOM} = require('jsdom');
 let isSideConversation;
 let hasCyrillic;
 let clipCardAppearance;
+let newMessageHandler;
 
 describe('chat utilities', () => {
   beforeAll(() => {
@@ -10,7 +11,7 @@ describe('chat utilities', () => {
     global.window = dom.window;
     global.document = dom.window.document;
     document.cookie = 'name=currentuser';
-    ({isSideConversation, hasCyrillic, clipCardAppearance} = require('./Chat.js'));
+    ({isSideConversation, hasCyrillic, clipCardAppearance, newMessageHandler} = require('./Chat.js'));
   });
 
   test('isSideConversation detects reply not involving current user', () => {
@@ -89,5 +90,19 @@ describe('chat utilities', () => {
     expect(level2.style.background).toBe('none');
     expect(level3.style.boxShadow).toBe('none');
     expect(level3.style.borderStyle).toBe('none');
+  });
+
+  test('newMessageHandler truncates long messages', () => {
+    const longText = 'a'.repeat(105);
+    const html = `<div class="chat-line__message"><span data-a-target="chat-line-message-body"><span class="text-fragment">${longText}</span></span></div>`;
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    const message = container.firstElementChild;
+
+    newMessageHandler(message);
+
+    const body = message.querySelector('[data-a-target="chat-line-message-body"]');
+    expect(body.dataset.truncated).toBe('true');
+    expect(body.style.textOverflow).toBe('ellipsis');
   });
 });
