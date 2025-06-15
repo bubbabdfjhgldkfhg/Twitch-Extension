@@ -345,8 +345,8 @@ const svgPaths = {
 
     setInterval(function() {
         insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], 'white', 0.8);
-        insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, 'red', 0.9);
-        insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff', 1.1);
+        insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, 'red', 0.85);
+        insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff', 1);
 
         // Turn the snooze button red if the current channel is snoozed
         let snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
