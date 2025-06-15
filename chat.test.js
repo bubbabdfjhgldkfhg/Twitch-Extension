@@ -92,7 +92,7 @@ describe('chat utilities', () => {
     expect(level3.style.borderStyle).toBe('none');
   });
 
-  test('newMessageHandler truncates long messages', () => {
+  test('newMessageHandler leaves long messages unmodified', () => {
     const longText = 'a'.repeat(105);
     const html = `<div class="chat-line__message"><span data-a-target="chat-line-message-body"><span class="text-fragment">${longText}</span></span></div>`;
     const container = document.createElement('div');
@@ -102,7 +102,7 @@ describe('chat utilities', () => {
     newMessageHandler(message);
 
     const body = message.querySelector('[data-a-target="chat-line-message-body"]');
-    expect(body.dataset.truncated).toBe('true');
-    expect(body.style.textOverflow).toBe('ellipsis');
+    expect(body.dataset.truncated).toBeUndefined();
+    expect(body.style.textOverflow).toBe('');
   });
 });

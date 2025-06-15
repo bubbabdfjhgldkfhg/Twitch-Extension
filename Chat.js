@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.11
+// @version      2.12
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -35,7 +35,6 @@
                     message.style.display = 'block';
                     message.style.opacity = brightness;
                 });
-                toggleAllTruncation(false);
             }
             // } else if (event.key === '`') {
             //     // Makes it too easy to type stupid shit
@@ -71,7 +70,6 @@
             // Re-process all messages with normal filtering
             observer?.disconnect();
             observer = null;
-            toggleAllTruncation(true);
         }
     });
 
@@ -140,29 +138,6 @@
         let chatMessages = container.querySelectorAll('.chat-line__message, .chat-line__status');
         return Array.from(chatMessages).filter(message => message.style.opacity !== '0' && message.style.display !== 'none');
     }
-
-    function applyTextTruncation(element, enable) {
-        if (enable) {
-            element.style.maxWidth = '100ch';
-            element.style.whiteSpace = 'nowrap';
-            element.style.overflow = 'hidden';
-            element.style.textOverflow = 'ellipsis';
-            element.style.display = 'inline-block';
-        } else {
-            element.style.maxWidth = '';
-            element.style.whiteSpace = '';
-            element.style.overflow = '';
-            element.style.textOverflow = '';
-            element.style.display = '';
-        }
-    }
-
-    function toggleAllTruncation(enable) {
-        document.querySelectorAll('.chat-line__message [data-truncated="true"]').forEach(el => {
-            applyTextTruncation(el, enable);
-        });
-    }
-
     function fadeInScheduleFadeOut(message) {
         // Fade in
         message.style.opacity = '0';
@@ -346,10 +321,6 @@
         let username = usernameElement?.textContent;
         let bodyElement = message.querySelector('[data-a-target="chat-line-message-body"]');
         let text = bodyElement ? bodyElement.textContent : '';
-        if (bodyElement && text.length > 100) {
-            bodyElement.dataset.truncated = 'true';
-            if (!tildeHeld) applyTextTruncation(bodyElement, true);
-        }
         let linkElement = message.querySelector('.link-fragment');
 
 
