@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.9
+// @version      1.10
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -33,19 +33,6 @@ const svgPaths = {
 
 (function() {
     'use strict';
-
-    // Add arrow tracing keyframes for the continuous button
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes heartTrace { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -150; } }
-        .heart-arrow {
-            stroke-dasharray: 20 130;
-            stroke-dashoffset: 0;
-            animation: heartTrace 4s linear infinite;
-            fill: none;
-        }
-    `;
-    document.head.appendChild(style);
 
     // ===========================
     //          CONFIG
@@ -338,21 +325,28 @@ const svgPaths = {
         svgElement.setAttribute('viewBox', '0 0 16 16');
 
         if (type === 'continuous') {
-            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-            marker.setAttribute('id', 'arrowhead');
-            marker.setAttribute('markerWidth', '4');
-            marker.setAttribute('markerHeight', '4');
-            marker.setAttribute('refX', '2');
-            marker.setAttribute('refY', '2');
-            marker.setAttribute('orient', 'auto');
-            marker.setAttribute('markerUnits', 'strokeWidth');
-            const arrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            arrowPath.setAttribute('d', 'M0,0 L0,4 L4,2 Z');
-            arrowPath.setAttribute('fill', color);
-            marker.appendChild(arrowPath);
-            defs.appendChild(marker);
-            svgElement.appendChild(defs);
+            const outlinePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            outlinePath.setAttribute('d', svgPaths.path2);
+            outlinePath.setAttribute('fill', 'none');
+            outlinePath.setAttribute('stroke', 'none');
+            outlinePath.setAttribute('id', 'heartOutline');
+            svgElement.appendChild(outlinePath);
+
+            const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            arrow.setAttribute('d', 'M0,0 L0,4 L4,2 Z');
+            arrow.setAttribute('fill', color);
+
+            const animateMotion = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+            animateMotion.setAttribute('dur', '4s');
+            animateMotion.setAttribute('repeatCount', 'indefinite');
+            animateMotion.setAttribute('rotate', 'auto');
+
+            const mpath = document.createElementNS('http://www.w3.org/2000/svg', 'mpath');
+            mpath.setAttribute('href', '#heartOutline');
+            animateMotion.appendChild(mpath);
+
+            arrow.appendChild(animateMotion);
+            svgElement.appendChild(arrow);
         }
 
         const pathElement1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -361,17 +355,10 @@ const svgPaths = {
         pathElement1.setAttribute('fill', type === 'continuous' ? 'white' : color);
         svgElement.appendChild(pathElement1);
 
-        if (svgPaths.path2) {
+        if (svgPaths.path2 && type !== 'continuous') {
             const pathElement2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             pathElement2.setAttribute('d', svgPaths.path2);
-            if (type === 'continuous') {
-                pathElement2.setAttribute('class', 'heart-arrow');
-                pathElement2.setAttribute('stroke', color);
-                pathElement2.setAttribute('stroke-width', '1.5');
-                pathElement2.setAttribute('marker-end', 'url(#arrowhead)');
-            } else {
-                pathElement2.setAttribute('fill', color);
-            }
+            pathElement2.setAttribute('fill', color);
             svgElement.appendChild(pathElement2);
         }
 
