@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.8
+// @version      1.9
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -17,19 +17,31 @@ const heartFill = "M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.2
 const heartHalfFill = "M8 2.748v11.047c3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z";
 const heartNoFill = "m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z";
 
+const heartbreakFill = "M8.931.586 7 3l1.5 4-2 3L8 15C22.534 5.396 13.757-2.21 8.931.586M7.358.77 5.5 3 7 7l-1.5 3 1.815 4.537C-6.533 4.96 2.685-2.467 7.358.77";
+const heartbreak = "M8.867 14.41c13.308-9.322 4.79-16.563.064-13.824L7 3l1.5 4-2 3L8 15a38 38 0 0 0 .867-.59m-.303-1.01-.971-3.237 1.74-2.608a1 1 0 0 0 .103-.906l-1.3-3.468 1.45-1.813c1.861-.948 4.446.002 5.197 2.11.691 1.94-.055 5.521-6.219 9.922m-1.25 1.137a36 36 0 0 1-1.522-1.116C-5.077 4.97 1.842-1.472 6.454.293c.314.12.618.279.904.477L5.5 3 7 7l-1.5 3zm-2.3-3.06-.442-1.106a1 1 0 0 1 .034-.818l1.305-2.61L4.564 3.35a1 1 0 0 1 .168-.991l1.032-1.24c-1.688-.449-3.7.398-4.456 2.128-.711 1.627-.413 4.55 3.706 8.229Z";
+
 const continuousShuffle1 = "M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z";
 const continuousShuffle2 = "M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z";
 
-const snoozePath1 = "M4.54.146A.5.5 0 0 1 4.893 0h6.214a.5.5 0 0 1 .353.146l4.394 4.394a.5.5 0 0 1 .146.353v6.214a.5.5 0 0 1-.146.353l-4.394 4.394a.5.5 0 0 1-.353.146H4.893a.5.5 0 0 1-.353-.146L.146 11.46A.5.5 0 0 1 0 11.107V4.893a.5.5 0 0 1 .146-.353L4.54.146zM5.1 1 1 5.1v5.8L5.1 15h5.8l4.1-4.1V5.1L10.9 1H5.1z";
-const snoozePath2 = "M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z";
 
 const svgPaths = {
     followed: { path1: heartFill, path2: null },
     recommended: { path1: heartHalfFill, path2: null },
     discover: { path1: heartNoFill, path2: null },
-    continuous: { path1: continuousShuffle1, path2: continuousShuffle2 },
-    snooze: { path1: snoozePath1, path2: snoozePath2 }
+    continuous: { path1: continuousShuffle1, path2: continuousShuffle2 }
 };
+
+function getSnoozePaths() {
+    switch (shuffleType) {
+        case 'followed':
+            return { path1: heartbreakFill, path2: null };
+        case 'recommended':
+            return { path1: heartbreakFill, path2: heartbreak, clip: 'left' };
+        case 'discover':
+        default:
+            return { path1: heartbreak, path2: null };
+    }
+}
 
 (function() {
     'use strict';
@@ -289,7 +301,32 @@ const svgPaths = {
         let paths = toggleButton.querySelectorAll('path');
         const newPaths = svgPaths[shuffleType];
         paths[0].setAttribute('d', newPaths.path1);
-        // if (newPaths.path2) paths[1].setAttribute('d', newPaths.path2);
+        if (newPaths.clip === 'left') paths[0].setAttribute('clip-path', 'url(#follow-toggle-clip)');
+        else paths[0].removeAttribute('clip-path');
+        if (newPaths.path2) {
+            if (paths[1]) paths[1].setAttribute('d', newPaths.path2);
+        } else if (paths[1]) {
+            paths[1].remove();
+        }
+
+        // Update snooze button icon
+        const snoozeButton = document.querySelector('button[data-a-target="player-snooze-button"]');
+        if (snoozeButton) {
+            let sPaths = snoozeButton.querySelectorAll('path');
+            const snoozePaths = getSnoozePaths();
+            sPaths[0].setAttribute('d', snoozePaths.path1);
+            if (snoozePaths.clip === 'left') sPaths[0].setAttribute('clip-path', 'url(#snooze-clip)');
+            else sPaths[0].removeAttribute('clip-path');
+            if (snoozePaths.path2) {
+                if (sPaths[1]) sPaths[1].setAttribute('d', snoozePaths.path2);
+                else {
+                    const p2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    p2.setAttribute('d', snoozePaths.path2);
+                    p2.setAttribute('fill', 'red');
+                    snoozeButton.querySelector('svg').appendChild(p2);
+                }
+            } else if (sPaths[1]) sPaths[1].remove();
+        }
     }
 
     function insertButton(type, clickHandler, svgPaths, color, scale = 1) {
@@ -331,10 +368,24 @@ const svgPaths = {
         svgElement.setAttribute('fill', 'currentColor');
         svgElement.setAttribute('viewBox', '0 0 16 16');
 
+        const clipId = `${type}-clip`;
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+        clipPath.setAttribute('id', clipId);
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', '0');
+        rect.setAttribute('y', '0');
+        rect.setAttribute('width', '8');
+        rect.setAttribute('height', '16');
+        clipPath.appendChild(rect);
+        defs.appendChild(clipPath);
+        svgElement.appendChild(defs);
+
         const pathElement1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         pathElement1.setAttribute('fill-rule', 'evenodd');
         pathElement1.setAttribute('d', svgPaths.path1);
         pathElement1.setAttribute('fill', color);
+        if (svgPaths.clip === 'left') pathElement1.setAttribute('clip-path', `url(#${clipId})`);
         svgElement.appendChild(pathElement1);
 
         if (svgPaths.path2) {
@@ -353,7 +404,7 @@ const svgPaths = {
 
     setInterval(function() {
         insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], 'white', 0.8);
-        insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, 'red', 0.85);
+        insertButton('snooze', () => snoozeChannel(), getSnoozePaths(), 'red', 0.85);
         insertButton('continuous', () => channelRotationTimer('toggle'), svgPaths.continuous, '#b380ff', 1);
 
         // Turn the snooze button red if the current channel is snoozed
