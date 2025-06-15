@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.9
+// @version      1.10
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -16,9 +16,10 @@
 const heartFill = "M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z";
 const heartHalfFill = "M8 2.748v11.047c3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z";
 const heartNoFill = "m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z";
+const heartNoFillArrow = "M8 15C23.333 4.867 12.72 -3.042 8.176 1.144 C7.943 1.255 7.884 1.198 7.824 1.143 C3.279 -3.04 -7.333 4.868 8 15 M8 2.748 L8.717 2.01 C10.4 0.28 13.486 0.878 14.6 3.053 C15.124 4.076 15.241 5.552 14.286 7.438 C13.365 9.253 11.452 11.427 8 13.795 C4.548 11.427 2.634 9.253 1.714 7.438 C0.759 5.553 0.877 4.076 1.4 3.053 C2.514 0.878 5.6 0.281 7.283 2.011 L8 2.748";
 
 const continuousShuffle1 = heartFill; // base heart
-const continuousShuffle2 = heartNoFill; // outline used for the tracing arrow
+const continuousShuffle2 = heartNoFillArrow; // outline used for the tracing arrow
 
 const snoozePath1 = "M4.54.146A.5.5 0 0 1 4.893 0h6.214a.5.5 0 0 1 .353.146l4.394 4.394a.5.5 0 0 1 .146.353v6.214a.5.5 0 0 1-.146.353l-4.394 4.394a.5.5 0 0 1-.353.146H4.893a.5.5 0 0 1-.353-.146L.146 11.46A.5.5 0 0 1 0 11.107V4.893a.5.5 0 0 1 .146-.353L4.54.146zM5.1 1 1 5.1v5.8L5.1 15h5.8l4.1-4.1V5.1L10.9 1H5.1z";
 const snoozePath2 = "M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z";
@@ -37,12 +38,17 @@ const svgPaths = {
     // Add arrow tracing keyframes for the continuous button
     const style = document.createElement('style');
     style.textContent = `
-        @keyframes heartTrace { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -150; } }
+        @keyframes heartTrace {
+            from { stroke-dashoffset: 0; }
+            to { stroke-dashoffset: -92; }
+        }
         .heart-arrow {
-            stroke-dasharray: 20 130;
+            stroke-dasharray: 40 52;
             stroke-dashoffset: 0;
             animation: heartTrace 4s linear infinite;
             fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
     `;
     document.head.appendChild(style);
@@ -385,7 +391,7 @@ const svgPaths = {
     setInterval(function() {
         insertButton('follow-toggle', () => toggleShuffleType(), svgPaths[shuffleType], 'white', 0.8);
         insertButton('snooze', () => snoozeChannel(), svgPaths.snooze, 'red', 0.85);
-        const continuousIcon = { path1: svgPaths[shuffleType].path1, path2: heartNoFill };
+        const continuousIcon = { path1: svgPaths[shuffleType].path1, path2: heartNoFillArrow };
         insertButton('continuous', () => channelRotationTimer('toggle'), continuousIcon, '#b380ff', 1);
 
         // Turn the snooze button red if the current channel is snoozed
