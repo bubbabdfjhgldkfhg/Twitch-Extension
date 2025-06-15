@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.10
+// @version      1.11
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -352,13 +352,24 @@ const svgPaths = {
         if (type === 'follow-toggle') {
             const arrowsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             arrowsGroup.classList.add('continuous-arrows');
-            arrowsGroup.setAttribute('style', 'opacity:0; transform-origin:center; transform-box:fill-box; transition: opacity 0.3s;');
+            arrowsGroup.setAttribute(
+                'style',
+                'opacity:0; transform-origin:center; transform-box:fill-box; transition: opacity 0.3s; transform: translate(0,-0.5px) scale(0.9);'
+            );
             const arrow1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             arrow1.setAttribute('d', continuousShuffle1);
-            arrow1.setAttribute('fill', '#b380ff');
+            arrow1.setAttribute('fill', 'none');
+            arrow1.setAttribute('stroke', '#b380ff');
+            arrow1.setAttribute('stroke-width', '1.2');
+            arrow1.setAttribute('stroke-linecap', 'round');
+            arrow1.setAttribute('stroke-linejoin', 'round');
             const arrow2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             arrow2.setAttribute('d', continuousShuffle2);
-            arrow2.setAttribute('fill', '#b380ff');
+            arrow2.setAttribute('fill', 'none');
+            arrow2.setAttribute('stroke', '#b380ff');
+            arrow2.setAttribute('stroke-width', '1.2');
+            arrow2.setAttribute('stroke-linecap', 'round');
+            arrow2.setAttribute('stroke-linejoin', 'round');
             arrowsGroup.appendChild(arrow1);
             arrowsGroup.appendChild(arrow2);
             svgElement.appendChild(arrowsGroup);
