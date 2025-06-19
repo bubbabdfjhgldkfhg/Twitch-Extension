@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.10
+// @version      17.0.11
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -13,6 +13,8 @@
 // ==/UserScript==
 (function() {
     'use strict';
+    const SCRIPT_VERSION = '17.0.11';
+    console.log('[vaft] script loaded', SCRIPT_VERSION);
     var ourTwitchAdSolutionsVersion = 2;// Only bump this when there's a breaking change to Twitch, the script, or there's a conflict with an unmaintained extension which uses this script
     if (window.twitchAdSolutionsVersion && window.twitchAdSolutionsVersion >= ourTwitchAdSolutionsVersion) {
         console.log("skipping vaft as there's another script active. ourVersion:" + ourTwitchAdSolutionsVersion + " activeVersion:" + window.twitchAdSolutionsVersion);
@@ -510,6 +512,7 @@
             return textStr;
         }
         var haveAdTags = textStr.includes(AdSignifier);
+        console.log('[vaft] processM3U8', url, 'haveAdTags', haveAdTags);
         if (haveAdTags) {
             var isMidroll = textStr.includes('"MIDROLL"') || textStr.includes('"midroll"');
             //Reduces ad frequency. TODO: Reduce the number of requests. This is really spamming Twitch with requests.
@@ -563,6 +566,7 @@
                     Resolution: null
                 };
             }
+            console.log('[vaft] fetch access token', CurrentChannelName, 'playerType', playerType);
             var accessTokenResponse = await getAccessToken(CurrentChannelName, playerType);
             if (accessTokenResponse.status === 200) {
                 var accessToken = await accessTokenResponse.json();
@@ -693,6 +697,7 @@
         return gqlRequest(body, realFetch);
     }
     function gqlRequest(body, realFetch) {
+        console.log('[vaft] gqlRequest', (body && body.operationName) ? body.operationName : (body && body[0] && body[0].operationName));
         if (ClientIntegrityHeader == null) {
             //console.warn('ClientIntegrityHeader is null');
             //throw 'ClientIntegrityHeader is null';
