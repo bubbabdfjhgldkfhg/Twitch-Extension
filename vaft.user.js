@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.17
+// @version      17.0.18
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -13,7 +13,7 @@
 // ==/UserScript==
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '17.0.17';
+    const SCRIPT_VERSION = '17.0.18';
     console.log('[vaft] script loaded', SCRIPT_VERSION);
     var ourTwitchAdSolutionsVersion = 2;// Only bump this when there's a breaking change to Twitch, the script, or there's a conflict with an unmaintained extension which uses this script
     if (window.twitchAdSolutionsVersion && window.twitchAdSolutionsVersion >= ourTwitchAdSolutionsVersion) {
@@ -628,12 +628,12 @@
     }
     async function tryNotifyTwitch(streamM3u8) {
         //We notify that an ad was requested but was not visible and was also muted.
-        var matches = streamM3u8.match(/#EXT-X-DATERANGE:(ID="stitched-ad-[^\n]+)\n/);
-        if (!matches) {
+        var matches = streamM3u8.match(/#EXT-X-DATERANGE:([^\n]+)/);
+        if (!matches || !matches[1].includes('stitched-ad')) {
             console.warn('[vaft] no stitched-ad metadata found');
             console.debug('[vaft] m3u8 snippet', streamM3u8.slice(0, 200));
         }
-        if (matches && matches.length > 1) {
+        if (matches && matches.length > 1 && matches[1].includes('stitched-ad')) {
             const attrString = matches[1];
             const attr = parseAttributes(attrString);
             var podLength = parseInt(attr['X-TV-TWITCH-AD-POD-LENGTH'] ? attr['X-TV-TWITCH-AD-POD-LENGTH'] : '1');
