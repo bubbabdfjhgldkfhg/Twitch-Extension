@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.12
+// @version      17.0.13
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -13,7 +13,7 @@
 // ==/UserScript==
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '17.0.12';
+    const SCRIPT_VERSION = '17.0.13';
     console.log('[vaft] script loaded', SCRIPT_VERSION);
     var ourTwitchAdSolutionsVersion = 2;// Only bump this when there's a breaking change to Twitch, the script, or there's a conflict with an unmaintained extension which uses this script
     if (window.twitchAdSolutionsVersion && window.twitchAdSolutionsVersion >= ourTwitchAdSolutionsVersion) {
@@ -334,6 +334,7 @@
                             return realFetch(url, options).then(function(response) {
                                 processAfter(response);
                             })['catch'](function(err) {
+                                console.error('[vaft] worker fetch error', url, err);
                                 reject(err);
                             });
                         };
@@ -390,6 +391,7 @@
                             return realFetch(url, options).then(function(response) {
                                 processAfter(response);
                             })['catch'](function(err) {
+                                console.error('[vaft] worker fetch error', url, err);
                                 reject(err);
                             });
                         };
@@ -930,7 +932,10 @@
                     }
                 }
             }
-            return realFetch.call(this, url, init, ...args);
+            return realFetch.call(this, url, init, ...args).catch(function(err) {
+                console.error('[vaft] fetch error', url, err);
+                throw err;
+            });
         };
     }
     function onContentLoaded() {
