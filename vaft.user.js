@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.14
+// @version      17.0.16
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -13,7 +13,7 @@
 // ==/UserScript==
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '17.0.14';
+    const SCRIPT_VERSION = '17.0.16';
     console.log('[vaft] script loaded', SCRIPT_VERSION);
     var ourTwitchAdSolutionsVersion = 2;// Only bump this when there's a breaking change to Twitch, the script, or there's a conflict with an unmaintained extension which uses this script
     if (window.twitchAdSolutionsVersion && window.twitchAdSolutionsVersion >= ourTwitchAdSolutionsVersion) {
@@ -255,6 +255,7 @@
                                 }
                             }
                         } catch (err) {
+                            console.error('[vaft] player quality update error', err);
                             OriginalVideoPlayerQuality = null;
                             IsPlayerAutoQuality = null;
                         }
@@ -537,7 +538,9 @@
                 }
                 try {
                     //tryNotifyTwitch(textStr);
-                } catch (err) {}
+                } catch (err) {
+                    console.error('[vaft] tryNotifyTwitch failed', err);
+                }
             }
             var currentResolution = null;
             if (streamInfo && streamInfo.Urls) {
@@ -559,6 +562,7 @@
                             return result;
                         }
                     } catch (err) {
+                        console.error('[vaft] getStreamForResolution error', err);
                         encodingsM3U8Cache.Value = null;
                     }
                 }
@@ -583,7 +587,9 @@
                     } else {
                         return textStr;
                     }
-                } catch (err) {}
+                } catch (err) {
+                    console.error('[vaft] fetch encodings failed', err);
+                }
                 return textStr;
             } else {
                 return textStr;
@@ -623,7 +629,11 @@
     async function tryNotifyTwitch(streamM3u8) {
         //We notify that an ad was requested but was not visible and was also muted.
         var matches = streamM3u8.match(/#EXT-X-DATERANGE:(ID="stitched-ad-[^\n]+)\n/);
-        if (matches.length > 1) {
+        if (!matches) {
+            console.warn('[vaft] no stitched-ad metadata found');
+            console.debug('[vaft] m3u8 snippet', streamM3u8.slice(0, 200));
+        }
+        if (matches && matches.length > 1) {
             const attrString = matches[1];
             const attr = parseAttributes(attrString);
             var podLength = parseInt(attr['X-TV-TWITCH-AD-POD-LENGTH'] ? attr['X-TV-TWITCH-AD-POD-LENGTH'] : '1');
@@ -823,8 +833,12 @@
                         }
                     }, 3000);
                 }
-            } catch (err) {}
-        } catch (err) {}
+            } catch (err) {
+                console.error('[vaft] latency adjustment error', err);
+            }
+        } catch (err) {
+            console.error('[vaft] doTwitchPlayerTask error', err);
+        }
     }
     window.reloadTwitchPlayer = doTwitchPlayerTask;
     var localDeviceID = null;
