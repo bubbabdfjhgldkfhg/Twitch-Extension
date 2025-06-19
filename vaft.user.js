@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.3
+// @version      17.0.5
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -261,15 +261,22 @@
                     var playerRootDiv = document.querySelector('.video-player');
                     var adBlockDiv = null;
                     if (playerRootDiv != null) {
-                        adBlockDiv = playerRootDiv.querySelector('.adblock-overlay');
+                        adBlockDiv = document.body.querySelector('.adblock-overlay');
                         if (adBlockDiv == null) {
                             adBlockDiv = document.createElement('div');
                             adBlockDiv.className = 'adblock-overlay';
                             adBlockDiv.innerHTML = '<div class="player-adblock-notice" style="color: white; background-color: rgba(0, 0, 0, 0.8); position: absolute; top: 0px; left: 0px; padding: 5px;"><p></p></div>';
                             adBlockDiv.style.display = 'none';
                             adBlockDiv.P = adBlockDiv.querySelector('p');
-                            playerRootDiv.appendChild(adBlockDiv);
+                            adBlockDiv.style.position = 'absolute';
+                            adBlockDiv.style.pointerEvents = 'none';
+                            document.body.appendChild(adBlockDiv);
                         }
+                        var rect = playerRootDiv.getBoundingClientRect();
+                        adBlockDiv.style.top = rect.top + 'px';
+                        adBlockDiv.style.left = rect.left + 'px';
+                        adBlockDiv.style.width = rect.width + 'px';
+                        adBlockDiv.style.height = rect.height + 'px';
                     }
                     return adBlockDiv;
                 }
@@ -336,7 +343,8 @@
                     //To prevent pause/resume loop for mid-rolls.
                     var isPBYPRequest = url.includes('picture-by-picture');
                     if (isPBYPRequest) {
-                        url = '';
+                        // cancel picture-by-picture requests to avoid fetch errors
+                        return Promise.resolve(new Response('', {status: 200}));
                     }
                     return new Promise(function(resolve, reject) {
                         var processAfter = async function(response) {
@@ -900,7 +908,8 @@
                     }
                     var isPBYPRequest = url.includes('picture-by-picture');
                     if (isPBYPRequest) {
-                        url = '';
+                        // cancel picture-by-picture requests to avoid fetch errors
+                        return Promise.resolve(new Response('', {status: 200}));
                     }
                 }
             }
