@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.9
+// @version      17.0.10
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -831,9 +831,17 @@
         var realFetch = window.fetch;
         window.fetch = function(url, init, ...args) {
             console.log('[vaft] fetch', url);
-            init = init || {};
-            if (!init.headers) {
-                init.headers = {};
+            if (url instanceof Request) {
+                const headersFromReq = {};
+                url.headers.forEach((v, k) => headersFromReq[k] = v);
+                init = Object.assign({headers: headersFromReq}, init || {});
+                init.headers = Object.assign({}, headersFromReq, init.headers || {});
+                url = url.url;
+            } else {
+                init = init || {};
+                if (!init.headers) {
+                    init.headers = {};
+                }
             }
             if (typeof url === 'string') {
                 //Check if squad stream.
