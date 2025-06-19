@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.4
+// @version      2.5
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -400,6 +400,15 @@ const svgPaths = {
             // resetChannelRotationTimer();
         }
     }, 500);
+
+    function vtuberAutoSkip() {
+        if (!autoRotateEnabled) return;
+        const hasVtuberTag = [...document.querySelectorAll('a.tw-tag')]
+            .some(a => (a.textContent || '').trim().toLowerCase() === 'vtuber');
+        if (hasVtuberTag) snoozeChannel();
+    }
+
+    setInterval(vtuberAutoSkip, 2000);
 
     // Enable AirPod & media key controls
     if ('mediaSession' in navigator) {
