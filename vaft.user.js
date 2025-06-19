@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.8
+// @version      17.0.9
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -395,7 +395,7 @@
                     });
                 }
             }
-            return realFetch(url, options);
+            return realFetch.apply(this, arguments);
         };
     }
     function getStreamUrlForResolution(encodingsM3u8, resolutionInfo, qualityOverrideStr) {
@@ -917,7 +917,7 @@
                     }
                 }
             }
-            return realFetch(url, init, ...args);
+            return realFetch.apply(this, arguments);
         };
     }
     function onContentLoaded() {
