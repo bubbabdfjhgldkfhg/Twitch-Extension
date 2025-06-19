@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.5
+// @version      17.0.6
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -904,7 +904,8 @@
                     }
                     //To prevent pause/resume loop for mid-rolls.
                     if (url.includes('gql') && init && typeof init.body === 'string' && init.body.includes('PlaybackAccessToken') && init.body.includes('picture-by-picture')) {
-                        init.body = '';
+                        // cancel picture-by-picture requests to avoid fetch errors
+                        return Promise.resolve(new Response('', {status: 200}));
                     }
                     var isPBYPRequest = url.includes('picture-by-picture');
                     if (isPBYPRequest) {
