@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.6
+// @version      17.0.7
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -102,6 +102,7 @@
             || workerStringReinsert.some((x) => workerString.includes(x));
     }
     function hookWindowWorker() {
+        console.log('hookWindowWorker (vaft)');
         var reinsert = getWorkersForReinsert(window.Worker);
         var newWorker = class Worker extends getCleanWorker(window.Worker) {
             constructor(twitchBlobUrl, options) {
@@ -826,8 +827,10 @@
         });
     }
     function hookFetch() {
+        console.log('hookFetch (vaft)');
         var realFetch = window.fetch;
         window.fetch = function(url, init, ...args) {
+            console.log('[vaft] fetch', url);
             init = init || {};
             if (!init.headers) {
                 init.headers = {};
