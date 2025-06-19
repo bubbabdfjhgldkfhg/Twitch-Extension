@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAdSolutions (vaft)
 // @namespace    https://github.com/pixeltris/TwitchAdSolutions
-// @version      17.0.13
+// @version      17.0.14
 // @description  Multiple solutions for blocking Twitch ads (vaft)
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/vaft.user.js
@@ -13,7 +13,7 @@
 // ==/UserScript==
 (function() {
     'use strict';
-    const SCRIPT_VERSION = '17.0.13';
+    const SCRIPT_VERSION = '17.0.14';
     console.log('[vaft] script loaded', SCRIPT_VERSION);
     var ourTwitchAdSolutionsVersion = 2;// Only bump this when there's a breaking change to Twitch, the script, or there's a conflict with an unmaintained extension which uses this script
     if (window.twitchAdSolutionsVersion && window.twitchAdSolutionsVersion >= ourTwitchAdSolutionsVersion) {
@@ -23,7 +23,8 @@
     }
     window.twitchAdSolutionsVersion = ourTwitchAdSolutionsVersion;
     function declareOptions(scope) {
-        scope.AdSignifier = 'stitched';
+        scope.AdSignifiers = ['stitched', 'stitched-ad'];
+        scope.AdSignifier = scope.AdSignifiers[0];
         scope.ClientID = 'kimne78kx3ncx6brgo4mv6wki5h1ko';
         scope.ClientVersion = 'null';
         scope.ClientSession = 'null';
@@ -319,10 +320,10 @@
                                 var responseText = await response.text();
                                 var weaverText = null;
                                 weaverText = await processM3U8(url, responseText, realFetch, PlayerType2);
-                                if (weaverText.includes(AdSignifier)) {
+                                if (AdSignifiers.some((s) => weaverText.includes(s))) {
                                     weaverText = await processM3U8(url, responseText, realFetch, PlayerType3);
                                 }
-                                if (weaverText.includes(AdSignifier)) {
+                                if (AdSignifiers.some((s) => weaverText.includes(s))) {
                                     weaverText = await processM3U8(url, responseText, realFetch, PlayerType4);
                                 }
                                 resolve(new Response(weaverText));
@@ -480,7 +481,7 @@
             postMessage({
                 key: 'ForceChangeQuality'
             });
-            if (!m3u8Text || m3u8Text.includes(AdSignifier)) {
+            if (!m3u8Text || AdSignifiers.some((s) => m3u8Text.includes(s))) {
                 streamInfo.EncodingsM3U8Cache[playerType].Value = null;
             }
             return m3u8Text;
@@ -513,7 +514,7 @@
         if (!textStr.includes('.ts') && !textStr.includes('.mp4')) {
             return textStr;
         }
-        var haveAdTags = textStr.includes(AdSignifier);
+        var haveAdTags = AdSignifiers.some((s) => textStr.includes(s));
         console.log('[vaft] processM3U8', url, 'haveAdTags', haveAdTags);
         if (haveAdTags) {
             var isMidroll = textStr.includes('"MIDROLL"') || textStr.includes('"midroll"');
