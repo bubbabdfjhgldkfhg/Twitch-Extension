@@ -1,0 +1,35 @@
+[uBlock Origin 1.57.0]
+! Title: Frosteez Twitch Transparent Theater Mode Chat (Experimental)
+! Description: Make Twitch chat transparent in Theater mode. (Currently only works with left-side chat.)
+! Homepage: https://github.com/bubbabdfjhgldkfhg/Frosteez-uBO/tree/main/Frosteez-uBO-4-Twitch
+! Expires: 1 hours
+! Version: 05May2024
+
+! Fullscreen video player
+  twitch.tv##.persistent-player--theatre:style(width: 100% !important)
+
+! Hide clutter (Only works with left side chat for now)
+  twitch.tv##:has(.bttv-swap-chat:has(.persistent-player--theatre)) .top-nav, .side-nav, .channel-info-content, .right-column__toggle-visibility, .video-chat__header, .stream-chat-header
+
+! Chat input opacity
+  !twitch.tv##.right-column--theatre .chat-input:style(transition: opacity .5s; opacity: .2)
+  !twitch.tv##.right-column--theatre .chat-input *:has(:hover, :focus-within):upward(.chat-input):style(opacity: 1 !important)    
+
+! Hide chat window background and borders 
+  twitch.tv##:has(.right-column--theatre) .top-bar:style(top: max(0px, calc((100vh - 56.25vw)/2)) !important)
+  twitch.tv##:has(.right-column--theatre) .top-bar, .player-controls, .chat-room, .chat-input-tray__open, .chat-input-container__open:style(background: none !important; border: none !important)
+  twitch.tv##:has(.right-column--theatre) .channel-root__right-column > div:style(background: none !important; border: none !important)
+
+! Chat height mirrors video aspect ratio
+  twitch.tv##.right-column--theatre:style(height: min(calc(100vh - (100vh - 56.25vw)/2), 100vh) !important; top: max(0px, calc((100vh - 56.25vw)/2)) !important)
+
+! Give the chat input box some bottom padding
+  twitch.tv##.chat-input:style(padding-bottom: 1rem !important)
+
+! Right chat gradient // Player controls width [Need a way to do this without .bttv-swap-chat, doesn't work for now.]
+  !twitch.tv##:has(.right-column--theatre) .top-bar, .player-controls:style(width: calc(100% - 34rem) !important)
+  !twitch.tv##:has(.right-column--theatre:not(.right-column--collapsed)) .channel-root__right-column:style(background: linear-gradient(270deg, rgba(0,0,0,.4) 0%, rgba(0,0,0,0) 100%) !important)
+
+! Left chat gradient // Player controls width/tranparency
+  !twitch.tv##:has(.bttv-swap-chat:has(.persistent-player--theatre):has(.chat-shell__expanded)) .channel-root__right-column:style(background: linear-gradient(90deg, rgba(0,0,0,.4) 0%, rgba(0,0,0,0) 100%) !important)
+  twitch.tv##:has(.bttv-swap-chat:has(.persistent-player--theatre):has(.chat-shell__expanded)) .top-bar, .player-controls:style(width: calc(100% - 34rem) !important; left: 34rem !important; opacity: .7 !important)
