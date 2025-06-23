@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.12
+// @version      2.13
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -81,9 +81,17 @@
 
     function chatWindowOpacity() {
         let rightColumn = document.querySelector('.channel-root__right-column');
-        if (rightColumn) {
-            rightColumn.style.transition = 'all 0.25s ease-in-out';
+        if (!rightColumn) return;
+
+        rightColumn.style.transition = 'all 0.25s ease-in-out';
+        let hasMessages = getVisibleMessages().length > 0;
+
+        if (hasMessages) {
+            rightColumn.style.opacity = '1';
             rightColumn.style.background = `linear-gradient(90deg, rgba(0,0,0,${brightness/2}) 0%, rgba(0,0,0,0.001) 100%)`;
+        } else {
+            rightColumn.style.opacity = '0';
+            rightColumn.style.background = 'none';
         }
     }
 
@@ -130,6 +138,7 @@
                 oldestMessage.style.transition = 'opacity .5s ease-in-out';
                 oldestMessage.style.opacity = '0';
             }
+            setTimeout(chatWindowOpacity, 600);
         }, 10);
     }
 
@@ -146,12 +155,14 @@
             // message.style.transition = 'opacity .5s ease-in-out';
             message.style.opacity = brightness;
             message.style.setProperty('padding', '.5rem 1.3rem', 'important');
+            chatWindowOpacity();
         }, 0);
 
         // Schedule fade out
         setTimeout(() => {
             message.style.transition = 'opacity 1s ease-in-out';
             message.style.opacity = '0';
+            setTimeout(chatWindowOpacity, 1000);
         }, fadeoutDuration);
     }
 
