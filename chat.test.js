@@ -105,4 +105,17 @@ describe('chat utilities', () => {
     expect(body.dataset.truncated).toBeUndefined();
     expect(body.style.textOverflow).toBe('');
   });
+
+  test('newMessageHandler applies difference blend mode to message text', () => {
+    const html = `<div class="chat-line__message"><span data-a-target="chat-line-message-body"><span class="text-fragment">hi</span></span></div>`;
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    const message = container.firstElementChild;
+
+    newMessageHandler(message);
+
+    const body = message.querySelector('[data-a-target="chat-line-message-body"]');
+    expect(body.style.mixBlendMode).toBe('difference');
+    expect(body.style.color).toBe('white');
+  });
 });
