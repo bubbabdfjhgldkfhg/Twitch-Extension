@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.13
+// @version      2.14
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -331,6 +331,10 @@
         let usernameElement = message.querySelector('.chat-author__display-name');
         let username = usernameElement?.textContent;
         let bodyElement = message.querySelector('[data-a-target="chat-line-message-body"]');
+        if (bodyElement) {
+            bodyElement.style.mixBlendMode = 'difference';
+            bodyElement.style.color = 'white';
+        }
         let text = bodyElement ? bodyElement.textContent : '';
         let linkElement = message.querySelector('.link-fragment');
 
