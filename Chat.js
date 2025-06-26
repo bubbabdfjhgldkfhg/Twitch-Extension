@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.13
+// @version      2.14
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -143,16 +143,21 @@
         message.style.opacity = '0';
         setTimeout(() => {
             message.style.transition = 'opacity .5s ease-in-out, background .5s ease-in-out';
-            // message.style.transition = 'opacity .5s ease-in-out';
             message.style.opacity = brightness;
             message.style.setProperty('padding', '.5rem 1.3rem', 'important');
         }, 0);
 
-        // Schedule fade out
-        setTimeout(() => {
+        // Schedule fade out respecting tilde-held state
+        const fadeOut = () => {
+            if (tildeHeld) {
+                setTimeout(fadeOut, 200);
+                return;
+            }
             message.style.transition = 'opacity 1s ease-in-out';
             message.style.opacity = '0';
-        }, fadeoutDuration);
+        };
+
+        setTimeout(fadeOut, fadeoutDuration);
     }
 
     // Remove ugly global badges & identify streamers
