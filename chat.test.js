@@ -105,4 +105,19 @@ describe('chat utilities', () => {
     expect(body.dataset.truncated).toBeUndefined();
     expect(body.style.textOverflow).toBe('');
   });
+
+  test('holding tilde reveals mention messages', () => {
+    const message = document.createElement('div');
+    message.className = 'chat-line__message';
+    message.innerHTML = '<span class="mention-fragment">@other</span> hi';
+    document.body.appendChild(message);
+
+    newMessageHandler(message);
+    expect(message.style.display).toBe('none');
+
+    const event = new window.KeyboardEvent('keydown', { key: '~' });
+    document.dispatchEvent(event);
+
+    expect(message.style.display).not.toBe('none');
+  });
 });
