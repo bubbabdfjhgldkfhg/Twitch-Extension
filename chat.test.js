@@ -114,6 +114,7 @@ describe('chat utilities', () => {
 
     newMessageHandler(message);
     expect(message.style.display).toBe('none');
+    expect(message.classList.contains('filtered-chat-line')).toBe(true);
 
     const event = new window.KeyboardEvent('keydown', { key: '~' });
     document.dispatchEvent(event);

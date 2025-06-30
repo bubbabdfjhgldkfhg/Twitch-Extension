@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.14
+// @version      2.15
 // @description  Cleanup clutter from twitch chat
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -23,6 +23,26 @@
     let currentUser = getCookie('name');
     let observer;
     let tildeHeld = false;
+
+    function injectStyles() {
+        if (document.getElementById('chat-filter-style')) return;
+        const style = document.createElement('style');
+        style.id = 'chat-filter-style';
+        style.textContent = `
+            .filtered-chat-line {
+                background-image: repeating-linear-gradient(
+                    45deg,
+                    rgba(255, 255, 0, 0.2),
+                    rgba(255, 255, 0, 0.2) 10px,
+                    transparent 10px,
+                    transparent 20px
+                );
+                padding-left: 4px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    injectStyles();
 
     document.addEventListener('keydown', function(event) {
         // const editor = document.querySelector('.chat-wysiwyg-input__editor');
@@ -318,6 +338,7 @@
     function newMessageHandler(message) {
         hideBadgesAndColorNames(message);
         fadeInScheduleFadeOut(message);
+        message.classList.remove('filtered-chat-line');
 
         if (tildeHeld) return;
 
@@ -339,6 +360,7 @@
         // Hide the red line in chat that just says "New" || Hide bits
         if (message.querySelector('.live-message-separator-line__hr') ||
             message.querySelector('.chat-line__message--cheer-amount')) {
+            message.classList.add('filtered-chat-line');
             message.style.setProperty('display', 'none', 'important');
             return;
         }
@@ -348,6 +370,7 @@
         // Hide streamer chatbots
         if (username?.toLowerCase().includes(streamer?.toLowerCase()) && linkElement) {
             // console.log('Hid streamer bot message', linkElement);
+            message.classList.add('filtered-chat-line');
             message.style.display = 'none';
             return;
         }
@@ -355,6 +378,7 @@
         if (username?.includes(currentUser || streamer) || text?.includes(currentUser)) return;
 
         if (isSideConversation(message) || hasUnwantedEmote(message)) {
+            message.classList.add('filtered-chat-line');
             message.style.display = 'none';
             return;
         }
@@ -367,6 +391,7 @@
 
         // Hide chat commands (Messages that start with '!')
         if (text?.startsWith('!')) {
+            message.classList.add('filtered-chat-line');
             message.style.display = 'none';
             return;
         }
