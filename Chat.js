@@ -45,7 +45,7 @@
     injectStyles();
 
     document.addEventListener('keydown', function(event) {
-        // const editor = document.querySelector('.chat-wysiwyg-input__editor');
+        const editor = document.querySelector('.chat-wysiwyg-input__editor');
         if (event.key === '~') {
             event.preventDefault();
             if (!tildeHeld) {
@@ -56,15 +56,14 @@
                     message.style.opacity = brightness;
                 });
             }
-            // } else if (event.key === '`') {
-            //     // Makes it too easy to type stupid shit
-            //     event.preventDefault();
-            //     editor?.focus();
-            // } else if (event.key === 'Enter' && !event.shiftKey) {
-            //     editor?.blur();
-            // } else if (event.key === 'Escape' && document.activeElement === editor) {
-            //     event.preventDefault();
-            //     editor.blur();
+        } else if (event.key === '`') {
+            event.preventDefault();
+            editor?.focus();
+        } else if (event.key === 'Enter' && !event.shiftKey) {
+            editor?.blur();
+        } else if (event.key === 'Escape' && document.activeElement === editor) {
+            event.preventDefault();
+            editor.blur();
         } else if (event.key === '_' && brightness > 0.2) {
             brightness = parseFloat((brightness - 0.1).toFixed(1));
             requestAnimationFrame(() => {
@@ -423,8 +422,8 @@
 
                     fadeOverflowMessages(chatContainer);
 
-                    // let chatInput = node.querySelector('.chat-input');
-                    // if (chatInput) applyChatInputStyles(chatInput);
+                    let chatInput = node.querySelector('.chat-input');
+                    if (chatInput) applyChatInputStyles(chatInput);
 
                     let chatHeader = node.querySelector('.stream-chat-header');
                     if (chatHeader) chatHeader.style.setProperty('display', 'none', 'important');
@@ -458,8 +457,8 @@
         observer = chatObserver(chatContainer);
         observer.targetElement = chatContainer;
         // Setup chat input box behavior and appearance
-        // let chatInput = chatContainer.querySelector('.chat-input');
-        // if (chatInput) applyChatInputStyles(chatInput);
+        let chatInput = chatContainer.querySelector('.chat-input');
+        if (chatInput) applyChatInputStyles(chatInput);
     }
 
     if (testing && typeof module !== 'undefined') {
