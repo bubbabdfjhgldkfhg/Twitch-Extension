@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.7
+// @version      3.8
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @match        *://*.twitch.tv/*
 // @exclude      *://*.twitch.tv/videos/*
+// @exclude      *://*.twitch.tv/*/clip/*
 // @grant        none
 // @require      https://cdn.jsdelivr.net/npm/chart.js
 // ==/UserScript==
@@ -247,7 +248,7 @@
         if (!innerText || isNaN(innerText)) return;
 
         const latencyElement = document.querySelector(`.${className}`);
-        if (latencyElement) latencyElement.innerText = `${innerText.toFixed(2)} sec`;
+        if (latencyElement) latencyElement.innerText = `${innerText.toFixed(2)}s`;
     }
 
     // Plot the video stats values
@@ -265,7 +266,7 @@
             'style',
             `transition: opacity 0.5s !important;
              position: absolute;
-             right: 65px;
+             right: 50px;
              top: max(0px, calc((100vh - 56.25vw) / 2));
              opacity: 0;
              width: ${GRAPH_WIDTH};
