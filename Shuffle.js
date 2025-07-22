@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.5
+// @version      2.6
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -426,7 +426,9 @@ const svgPaths = {
 
         switch (event.key) {
             case 'x':
-                snoozeChannel();
+                if (!event.ctrlKey) {
+                    snoozeChannel();
+                }
                 break;
             case 'o':
                 channelRotationTimer('disable');
