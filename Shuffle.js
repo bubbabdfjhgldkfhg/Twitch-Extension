@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.6
+// @version      2.7
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -38,10 +38,10 @@ const svgPaths = {
     // The channel timer determines how long to stay on each channel in continuous shuffle mode (1000 * seconds = milliseconds)
     let followedChannelTimer = 1000 * 25;
     let recommendedChannelTimer = 1000 * 20;
-    let discoverChannelTimer = 1000 * 7;
+    let discoverChannelTimer = 1000 * 9;
     let rotationTimer = followedChannelTimer; // Default (keep this the same as the shuffle type, the options are above.)
 
-    let newChannelCooldownTimer = 1000 * 2.6; // Minimum delay between channel clicks. Things break if you go too fast.
+    let newChannelCooldownTimer = 1000 * 3; // Minimum delay between channel clicks. Things break if you go too fast.
     let maxSimilarChannelClicks = 15; // How many channels deep to go in 'discover' mode.
 
     // ===========================
