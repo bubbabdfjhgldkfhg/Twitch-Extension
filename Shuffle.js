@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.9
+// @version      2.10
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -55,12 +55,12 @@ const svgPaths = {
     let cooldownActive = false;
     let coolDownTimerId;
     let rotationTimerId = null;
-    let playbackResetTimeoutId = null;
     let similarChannelClickCount = 0;
     const playbackStatePollInterval = 250;
-    const playbackCheckCooldown = 500;
     let playbackCheckIntervalId = null;
     let videoPlayerInstance = null;
+    let pendingVideoPlayerInstance = null;
+    let lastLoggedPlaybackState = null;
 
     function getSnoozePaths() {
         switch (shuffleType) {
@@ -305,9 +305,23 @@ const svgPaths = {
         return videoPlayerInstance;
     }
 
-    function isStreamPlaying() {
-        const player = getVideoPlayerInstance();
-        const state = player?.getState?.();
+    function isStreamPlaying(playerInstance = getVideoPlayerInstance()) {
+        if (!playerInstance) {
+            if (lastLoggedPlaybackState !== 'NO_PLAYER') {
+                console.log('[Shuffle] No video player instance available during playback check.');
+                lastLoggedPlaybackState = 'NO_PLAYER';
+            }
+            return false;
+        }
+
+        const state = playerInstance?.getState?.();
+        const label = state ?? 'Unknown';
+
+        if (lastLoggedPlaybackState !== label) {
+            console.log(`[Shuffle] Video player state changed to: ${label}`);
+            lastLoggedPlaybackState = label;
+        }
+
         return state === 'Playing';
     }
 
@@ -325,7 +339,12 @@ const svgPaths = {
                 stopPlaybackWatcher();
                 return;
             }
-            if (isStreamPlaying()) {
+            const player = getVideoPlayerInstance();
+            if (pendingVideoPlayerInstance && player === pendingVideoPlayerInstance) {
+                return;
+            }
+            if (isStreamPlaying(player)) {
+                pendingVideoPlayerInstance = null;
                 stopPlaybackWatcher();
                 resetChannelRotationTimer();
             }
@@ -355,11 +374,21 @@ const svgPaths = {
         rotationTimerId = null;
 
         if (!autoRotateEnabled) {
+            pendingVideoPlayerInstance = null;
+            lastLoggedPlaybackState = null;
             stopPlaybackWatcher();
             return;
         }
 
-        if (isStreamPlaying()) {
+        const player = getVideoPlayerInstance();
+
+        if (pendingVideoPlayerInstance && player === pendingVideoPlayerInstance) {
+            startPlaybackWatcher();
+            return;
+        }
+
+        if (isStreamPlaying(player)) {
+            pendingVideoPlayerInstance = null;
             stopPlaybackWatcher();
             rotationTimerId = setInterval(() => clickRandomChannel(), rotationTimer);
         } else {
@@ -368,11 +397,9 @@ const svgPaths = {
     }
 
     function resetChannelRotationTimerWithCooldown() {
-        clearTimeout(playbackResetTimeoutId);
-        playbackResetTimeoutId = setTimeout(() => {
-            playbackResetTimeoutId = null;
-            resetChannelRotationTimer();
-        }, playbackCheckCooldown);
+        pendingVideoPlayerInstance = getVideoPlayerInstance();
+        lastLoggedPlaybackState = null;
+        resetChannelRotationTimer();
     }
 
     function toggleShuffleType() {
