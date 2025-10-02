@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.7
+// @version      2.8
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -56,6 +56,9 @@ const svgPaths = {
     let coolDownTimerId;
     let rotationTimerId = null;
     let similarChannelClickCount = 0;
+    const playbackStatePollInterval = 250;
+    let playbackCheckIntervalId = null;
+    let videoPlayerInstance = null;
 
     function getSnoozePaths() {
         switch (shuffleType) {
@@ -257,6 +260,76 @@ const svgPaths = {
         resetChannelRotationTimer();
     }
 
+    function findReactNode(root, constraint) {
+        if (!root) return null;
+        if (root.stateNode && constraint(root.stateNode)) return root.stateNode;
+        let node = root.child;
+        while (node) {
+            const result = findReactNode(node, constraint);
+            if (result) return result;
+            node = node.sibling;
+        }
+        return null;
+    }
+
+    function findReactRootNode() {
+        const rootNode = document.querySelector('#root');
+        if (!rootNode) return null;
+        let reactRootNode = rootNode?._reactRootContainer?._internalRoot?.current;
+        if (!reactRootNode) {
+            const containerName = Object.keys(rootNode).find(name => name.startsWith('__reactContainer'));
+            if (containerName) reactRootNode = rootNode[containerName];
+        }
+        return reactRootNode;
+    }
+
+    function getVideoPlayerInstance() {
+        if (videoPlayerInstance?.getHTMLVideoElement) {
+            const videoElement = videoPlayerInstance.getHTMLVideoElement();
+            if (videoElement && document.contains(videoElement)) {
+                return videoPlayerInstance;
+            }
+            videoPlayerInstance = null;
+        }
+
+        const reactRootNode = findReactRootNode();
+        if (!reactRootNode) return null;
+
+        const playerNode = findReactNode(
+            reactRootNode,
+            node => node?.props?.mediaPlayerInstance && node.setPlayerActive
+        );
+        videoPlayerInstance = playerNode?.props?.mediaPlayerInstance ?? null;
+        return videoPlayerInstance;
+    }
+
+    function isStreamPlaying() {
+        const player = getVideoPlayerInstance();
+        const state = player?.getState?.();
+        return state === 'Playing';
+    }
+
+    function stopPlaybackWatcher() {
+        if (playbackCheckIntervalId) {
+            clearInterval(playbackCheckIntervalId);
+            playbackCheckIntervalId = null;
+        }
+    }
+
+    function startPlaybackWatcher() {
+        if (playbackCheckIntervalId) return;
+        playbackCheckIntervalId = setInterval(() => {
+            if (!autoRotateEnabled) {
+                stopPlaybackWatcher();
+                return;
+            }
+            if (isStreamPlaying()) {
+                stopPlaybackWatcher();
+                resetChannelRotationTimer();
+            }
+        }, playbackStatePollInterval);
+    }
+
     function channelRotationTimer(action = 'toggle') {
         if (autoRotateEnabled) {
             if (action == 'disable' || action == 'toggle') {
@@ -277,8 +350,18 @@ const svgPaths = {
 
     function resetChannelRotationTimer() {
         clearInterval(rotationTimerId);
-        if (autoRotateEnabled) {
+        rotationTimerId = null;
+
+        if (!autoRotateEnabled) {
+            stopPlaybackWatcher();
+            return;
+        }
+
+        if (isStreamPlaying()) {
+            stopPlaybackWatcher();
             rotationTimerId = setInterval(() => clickRandomChannel(), rotationTimer);
+        } else {
+            startPlaybackWatcher();
         }
     }
 
