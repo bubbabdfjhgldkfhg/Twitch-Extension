@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.8
+// @version      3.9
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -26,7 +26,7 @@
     let GRAPH_LINE_THICKNESS = 2.0;
     let NUMBER_COLOR_OPACITY_TRANSITION_DURATION = 300; // ms
 
-    let latencyTargetLow = 0.75; // Low latency default
+    let latencyTargetLow = 1.00; // Low latency default
     let latencyTargetNormal = 4.00; // Normal latency default
     let unstableBufferSeparationLowLatency = 2; // Low latency default
     let unstableBufferSeparationNormalLatency = 10; // Normal latency default
@@ -47,10 +47,10 @@
     let newPageStatsCooldownTimeout;
 
     let LATENCY_PROBLEM = false;
-    let LATENCY_PROBLEM_COUNTER = 0;
-    let MAX_LATENCY_PROBLEMS = 3;
+    // let LATENCY_PROBLEM_COUNTER = 0;
+    // let MAX_LATENCY_PROBLEMS = 3;
     let LAST_LATENCY_PROBLEM;
-    let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 minutes in milliseconds
+    let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 minutes in ms
     let SEEK_COOLDOWN = false;
     let SEEK_BACKWARD_SECONDS = 2.5;
 
@@ -341,19 +341,25 @@
         if (latestBuffer > latestLatency + UNSTABLE_BUFFER_SEPARATION) {
             // Buffer is larger than latency, slight concern but might be more accurate than latency
             LATENCY_PROBLEM = false;
-            LATENCY_PROBLEM_COUNTER = 0;
+            // LATENCY_PROBLEM_COUNTER = 0;
             return latestBuffer;
         } else if (latestBuffer < latestLatency - UNSTABLE_BUFFER_SEPARATION && latestLatency < 30) {
             // Buffer is too far below latency, doesn't work above 30 seconds.
             LATENCY_PROBLEM = true;
             LAST_LATENCY_PROBLEM = now;
-            LATENCY_PROBLEM_COUNTER = 0;
+            // LATENCY_PROBLEM_COUNTER = 0;
             // return latestBuffer;
             return latestLatency;
 
         } else if (latestBuffer < MINIMUM_BUFFER) {
             // Buffer too low
-            LATENCY_PROBLEM_COUNTER += 1;
+            // LATENCY_PROBLEM_COUNTER += 1;
+
+            // Raise the target if the buffer gets too low even if its not buffering yet.
+            // if (playbackRate >= 1 && !SEEK_COOLDOWN) {
+            //     changeTargetLatency(+0.25)
+            // }
+
             LAST_LATENCY_PROBLEM = now;
 
             // if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && !SEEK_COOLDOWN) {
@@ -387,7 +393,7 @@
 
         } else {
             LATENCY_PROBLEM = false;
-            LATENCY_PROBLEM_COUNTER = 0;
+            // LATENCY_PROBLEM_COUNTER = 0;
             return latestLatency;
         }
     }
@@ -462,7 +468,7 @@
         graphValues.latestBitrate = videoPlayer?.getVideoBitRate()/1000;
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
 
-        if ((videoPlayer?.getBuffered().end - videoPlayer?.getBufferedRanges().video[0].end) > 0) {
+        if ((videoPlayer?.getBuffered()?.end - videoPlayer?.getBufferedRanges()?.video[0]?.end) > 0) {
             BUFFER_STATE = 'Filling';
             SEEK_COOLDOWN = false;
             // DRAIN_COUNT = 0;
@@ -505,6 +511,7 @@
     }
 
     //     // DO NOT DELETE
+
     //     function inspectVideoPlayer(player) {
     //         if (!player) {
     //             console.log('Video player not found');
@@ -538,7 +545,7 @@
         PLAYER_STATE = videoPlayer?.getState();
 
         if (PREVIOUS_PLAYER_STATE != PLAYER_STATE) {
-            // console.log(PLAYER_STATE);
+            console.log(`PLAYER_STATE: ${PLAYER_STATE}`);
         }
 
         if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && !SEEK_COOLDOWN) {
@@ -546,7 +553,7 @@
             changeTargetLatency(0.25);
             SEEK_COOLDOWN = true;
             // console.log('Seeking backwards');
-        // SEEK_COOLDOWN can only be set to false if BUFFER_STATE = 'Filling'. That's how we know.
+            // SEEK_COOLDOWN can only be set to false if BUFFER_STATE = 'Filling'. That's how we know.
         } else if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && SEEK_COOLDOWN) {
             videoPlayer?.pause();
             videoPlayer?.play();
