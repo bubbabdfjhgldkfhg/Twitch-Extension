@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.8
+// @version      2.9
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -55,8 +55,10 @@ const svgPaths = {
     let cooldownActive = false;
     let coolDownTimerId;
     let rotationTimerId = null;
+    let playbackResetTimeoutId = null;
     let similarChannelClickCount = 0;
     const playbackStatePollInterval = 250;
+    const playbackCheckCooldown = 500;
     let playbackCheckIntervalId = null;
     let videoPlayerInstance = null;
 
@@ -125,7 +127,7 @@ const svgPaths = {
         // While in 'discover' mode, don't use the snoozed channel as a source of similar channels
         similarChannelClickCount = maxSimilarChannelClicks;
         clickRandomChannel();
-        resetChannelRotationTimer();
+        resetChannelRotationTimerWithCooldown();
     }
 
     function expandChannelSections() {
@@ -257,7 +259,7 @@ const svgPaths = {
         newChannelCooldown();
         newChannel.click();
         channelRotationTimer('enable');
-        resetChannelRotationTimer();
+        resetChannelRotationTimerWithCooldown();
     }
 
     function findReactNode(root, constraint) {
@@ -342,7 +344,7 @@ const svgPaths = {
             if (action == 'enable' || action == 'toggle') {
                 autoRotateEnabled = true;
                 clickRandomChannel(); // Run immediately, then start timer.
-                resetChannelRotationTimer();
+                resetChannelRotationTimerWithCooldown();
                 updateFollowToggleIcon();
             }
         }
@@ -363,6 +365,14 @@ const svgPaths = {
         } else {
             startPlaybackWatcher();
         }
+    }
+
+    function resetChannelRotationTimerWithCooldown() {
+        clearTimeout(playbackResetTimeoutId);
+        playbackResetTimeoutId = setTimeout(() => {
+            playbackResetTimeoutId = null;
+            resetChannelRotationTimer();
+        }, playbackCheckCooldown);
     }
 
     function toggleShuffleType() {
