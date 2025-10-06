@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.3
+// @version      3.4
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -26,8 +26,16 @@ const svgPaths = {
     discover: { path1: heartNoFill, path2: null }
 };
 
+let clientVersion = null;
+let clientSession = null;
+let clientIntegrityHeader = null;
+let authorizationHeader = null;
+let deviceId = null;
+
 (function() {
     'use strict';
+
+    hookFetch();
 
     // ===========================
     //          CONFIG
@@ -44,6 +52,9 @@ const svgPaths = {
     let newChannelCooldownTimer = 1000 * 3; // Minimum delay between channel clicks. Things break if you go too fast.
     let maxSimilarChannelClicks = 15; // How many channels deep to go in 'discover' mode.
 
+    const KEY_HOLD_DURATION = 1000 * 1; // How long to hold X or Y
+    const removeSuperSnoozeDialogTimeout = 1000 * 5; // How long before the Not Interested dialogue disappears
+
     // ===========================
     //        END CONFIG
     // ===========================
@@ -59,9 +70,226 @@ const svgPaths = {
     let playbackResetTimeoutId = null;
     let similarChannelClickCount = 0;
     const playbackStatePollInterval = 250;
-    const playbackCheckCooldown = 500;
+    const playbackCheckCooldown = 1500;
     let playbackCheckIntervalId = null;
     let videoPlayerInstance = null;
+    let xKeyHoldTimer = null;
+    let xKeyHoldStart = null;
+    let dialogCreated = false;
+    let superSnoozeDialog = null;
+    let dialogDismissTimeout = null;
+    let dialogDismissStart = null;
+    let dialogCountdownPaused = false;
+    let countdownBarAnimationId = null;
+    let yHoldBarAnimationId = null;
+
+
+
+
+    // Add this function to intercept headers
+    function hookFetch() {
+        const realFetch = window.fetch;
+        window.fetch = function(url, init, ...args) {
+            if (typeof url === 'string') {
+                if (url.includes('/access_token') || url.includes('gql')) {
+                    if (init?.headers) {
+                        if (url.includes('origin=twilight')) {
+                            deviceId = init.headers['X-Device-Id'] || init.headers['Device-ID'] || deviceId;
+                            clientVersion = init.headers['Client-Version'] || clientVersion;
+                            clientSession = init.headers['Client-Session-Id'] || clientSession;
+                            clientIntegrityHeader = init.headers['Client-Integrity'] || clientIntegrityHeader;
+                            authorizationHeader = init.headers['Authorization'] || authorizationHeader;
+                        }
+                    }
+                }
+            }
+            return realFetch.apply(this, arguments);
+        };
+    }
+
+    // Add this function to build headers
+    function getGqlHeaders() {
+        const headers = {
+            'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+            'Content-Type': 'application/json'
+        };
+
+        if (deviceId) {
+            headers['X-Device-Id'] = deviceId;
+            headers['Device-ID'] = deviceId;
+        }
+        if (clientVersion) headers['Client-Version'] = clientVersion;
+        if (clientSession) headers['Client-Session-Id'] = clientSession;
+        if (clientIntegrityHeader) headers['Client-Integrity'] = clientIntegrityHeader;
+        if (authorizationHeader) headers['Authorization'] = authorizationHeader;
+
+        return headers;
+    }
+
+    // Add function to get channel ID
+    async function getChannelId(channelLogin) {
+        const query = {
+            query: `query { user(login: "${channelLogin}") { id } }`
+    };
+
+        const response = await fetch('https://gql.twitch.tv/gql', {
+            method: 'POST',
+            headers: getGqlHeaders(),
+            body: JSON.stringify(query)
+        });
+
+        const data = await response.json();
+        return data.data?.user?.id;
+    }
+
+    // Add function to send "not interested" GraphQL mutation
+    async function sendNotInterestedMutation(channelId) {
+        const body = [{
+            operationName: 'AddRecommendationFeedback',
+            query: `mutation AddRecommendationFeedback($input: AddRecommendationFeedbackInput!) {
+            addRecommendationFeedback(input: $input) {
+                __typename
+            }
+        }`,
+            variables: {
+                input: {
+                    category: 'NOT_INTERESTED',
+                    itemID: channelId,
+                    itemType: 'CHANNEL',
+                    sourceItemPage: 'twitch_home',
+                    sourceItemRequestID: 'JIRA-VXP-2397',
+                    sourceItemTrackingID: ''
+                }
+            }
+        }];
+
+        await fetch('https://gql.twitch.tv/gql#origin=twilight', {
+            method: 'POST',
+            headers: getGqlHeaders(),
+            body: JSON.stringify(body)
+        });
+    }
+
+    // Add function to create super snooze dialog
+    function createSuperSnoozeDialog() {
+        if (superSnoozeDialog) return;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 20px;
+        padding-bottom: 25px;
+        border-radius: 8px;
+        z-index: 10000;
+        font-size: 16px;
+        text-align: center;
+        border: 2px solid #b380ff;
+    `;
+        dialog.innerHTML = `
+        <div>Permanently snooze this channel?</div>
+        <div>You are ${similarChannelClickCount} channels deep</div>
+        <div style="margin-top: 10px; font-size: 14px; color: #888;">
+            Hold Y to confirm, any other key to cancel
+        </div>
+        <div style="position: absolute; bottom: 5px; left: 5px; right: 5px; height: 3px; background: rgba(255, 0, 0, 0.3); border-radius: 2px;">
+            <div data-progress-bar="yhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #ff0000; border-radius: 2px; transition: width 0.1s linear;"></div>
+        </div>
+        <div style="position: absolute; bottom: 0px; left: 5px; right: 5px; height: 3px; background: rgba(179, 128, 255, 0.3); border-radius: 2px;">
+            <div data-progress-bar="countdown" style="position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #b380ff; border-radius: 2px; transition: width 0.1s linear;"></div>
+        </div>
+    `;
+
+        document.body.appendChild(dialog);
+        superSnoozeDialog = dialog;
+        dialogCreated = true;
+
+        dialogDismissStart = Date.now();
+        dialogCountdownPaused = false;
+
+        // Start countdown bar animation
+        function updateCountdownBar() {
+            if (!superSnoozeDialog || !dialogCreated) {
+                cancelAnimationFrame(countdownBarAnimationId);
+                return;
+            }
+
+            const countdownBar = superSnoozeDialog.querySelector('[data-progress-bar="countdown"]');
+            if (!countdownBar) return;
+
+            if (!dialogCountdownPaused) {
+                const elapsed = Date.now() - dialogDismissStart;
+                const progress = Math.max(0, 1 - (elapsed / removeSuperSnoozeDialogTimeout));
+                countdownBar.style.width = `${progress * 100}%`;
+
+                if (progress <= 0) {
+                    removeSuperSnoozeDialog();
+                    return;
+                }
+            }
+
+            countdownBarAnimationId = requestAnimationFrame(updateCountdownBar);
+        }
+        countdownBarAnimationId = requestAnimationFrame(updateCountdownBar);
+    }
+
+    function removeSuperSnoozeDialog() {
+        if (superSnoozeDialog) {
+            superSnoozeDialog.remove();
+            superSnoozeDialog = null;
+            dialogCreated = false;
+        }
+
+        if (countdownBarAnimationId) {
+            cancelAnimationFrame(countdownBarAnimationId);
+            countdownBarAnimationId = null;
+        }
+        if (yHoldBarAnimationId) {
+            cancelAnimationFrame(yHoldBarAnimationId);
+            yHoldBarAnimationId = null;
+        }
+        if (dialogDismissTimeout) {
+            clearTimeout(dialogDismissTimeout);
+            dialogDismissTimeout = null;
+        }
+        if (xKeyHoldTimer) {
+            clearTimeout(xKeyHoldTimer);
+            xKeyHoldTimer = null;
+        }
+        dialogDismissStart = null;
+        dialogCountdownPaused = false;
+        xKeyHoldStart = null;
+    }
+
+    async function handleSuperSnooze() {
+        const currentChannel = getUsernameFromUrl();
+        if (!currentChannel) return;
+
+        try {
+            const channelId = await getChannelId(currentChannel);
+            if (channelId) {
+                await sendNotInterestedMutation(channelId);
+                console.log(`Permanently snoozed channel: ${currentChannel}`);
+                snoozeChannel();
+            }
+        } catch (error) {
+            console.error('Failed to super snooze channel:', error);
+        }
+    }
+
+    function getUsernameFromUrl() {
+        const pathname = window.location.pathname;
+        const match = pathname.match(/^\/([^\/]+)/);
+        return match ? match[1] : null;
+    }
+
+
+
+
 
     function getSnoozePaths() {
         switch (shuffleType) {
@@ -138,23 +366,19 @@ const svgPaths = {
     }
 
     function snoozeChannel() {
-        if (cooldownActive) { // This is mostly so we dont accidentally snooze a channel the moment that its clicked
-            // console.log('Snooze button on cooldown');
+        if (cooldownActive || dialogCreated) {
             return;
         }
 
-        // Remove channel from snooze list if it's already there
+        // [Toggler] Unsnooze
         if (snoozedList.includes(window.location.pathname)) {
             snoozedList = snoozedList.filter(item => item !== window.location.pathname);
             updateFollowToggleIcon();
             return;
         }
 
-        // Add channel to snoozedList
         snoozedList.push(window.location.pathname);
-        // Remove snoozed channel from lastClickedHrefs so it doesn't clog things up
         lastClickedHrefs = lastClickedHrefs.filter(item => item !== window.location.pathname);
-        // While in 'discover' mode, don't use the snoozed channel as a source of similar channels
         similarChannelClickCount = maxSimilarChannelClicks;
         clickRandomChannel();
         resetChannelRotationTimerWithCooldown();
@@ -530,14 +754,14 @@ const svgPaths = {
         }
     }, 500);
 
-    function vtuberAutoSkip() {
-        if (!autoRotateEnabled) return;
-        const hasVtuberTag = [...document.querySelectorAll('a.tw-tag')]
-            .some(a => (a.textContent || '').trim().toLowerCase() === 'vtuber');
-        if (hasVtuberTag) snoozeChannel();
-    }
+    //     function vtuberAutoSkip() {
+    //         if (!autoRotateEnabled) return;
+    //         const hasVtuberTag = [...document.querySelectorAll('a.tw-tag')]
+    //         .some(a => (a.textContent || '').trim().toLowerCase() === 'vtuber');
+    //         if (hasVtuberTag) snoozeChannel();
+    //     }
 
-    setInterval(vtuberAutoSkip, 2000);
+    //     setInterval(vtuberAutoSkip, 2000);
 
     // Enable AirPod & media key controls
     if ('mediaSession' in navigator) {
@@ -550,24 +774,112 @@ const svgPaths = {
     }
 
     document.addEventListener("keydown", function(event) {
-        // Do nothing if the user is typing in an input field, textarea, or an editable element
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) return;
+
+        // Handle dialog responses
+        if (dialogCreated && event.key.toLowerCase() === 'y') {
+            if (!xKeyHoldTimer && !dialogCountdownPaused) {
+                // Pause countdown
+                dialogCountdownPaused = true;
+                xKeyHoldStart = Date.now();
+
+                // Start Y hold bar animation
+                function updateYHoldBar() {
+                    if (!superSnoozeDialog || !dialogCreated || !xKeyHoldStart) {
+                        cancelAnimationFrame(yHoldBarAnimationId);
+                        return;
+                    }
+
+                    const yHoldBar = superSnoozeDialog.querySelector('[data-progress-bar="yhold"]');
+                    if (!yHoldBar) return;
+
+                    const elapsed = Date.now() - xKeyHoldStart;
+                    const progress = Math.min(1, elapsed / KEY_HOLD_DURATION);
+                    yHoldBar.style.width = `${progress * 100}%`;
+
+                    if (progress >= 1) {
+                        removeSuperSnoozeDialog();
+                        handleSuperSnooze();
+                        return;
+                    }
+
+                    yHoldBarAnimationId = requestAnimationFrame(updateYHoldBar);
+                }
+                yHoldBarAnimationId = requestAnimationFrame(updateYHoldBar);
+            }
+            return;
+        }
+
+        // Handle other keys in dialog
+        if (dialogCreated && event.key.toLowerCase() !== 'x') {
+            removeSuperSnoozeDialog();
+            return;
+        }
 
         switch (event.key) {
             case 'x':
-                if (!event.ctrlKey) {
-                    snoozeChannel();
+                if (!xKeyHoldTimer && !event.ctrlKey) {
+                    xKeyHoldStart = Date.now();
+                    xKeyHoldTimer = setTimeout(() => {
+                        channelRotationTimer('disable');
+                        createSuperSnoozeDialog();
+                        xKeyHoldTimer = null;
+                    }, KEY_HOLD_DURATION);
                 }
                 break;
             case 'o':
                 channelRotationTimer('disable');
                 break;
-            case '.': // Forward
+            case '.':
                 clickRandomChannel();
                 break;
-            case ',': // Back
+            case ',':
                 clickPreviousChannel();
                 break;
+        }
+    });
+
+    document.addEventListener("keyup", function(event) {
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) return;
+
+        // Handle Y release in dialog
+        if (dialogCreated && event.key.toLowerCase() === 'y') {
+            if (xKeyHoldTimer) {
+                clearTimeout(xKeyHoldTimer);
+                xKeyHoldTimer = null;
+            }
+            if (yHoldBarAnimationId) {
+                cancelAnimationFrame(yHoldBarAnimationId);
+                yHoldBarAnimationId = null;
+            }
+
+            // Reset Y hold bar
+            const yHoldBar = superSnoozeDialog?.querySelector('[data-progress-bar="yhold"]');
+            if (yHoldBar) {
+                yHoldBar.style.width = '0%';
+            }
+
+            // Resume countdown
+            if (dialogCountdownPaused) {
+                dialogCountdownPaused = false;
+                const pausedDuration = Date.now() - xKeyHoldStart;
+                dialogDismissStart += pausedDuration;
+            }
+
+            xKeyHoldStart = null;
+            return;
+        }
+
+        if (event.key === 'x' && !event.ctrlKey) {
+            if (xKeyHoldTimer) {
+                // Key released before Not Interested dialogue - do normal snooze
+                clearTimeout(xKeyHoldTimer);
+                xKeyHoldTimer = null;
+                if (!dialogCreated) {
+                    snoozeChannel();
+                }
+            }
+            xKeyHoldStart = null;
         }
     });
 })();
