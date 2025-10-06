@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.1
+// @version      3.2
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -62,6 +62,8 @@ const svgPaths = {
     const playbackCheckCooldown = 500;
     let playbackCheckIntervalId = null;
     let videoPlayerInstance = null;
+    let countdownUpdateIntervalId = null;
+    const countdownUpdateInterval = 100;
 
     function getSnoozePaths() {
         switch (shuffleType) {
@@ -123,12 +125,12 @@ const svgPaths = {
                 if (secondsRemaining >= 1) {
                     countdownContent = Math.round(secondsRemaining).toString();
                 } else {
-                    const tenths = Math.min(9, Math.round(secondsRemaining * 10));
+                    const tenths = Math.max(1, Math.floor(secondsRemaining * 10));
                     countdownContent = `.${tenths}`;
-                }
-            } else {
-                countdownContent = '0';
             }
+        } else {
+            countdownContent = '0';
+        }
         }
 
         countdownText.textContent = countdownContent;
@@ -354,6 +356,24 @@ const svgPaths = {
         }
     }
 
+    function stopCountdownUpdater() {
+        if (countdownUpdateIntervalId) {
+            clearInterval(countdownUpdateIntervalId);
+            countdownUpdateIntervalId = null;
+        }
+    }
+
+    function startCountdownUpdater() {
+        if (countdownUpdateIntervalId) return;
+        countdownUpdateIntervalId = setInterval(() => {
+            if (!autoRotateEnabled || !rotationTimerStart || !rotationTimerId) {
+                stopCountdownUpdater();
+                return;
+            }
+            updateFollowToggleIcon();
+        }, countdownUpdateInterval);
+    }
+
     function startPlaybackWatcher() {
         if (playbackCheckIntervalId) return;
         playbackCheckIntervalId = setInterval(() => {
@@ -390,6 +410,7 @@ const svgPaths = {
         clearInterval(rotationTimerId);
         rotationTimerId = null;
         rotationTimerStart = null;
+        stopCountdownUpdater();
 
         if (!autoRotateEnabled) {
             stopPlaybackWatcher();
@@ -399,8 +420,11 @@ const svgPaths = {
         if (isStreamPlaying()) {
             stopPlaybackWatcher();
             rotationTimerStart = Date.now();
+            updateFollowToggleIcon();
+            startCountdownUpdater();
             rotationTimerId = setInterval(() => {
                 rotationTimerStart = Date.now();
+                updateFollowToggleIcon();
                 clickRandomChannel();
             }, rotationTimer);
         } else {
