@@ -106,10 +106,10 @@ const svgPaths = {
             countdownText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             countdownText.setAttribute('data-a-target', 'shuffle-countdown');
             countdownText.setAttribute('x', '8');
-            countdownText.setAttribute('y', '11');
+            countdownText.setAttribute('y', '9.5');
             countdownText.setAttribute('text-anchor', 'middle');
             countdownText.setAttribute('fill', '#ffffff');
-            countdownText.setAttribute('font-size', '7');
+            countdownText.setAttribute('font-size', '9.5');
             countdownText.setAttribute('font-family', 'sans-serif');
             countdownText.setAttribute('pointer-events', 'none');
             svgElement.appendChild(countdownText);
