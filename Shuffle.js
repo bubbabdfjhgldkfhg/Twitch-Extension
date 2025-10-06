@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.9
+// @version      3.0
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -55,6 +55,7 @@ const svgPaths = {
     let cooldownActive = false;
     let coolDownTimerId;
     let rotationTimerId = null;
+    let rotationTimerStart = null;
     let playbackResetTimeoutId = null;
     let similarChannelClickCount = 0;
     const playbackStatePollInterval = 250;
@@ -96,6 +97,35 @@ const svgPaths = {
             paths[1].remove();
         }
         paths.forEach(p => p.setAttribute('fill', color));
+
+        const svgElement = toggleButton.querySelector('svg');
+        if (!svgElement) return;
+
+        let countdownText = svgElement.querySelector('text[data-a-target="shuffle-countdown"]');
+        if (!countdownText) {
+            countdownText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            countdownText.setAttribute('data-a-target', 'shuffle-countdown');
+            countdownText.setAttribute('x', '8');
+            countdownText.setAttribute('y', '11');
+            countdownText.setAttribute('text-anchor', 'middle');
+            countdownText.setAttribute('fill', '#ffffff');
+            countdownText.setAttribute('font-size', '7');
+            countdownText.setAttribute('font-family', 'sans-serif');
+            countdownText.setAttribute('pointer-events', 'none');
+            svgElement.appendChild(countdownText);
+        }
+
+        let countdownContent = '';
+        if (autoRotateEnabled && rotationTimerStart && rotationTimerId) {
+            const msRemaining = (rotationTimerStart + rotationTimer) - Date.now();
+            if (msRemaining > 0) {
+                countdownContent = Math.max(0, Math.round(msRemaining / 1000)).toString();
+            } else {
+                countdownContent = '0';
+            }
+        }
+
+        countdownText.textContent = countdownContent;
     }
 
     function newChannelCooldown() {
@@ -353,6 +383,7 @@ const svgPaths = {
     function resetChannelRotationTimer() {
         clearInterval(rotationTimerId);
         rotationTimerId = null;
+        rotationTimerStart = null;
 
         if (!autoRotateEnabled) {
             stopPlaybackWatcher();
@@ -361,7 +392,11 @@ const svgPaths = {
 
         if (isStreamPlaying()) {
             stopPlaybackWatcher();
-            rotationTimerId = setInterval(() => clickRandomChannel(), rotationTimer);
+            rotationTimerStart = Date.now();
+            rotationTimerId = setInterval(() => {
+                rotationTimerStart = Date.now();
+                clickRandomChannel();
+            }, rotationTimer);
         } else {
             startPlaybackWatcher();
         }
@@ -406,6 +441,7 @@ const svgPaths = {
         }
 
         updateFollowToggleIcon();
+        resetChannelRotationTimer();
     }
 
     function insertButton(type, clickHandler, svgPaths, color, scale = 1) {
