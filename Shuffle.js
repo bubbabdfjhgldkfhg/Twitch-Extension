@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.0
+// @version      3.1
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -119,7 +119,13 @@ const svgPaths = {
         if (autoRotateEnabled && rotationTimerStart && rotationTimerId) {
             const msRemaining = (rotationTimerStart + rotationTimer) - Date.now();
             if (msRemaining > 0) {
-                countdownContent = Math.max(0, Math.round(msRemaining / 1000)).toString();
+                const secondsRemaining = msRemaining / 1000;
+                if (secondsRemaining >= 1) {
+                    countdownContent = Math.round(secondsRemaining).toString();
+                } else {
+                    const tenths = Math.min(9, Math.round(secondsRemaining * 10));
+                    countdownContent = `.${tenths}`;
+                }
             } else {
                 countdownContent = '0';
             }
