@@ -38,7 +38,7 @@ const svgPaths = {
     // The channel timer determines how long to stay on each channel in continuous shuffle mode (1000 * seconds = milliseconds)
     let followedChannelTimer = 1000 * 25;
     let recommendedChannelTimer = 1000 * 20;
-    let discoverChannelTimer = 1000 * 9;
+    let discoverChannelTimer = 1000 * 7;
     let rotationTimer = followedChannelTimer; // Default (keep this the same as the shuffle type, the options are above.)
 
     let newChannelCooldownTimer = 1000 * 3; // Minimum delay between channel clicks. Things break if you go too fast.
