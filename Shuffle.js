@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.4
+// @version      3.5
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -52,7 +52,8 @@ let deviceId = null;
     let newChannelCooldownTimer = 1000 * 3; // Minimum delay between channel clicks. Things break if you go too fast.
     let maxSimilarChannelClicks = 15; // How many channels deep to go in 'discover' mode.
 
-    const KEY_HOLD_DURATION = 1000 * 1; // How long to hold X or Y
+    const X_KEY_HOLD_DURATION = 750; // How long to hold X (0.75s)
+    const Y_KEY_HOLD_DURATION = 2000; // How long to hold Y (2s)
     const removeSuperSnoozeDialogTimeout = 1000 * 5; // How long before the Not Interested dialogue disappears
 
     // ===========================
@@ -197,10 +198,10 @@ let deviceId = null;
             Hold Y to confirm, any other key to cancel
         </div>
         <div style="position: absolute; bottom: 5px; left: 5px; right: 5px; height: 3px; background: rgba(255, 0, 0, 0.3); border-radius: 2px;">
-            <div data-progress-bar="yhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #ff0000; border-radius: 2px; transition: width 0.1s linear;"></div>
+            <div data-progress-bar="yhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #ff0000; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
         </div>
         <div style="position: absolute; bottom: 0px; left: 5px; right: 5px; height: 3px; background: rgba(179, 128, 255, 0.3); border-radius: 2px;">
-            <div data-progress-bar="countdown" style="position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #b380ff; border-radius: 2px; transition: width 0.1s linear;"></div>
+            <div data-progress-bar="countdown" style="position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #b380ff; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
         </div>
     `;
 
@@ -208,7 +209,7 @@ let deviceId = null;
         superSnoozeDialog = dialog;
         dialogCreated = true;
 
-        dialogDismissStart = Date.now();
+        dialogDismissStart = performance.now();
         dialogCountdownPaused = false;
 
         // Start countdown bar animation
@@ -222,7 +223,7 @@ let deviceId = null;
             if (!countdownBar) return;
 
             if (!dialogCountdownPaused) {
-                const elapsed = Date.now() - dialogDismissStart;
+                const elapsed = performance.now() - dialogDismissStart;
                 const progress = Math.max(0, 1 - (elapsed / removeSuperSnoozeDialogTimeout));
                 countdownBar.style.width = `${progress * 100}%`;
 
@@ -781,7 +782,7 @@ let deviceId = null;
             if (!xKeyHoldTimer && !dialogCountdownPaused) {
                 // Pause countdown
                 dialogCountdownPaused = true;
-                xKeyHoldStart = Date.now();
+                xKeyHoldStart = performance.now();
 
                 // Start Y hold bar animation
                 function updateYHoldBar() {
@@ -793,8 +794,8 @@ let deviceId = null;
                     const yHoldBar = superSnoozeDialog.querySelector('[data-progress-bar="yhold"]');
                     if (!yHoldBar) return;
 
-                    const elapsed = Date.now() - xKeyHoldStart;
-                    const progress = Math.min(1, elapsed / KEY_HOLD_DURATION);
+                    const elapsed = performance.now() - xKeyHoldStart;
+                    const progress = Math.min(1, elapsed / Y_KEY_HOLD_DURATION);
                     yHoldBar.style.width = `${progress * 100}%`;
 
                     if (progress >= 1) {
@@ -819,12 +820,12 @@ let deviceId = null;
         switch (event.key) {
             case 'x':
                 if (!xKeyHoldTimer && !event.ctrlKey) {
-                    xKeyHoldStart = Date.now();
+                    xKeyHoldStart = performance.now();
                     xKeyHoldTimer = setTimeout(() => {
                         channelRotationTimer('disable');
                         createSuperSnoozeDialog();
                         xKeyHoldTimer = null;
-                    }, KEY_HOLD_DURATION);
+                    }, X_KEY_HOLD_DURATION);
                 }
                 break;
             case 'o':
@@ -862,7 +863,7 @@ let deviceId = null;
             // Resume countdown
             if (dialogCountdownPaused) {
                 dialogCountdownPaused = false;
-                const pausedDuration = Date.now() - xKeyHoldStart;
+                const pausedDuration = performance.now() - xKeyHoldStart;
                 dialogDismissStart += pausedDuration;
             }
 
