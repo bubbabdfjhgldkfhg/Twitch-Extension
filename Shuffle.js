@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.2
+// @version      3.3
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -62,8 +62,6 @@ const svgPaths = {
     const playbackCheckCooldown = 500;
     let playbackCheckIntervalId = null;
     let videoPlayerInstance = null;
-    let countdownUpdateIntervalId = null;
-    const countdownUpdateInterval = 100;
 
     function getSnoozePaths() {
         switch (shuffleType) {
@@ -108,7 +106,7 @@ const svgPaths = {
             countdownText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             countdownText.setAttribute('data-a-target', 'shuffle-countdown');
             countdownText.setAttribute('x', '8');
-            countdownText.setAttribute('y', '9.5');
+            countdownText.setAttribute('y', '10');
             countdownText.setAttribute('text-anchor', 'middle');
             countdownText.setAttribute('fill', '#ffffff');
             countdownText.setAttribute('font-size', '9.5');
@@ -121,16 +119,10 @@ const svgPaths = {
         if (autoRotateEnabled && rotationTimerStart && rotationTimerId) {
             const msRemaining = (rotationTimerStart + rotationTimer) - Date.now();
             if (msRemaining > 0) {
-                const secondsRemaining = msRemaining / 1000;
-                if (secondsRemaining >= 1) {
-                    countdownContent = Math.round(secondsRemaining).toString();
-                } else {
-                    const tenths = Math.max(1, Math.floor(secondsRemaining * 10));
-                    countdownContent = `.${tenths}`;
+                countdownContent = Math.max(0, Math.round(msRemaining / 1000)).toString();
+            } else {
+                countdownContent = '0';
             }
-        } else {
-            countdownContent = '0';
-        }
         }
 
         countdownText.textContent = countdownContent;
@@ -356,24 +348,6 @@ const svgPaths = {
         }
     }
 
-    function stopCountdownUpdater() {
-        if (countdownUpdateIntervalId) {
-            clearInterval(countdownUpdateIntervalId);
-            countdownUpdateIntervalId = null;
-        }
-    }
-
-    function startCountdownUpdater() {
-        if (countdownUpdateIntervalId) return;
-        countdownUpdateIntervalId = setInterval(() => {
-            if (!autoRotateEnabled || !rotationTimerStart || !rotationTimerId) {
-                stopCountdownUpdater();
-                return;
-            }
-            updateFollowToggleIcon();
-        }, countdownUpdateInterval);
-    }
-
     function startPlaybackWatcher() {
         if (playbackCheckIntervalId) return;
         playbackCheckIntervalId = setInterval(() => {
@@ -410,7 +384,6 @@ const svgPaths = {
         clearInterval(rotationTimerId);
         rotationTimerId = null;
         rotationTimerStart = null;
-        stopCountdownUpdater();
 
         if (!autoRotateEnabled) {
             stopPlaybackWatcher();
@@ -420,11 +393,8 @@ const svgPaths = {
         if (isStreamPlaying()) {
             stopPlaybackWatcher();
             rotationTimerStart = Date.now();
-            updateFollowToggleIcon();
-            startCountdownUpdater();
             rotationTimerId = setInterval(() => {
                 rotationTimerStart = Date.now();
-                updateFollowToggleIcon();
                 clickRandomChannel();
             }, rotationTimer);
         } else {
