@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.5
+// @version      3.6
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -511,6 +511,9 @@ let deviceId = null;
         console.log(logMessage);
 
         // Click the new channel and reset all timers
+        if (dialogCreated || superSnoozeDialog) {
+            removeSuperSnoozeDialog();
+        }
         newChannelCooldown();
         newChannel.click();
         channelRotationTimer('enable');
