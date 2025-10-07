@@ -52,9 +52,9 @@ let deviceId = null;
     let newChannelCooldownTimer = 1000 * 3; // Minimum delay between channel clicks. Things break if you go too fast.
     let maxSimilarChannelClicks = 15; // How many channels deep to go in 'discover' mode.
 
-    const X_KEY_HOLD_DURATION = 750; // How long to hold X (0.75s)
-    const Y_KEY_HOLD_DURATION = 2000; // How long to hold Y (2s)
-    const removeSuperSnoozeDialogTimeout = 1000 * 5; // How long before the Not Interested dialogue disappears
+    const X_KEY_HOLD_DURATION = 400; // How long to hold X
+    const Y_KEY_HOLD_DURATION = 800; // How long to hold Y
+    const removeSuperSnoozeDialogTimeout = 1000 * 3.5; // How long before the Not Interested dialogue disappears
 
     // ===========================
     //        END CONFIG
