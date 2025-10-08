@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.6
+// @version      3.7
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -358,12 +358,21 @@ let deviceId = null;
     }
 
     function newChannelCooldown() {
+        cancelXHoldTimer();
         cooldownActive = true;
         clearTimeout(coolDownTimerId);
 
         coolDownTimerId = setTimeout(() => {
             cooldownActive = false;
         }, newChannelCooldownTimer);
+    }
+
+    function cancelXHoldTimer() {
+        if (xKeyHoldTimer) {
+            clearTimeout(xKeyHoldTimer);
+            xKeyHoldTimer = null;
+        }
+        xKeyHoldStart = null;
     }
 
     function snoozeChannel() {
@@ -750,6 +759,7 @@ let deviceId = null;
         // Manually clicking channels resets the timer and adds them to the recently clicked queue
         if (lastClickedHrefs[lastClickedHrefs.length - 1] !== window.location.pathname) {
             lastClickedHrefs.push(window.location.pathname);
+            cancelXHoldTimer();
             channelRotationTimer('disable');
             // resetChannelRotationTimer();
         }
@@ -883,4 +893,14 @@ let deviceId = null;
             xKeyHoldStart = null;
         }
     });
+
+    document.addEventListener('click', function(event) {
+        if (!xKeyHoldTimer) return;
+        const channelLink = event.target.closest('a.tw-link');
+        if (!channelLink) return;
+
+        cancelXHoldTimer();
+    }, true);
+
 })();
+
