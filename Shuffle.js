@@ -511,9 +511,6 @@ let deviceId = null;
         console.log(logMessage);
 
         // Click the new channel and reset all timers
-        if (dialogCreated || superSnoozeDialog) {
-            removeSuperSnoozeDialog();
-        }
         newChannelCooldown();
         newChannel.click();
         channelRotationTimer('enable');
