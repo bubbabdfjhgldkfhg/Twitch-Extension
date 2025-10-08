@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.7
+// @version      3.8
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -176,6 +176,12 @@ let deviceId = null;
         if (superSnoozeDialog) return;
 
         const dialog = document.createElement('div');
+        const showDepthMessage = similarChannelClickCount >= 2;
+        const borderColor = showDepthMessage ? '#ff0000' : '#b380ff';
+        const depthMessage = showDepthMessage
+            ? `<div style="color: #ff4d4d; margin-top: 8px;">You are ${similarChannelClickCount} channels deep</div>`
+            : '';
+
         dialog.style.cssText = `
         position: fixed;
         top: 50%;
@@ -189,11 +195,11 @@ let deviceId = null;
         z-index: 10000;
         font-size: 16px;
         text-align: center;
-        border: 2px solid #b380ff;
+        border: 2px solid ${borderColor};
     `;
         dialog.innerHTML = `
         <div>Permanently snooze this channel?</div>
-        <div>You are ${similarChannelClickCount} channels deep</div>
+        ${depthMessage}
         <div style="margin-top: 10px; font-size: 14px; color: #888;">
             Hold Y to confirm, any other key to cancel
         </div>
