@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Peek
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.5
+// @version      0.6
 // @description  Preview a Twitch channel stream when hovering channel links
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
@@ -114,6 +114,10 @@
         return target;
     };
     const scheduleShow = (anchor, chan) => {
+        if (timer && pending && pending.chan === chan) {
+            pending.anchor = anchor;
+            return;
+        }
         pending = { anchor, chan };
         clearTimeout(timer);
         timer = setTimeout(() => {
