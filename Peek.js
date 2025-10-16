@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Peek
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.3
+// @version      0.4
 // @description  Preview a Twitch channel stream when hovering channel links
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
@@ -84,13 +84,15 @@
         }
     };
     const findHoverTarget = () => {
-        const el = document.elementFromPoint(mouseX, mouseY);
-        if (!el) return null;
-        const anchor = el.closest("a[href]");
-        if (!anchor) return null;
-        const chan = anchor.dataset.channel || getChan(anchor.href);
-        if (!chan) return null;
-        return { anchor, chan };
+        const elements = document.elementsFromPoint(mouseX, mouseY);
+        for (const el of elements) {
+            const anchor = el.closest("a[href]");
+            if (!anchor) continue;
+            const chan = anchor.dataset.channel || getChan(anchor.href);
+            if (!chan) continue;
+            return { anchor, chan };
+        }
+        return null;
     };
     const resolveHoverTarget = (fallback) => {
         if (fallback && document.contains(fallback.anchor)) {
