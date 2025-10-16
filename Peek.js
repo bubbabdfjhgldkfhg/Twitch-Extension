@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Stream Preview
+// @name         Peek
 // @match        https://www.twitch.tv/*
 // @run-at       document-end
 // @grant        none
