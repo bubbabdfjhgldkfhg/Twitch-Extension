@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Peek
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.4
+// @version      0.5
 // @description  Preview a Twitch channel stream when hovering channel links
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
@@ -24,7 +24,7 @@
         return (!seg || reserved.has(seg)) ? null : seg.toLowerCase();
     };
     const SHOW_DELAY = 1000;
-    let box, timer, currentAnchor, mouseX = 0, mouseY = 0, currentChannel = null, pending = null;
+    let box, timer, currentAnchor, mouseX = 0, mouseY = 0, currentChannel = null, pending = null, mutationFrame = null, mutationRetries = 0;
 
     const positionBox = () => {
         if (!box) return;
@@ -71,12 +71,20 @@
         Object.assign(ifr, { src, width: "100%", height: "100%", frameBorder: "0", allow: "autoplay; fullscreen; picture-in-picture" });
         box.replaceChildren(ifr);
     };
+    const clearMutationFrame = () => {
+        if (mutationFrame !== null) {
+            cancelAnimationFrame(mutationFrame);
+            mutationFrame = null;
+        }
+        mutationRetries = 0;
+    };
     const hide = () => {
         clearTimeout(timer);
         timer = null;
         pending = null;
         currentChannel = null;
         currentAnchor = null;
+        clearMutationFrame();
         if (box) {
             box.replaceChildren();
             box.remove();
@@ -157,13 +165,26 @@
             }
         }
         if (currentAnchor && !document.contains(currentAnchor)) {
-            const resolvedCurrent = resolveHoverTarget({ anchor: currentAnchor, chan: currentChannel });
-            if (resolvedCurrent) {
-                currentAnchor = resolvedCurrent.anchor;
-                show(resolvedCurrent.anchor, resolvedCurrent.chan);
-            } else {
-                hide();
-            }
+            clearMutationFrame();
+            const fallback = { anchor: currentAnchor, chan: currentChannel };
+            const attemptResolve = () => {
+                mutationFrame = null;
+                if (!currentAnchor || currentAnchor !== fallback.anchor) return;
+                if (mutationRetries > 4) {
+                    hide();
+                    return;
+                }
+                const resolvedCurrent = resolveHoverTarget(fallback);
+                if (resolvedCurrent) {
+                    currentAnchor = resolvedCurrent.anchor;
+                    show(resolvedCurrent.anchor, resolvedCurrent.chan);
+                    mutationRetries = 0;
+                } else {
+                    mutationRetries += 1;
+                    mutationFrame = requestAnimationFrame(attemptResolve);
+                }
+            };
+            mutationFrame = requestAnimationFrame(attemptResolve);
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
