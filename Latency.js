@@ -52,7 +52,7 @@
     let LAST_LATENCY_PROBLEM;
     let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 minutes in ms
     let SEEK_COOLDOWN = false;
-    let SEEK_BACKWARD_SECONDS = 2.5;
+    let SEEK_BACKWARD_SECONDS = 1.5;
 
     let BUFFER_COUNT = 0;
     let MAX_BUFFER_COUNT = 20;
