@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.9
+// @version      3.11
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -42,9 +42,10 @@
     let SPEED_MIN = 0.07;
     let SPEED_MAX = 1.15;
 
-    let newPageStatsCooldownTimer = 3000;
-    let newPageStatsCooldownActive = false;
-    let newPageStatsCooldownTimeout;
+    let waitingForStreamPlayback = true;
+    const playbackStateCheckCooldown = 1500;
+    let playbackStateCheckTimerId = null;
+    let playbackStateCheckReady = false;
 
     let LATENCY_PROBLEM = false;
     // let LATENCY_PROBLEM_COUNTER = 0;
@@ -159,7 +160,7 @@
     });
 
     function changeTargetLatency(delta) {
-        if (newPageStatsCooldownActive) {
+        if (waitingForStreamPlayback) {
             return;
         }
         if (isNaN(delta) || !delta || delta == -Infinity || isNaN(TARGET_LATENCY) || !TARGET_LATENCY) {
@@ -412,16 +413,22 @@
         }
     }
 
+    function resetPlaybackStateCheck() {
+        playbackStateCheckReady = false;
+        if (playbackStateCheckTimerId) {
+            clearTimeout(playbackStateCheckTimerId);
+        }
+        playbackStateCheckTimerId = setTimeout(() => {
+            playbackStateCheckTimerId = null;
+            playbackStateCheckReady = true;
+        }, playbackStateCheckCooldown);
+    }
+
     function handlePageChange() {
         LAST_LATENCY_PROBLEM = Date.now();
 
-        if (newPageStatsCooldownTimeout) {
-            clearTimeout(newPageStatsCooldownTimeout); // Clear existing timeout
-        }
-        newPageStatsCooldownActive = true;
-        newPageStatsCooldownTimeout = setTimeout(() => {
-            newPageStatsCooldownActive = false;
-        }, newPageStatsCooldownTimer);
+        waitingForStreamPlayback = true;
+        resetPlaybackStateCheck();
 
         // Don't carry over residual speed from last channel
         setSpeed(1);
@@ -435,6 +442,12 @@
         graphValues.smoothedBufferSize = null;
         // Assume a new video player instance was created
         videoPlayer = null;
+        PREVIOUS_PLAYER_STATE = null;
+    }
+
+    function isStreamPlaying() {
+        const state = videoPlayer?.getState?.();
+        return state === 'Playing';
     }
 
     function setLatencyTextColor(latencyTextElement) {
@@ -593,11 +606,9 @@
     }
 
     // Update graph & make sure table is open
-    let pollingInterval = setInterval(async function() {
+    resetPlaybackStateCheck();
 
-        if (newPageStatsCooldownActive) {
-            return;
-        }
+    let pollingInterval = setInterval(async function() {
 
         // We can't use this cause stuckBuffering() won't run.
         // if (PAUSE_PLAY_COOLDOWN) {
@@ -606,6 +617,23 @@
 
         videoPlayer = videoPlayer ?? findReactNode(findReactRootNode(), node =>
                                                    node.setPlayerActive && node.props && node.props.mediaPlayerInstance)?.props.mediaPlayerInstance;
+
+        if (waitingForStreamPlayback) {
+            if (!videoPlayer) {
+                return;
+            }
+
+            if (!playbackStateCheckReady) {
+                return;
+            }
+
+            if (!isStreamPlaying()) {
+                return;
+            }
+
+            waitingForStreamPlayback = false;
+            playbackStateCheckReady = false;
+        }
 
         // let proto = Object.getPrototypeOf(videoPlayer?.getHTMLVideoElement());
         // while (proto) {
