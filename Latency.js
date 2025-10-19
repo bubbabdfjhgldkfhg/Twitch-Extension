@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.11
+// @version      3.12
 // @description  Manually set desired latency & graph video stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -53,7 +53,7 @@
     let LAST_LATENCY_PROBLEM;
     let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 minutes in ms
     let SEEK_COOLDOWN = false;
-    let SEEK_BACKWARD_SECONDS = 1.5;
+    let SEEK_BACKWARD_SECONDS = 1.25;
 
     let BUFFER_COUNT = 0;
     let MAX_BUFFER_COUNT = 20;
