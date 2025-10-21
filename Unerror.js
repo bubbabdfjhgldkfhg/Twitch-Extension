@@ -3,6 +3,8 @@
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      1.0
 // @description  Automatically click reload button when Twitch player errors occur
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Unerror.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Unerror.js
 // @match        *://*.twitch.tv/*
 // @exclude      *://*.twitch.tv/videos/*
 // @exclude      *://*.twitch.tv/*/clip/*
