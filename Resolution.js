@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.13
+// @version      1.14
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -23,6 +23,9 @@
     let qualitySetForCurrentStream = false;
     let lastSeenQualityCount = 0;
     let bestQualityHeight = 0;
+    let firstQualityDetectionTime = null;
+    let streamStartedPlayingTime = null;
+    let hasLoggedPlaybackStart = false;
 
     function log(...args) {
         if (DEBUG) console.log('[Force Source]', ...args);
@@ -114,6 +117,12 @@
                 return false;
             }
 
+            // Track when we first detect qualities for timing analysis
+            if (!firstQualityDetectionTime) {
+                firstQualityDetectionTime = Date.now();
+                log(`[${timeSincePageChange}ms] 📊 First quality detection (page change + ${timeSincePageChange}ms)`);
+            }
+
             const bestQuality = getBestQuality(qualities);
             if (!bestQuality) {
                 log(`[${timeSincePageChange}ms] No best quality found (filtered: ${qualities.filter(q => q.group !== 'auto').length})`);
@@ -132,6 +141,20 @@
                 bestQualityHeight = bestQuality.height;
             }
 
+            // Check video playback state for timing analysis
+            const video = getVideoElement();
+            const isLoading = isVideoLoading(video);
+            const isPlaying = isVideoPlaying(video);
+
+            // Track when stream actually starts playing (not rebuffering from our quality change)
+            if (isPlaying && !hasLoggedPlaybackStart && firstQualityDetectionTime) {
+                streamStartedPlayingTime = Date.now();
+                const gapFromQualityDetection = streamStartedPlayingTime - firstQualityDetectionTime;
+                const gapFromPageChange = streamStartedPlayingTime - lastPageChange;
+                log(`[${timeSincePageChange}ms] 📊 Stream started playing (${gapFromQualityDetection}ms after quality detection, ${gapFromPageChange}ms after page change)`);
+                hasLoggedPlaybackStart = true;
+            }
+
             if (isBestQuality(currentQuality, qualities)) {
                 if (!qualitySetForCurrentStream || qualityCountChanged || betterQualityAvailable) {
                     log(`[${timeSincePageChange}ms] ✓ At best quality: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate})`);
@@ -142,14 +165,13 @@
             }
 
             // Need to switch quality - only do it if video is loading or not playing
-            const video = getVideoElement();
-            const isLoading = isVideoLoading(video);
-            const isPlaying = isVideoPlaying(video);
-
             if (force || isLoading || !isPlaying) {
                 log(`[${timeSincePageChange}ms] ✓ Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate}) [loading: ${isLoading}, playing: ${isPlaying}]`);
                 videoPlayer.setQuality(bestQuality);
                 qualitySetForCurrentStream = true;
+                // Reset playback tracking since we're causing a rebuffer
+                hasLoggedPlaybackStart = false;
+                streamStartedPlayingTime = null;
                 return true;
             } else {
                 log(`[${timeSincePageChange}ms] ⏸ Waiting to switch (video playing) - will retry when buffering`);
@@ -180,6 +202,19 @@
                 clearInterval(loadingCheckTimer);
                 loadingCheckTimer = null;
                 log(`Checked ${checkCount} times over ${PAGE_CHANGE_WINDOW}ms window`);
+
+                // Log timing summary
+                if (firstQualityDetectionTime && streamStartedPlayingTime) {
+                    const qualityDetectedAt = firstQualityDetectionTime - lastPageChange;
+                    const streamStartedAt = streamStartedPlayingTime - lastPageChange;
+                    const gapBetween = streamStartedPlayingTime - firstQualityDetectionTime;
+                    log(`📊 TIMING SUMMARY: Quality detected at ${qualityDetectedAt}ms, Stream started at ${streamStartedAt}ms, Gap: ${gapBetween}ms`);
+                } else if (firstQualityDetectionTime && !streamStartedPlayingTime) {
+                    const qualityDetectedAt = firstQualityDetectionTime - lastPageChange;
+                    log(`📊 TIMING SUMMARY: Quality detected at ${qualityDetectedAt}ms, Stream never started playing in window`);
+                } else if (!firstQualityDetectionTime) {
+                    log(`📊 TIMING SUMMARY: No qualities detected in window`);
+                }
             }
         }, LOADING_CHECK_INTERVAL);
 
@@ -192,6 +227,9 @@
         qualitySetForCurrentStream = false;
         lastSeenQualityCount = 0;
         bestQualityHeight = 0;
+        firstQualityDetectionTime = null;
+        streamStartedPlayingTime = null;
+        hasLoggedPlaybackStart = false;
 
         // Start aggressive checking to catch the stream as it loads
         startLoadingChecks();
