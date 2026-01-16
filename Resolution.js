@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.11
+// @version      1.12
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -21,6 +21,8 @@
     let videoPlayer = null;
     let loadingCheckTimer = null;
     let qualitySetForCurrentStream = false;
+    let lastSeenQualityCount = 0;
+    let bestQualityHeight = 0;
 
     function log(...args) {
         if (DEBUG) console.log('[Force Source]', ...args);
@@ -115,17 +117,22 @@
                 return false;
             }
 
-            // Log available qualities on first detection
-            if (!qualitySetForCurrentStream) {
-                const qualityList = qualities.map(q => `${q.name} (${q.height}p${q.framerate || '?'})`).join(', ');
-                log(`[${timeSincePageChange}ms] Qualities detected: [${qualityList}]`);
-                log(`[${timeSincePageChange}ms] Current quality: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate || '?'})`);
-            }
-
             const bestQuality = getBestQuality(qualities);
             if (!bestQuality) {
                 log(`[${timeSincePageChange}ms] No best quality found (filtered: ${qualities.filter(q => q.group !== 'auto').length})`);
                 return false;
+            }
+
+            // Check if quality list has expanded (new transcodes available)
+            const qualityCountChanged = qualities.length !== lastSeenQualityCount;
+            const betterQualityAvailable = bestQuality.height > bestQualityHeight;
+
+            if (qualityCountChanged || betterQualityAvailable) {
+                const qualityList = qualities.map(q => `${q.name} (${q.height}p${q.framerate || '?'})`).join(', ');
+                log(`[${timeSincePageChange}ms] ${qualityCountChanged ? 'NEW' : 'BETTER'} qualities detected: [${qualityList}]`);
+                log(`[${timeSincePageChange}ms] Current quality: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate || '?'})`);
+                lastSeenQualityCount = qualities.length;
+                bestQualityHeight = bestQuality.height;
             }
 
             if (isBestQuality(currentQuality, qualities)) {
@@ -133,7 +140,8 @@
                     log(`[${timeSincePageChange}ms] Already at best: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate})`);
                     qualitySetForCurrentStream = true;
                 }
-                return true;
+                // Keep checking for a bit in case better qualities appear
+                return qualityCountChanged || betterQualityAvailable ? false : true;
             }
 
             // Only set quality if: forced, or if video is loading/buffering (not actively playing)
@@ -174,11 +182,11 @@
             const success = checkAndSetQuality();
             checksRemaining--;
 
-            // Stop aggressive checking if we successfully set quality or time runs out
-            if (success || checksRemaining <= 0) {
+            // Only stop when time runs out - don't stop on first success since qualities may still be loading
+            if (checksRemaining <= 0) {
                 clearInterval(loadingCheckTimer);
                 loadingCheckTimer = null;
-                log(`Stopped aggressive loading checks after ${checkCount} attempts (${success ? 'SUCCESS' : 'TIMEOUT'})`);
+                log(`Stopped aggressive loading checks after ${checkCount} attempts (checked full window)`);
             }
         }, LOADING_CHECK_INTERVAL);
 
@@ -189,6 +197,8 @@
         lastPageChange = Date.now();
         videoPlayer = null;
         qualitySetForCurrentStream = false;
+        lastSeenQualityCount = 0;
+        bestQualityHeight = 0;
 
         // Start aggressive checking to catch the stream as it loads
         startLoadingChecks();
