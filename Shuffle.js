@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.8
+// @version      3.9
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -54,6 +54,7 @@ let deviceId = null;
 
     const X_KEY_HOLD_DURATION = 400; // How long to hold X
     const Y_KEY_HOLD_DURATION = 800; // How long to hold Y
+    const B_KEY_HOLD_DURATION = 800; // How long to hold B to block
     const removeSuperSnoozeDialogTimeout = 1000 * 3.5; // How long before the Not Interested dialogue disappears
 
     // ===========================
@@ -76,6 +77,7 @@ let deviceId = null;
     let videoPlayerInstance = null;
     let xKeyHoldTimer = null;
     let xKeyHoldStart = null;
+    let bKeyHoldStart = null;
     let dialogCreated = false;
     let superSnoozeDialog = null;
     let dialogDismissTimeout = null;
@@ -83,6 +85,7 @@ let deviceId = null;
     let dialogCountdownPaused = false;
     let countdownBarAnimationId = null;
     let yHoldBarAnimationId = null;
+    let bHoldBarAnimationId = null;
 
 
 
@@ -171,6 +174,30 @@ let deviceId = null;
         });
     }
 
+    // Add function to send block user GraphQL mutation
+    async function sendBlockUserMutation(channelId) {
+        const body = [{
+            operationName: 'BlockUser',
+            query: `mutation BlockUser($input: BlockUserInput!) {
+            blockUser(input: $input) {
+                __typename
+            }
+        }`,
+            variables: {
+                input: {
+                    targetUserID: channelId,
+                    sourceContext: 'CHAT'
+                }
+            }
+        }];
+
+        await fetch('https://gql.twitch.tv/gql#origin=twilight', {
+            method: 'POST',
+            headers: getGqlHeaders(),
+            body: JSON.stringify(body)
+        });
+    }
+
     // Add function to create super snooze dialog
     function createSuperSnoozeDialog() {
         if (superSnoozeDialog) return;
@@ -190,7 +217,7 @@ let deviceId = null;
         background: rgba(0, 0, 0, 0.9);
         color: white;
         padding: 20px;
-        padding-bottom: 25px;
+        padding-bottom: 30px;
         border-radius: 8px;
         z-index: 10000;
         font-size: 16px;
@@ -201,10 +228,13 @@ let deviceId = null;
         <div>Permanently snooze this channel?</div>
         ${depthMessage}
         <div style="margin-top: 10px; font-size: 14px; color: #888;">
-            Hold Y to confirm, any other key to cancel
+            Hold <span style="color: #ff0000;">Y</span> for not interested, <span style="color: #ff6600;">B</span> to block, any other key to cancel
         </div>
-        <div style="position: absolute; bottom: 5px; left: 5px; right: 5px; height: 3px; background: rgba(255, 0, 0, 0.3); border-radius: 2px;">
+        <div style="position: absolute; bottom: 10px; left: 5px; right: 5px; height: 3px; background: rgba(255, 0, 0, 0.3); border-radius: 2px;">
             <div data-progress-bar="yhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #ff0000; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
+        </div>
+        <div style="position: absolute; bottom: 5px; left: 5px; right: 5px; height: 3px; background: rgba(255, 102, 0, 0.3); border-radius: 2px;">
+            <div data-progress-bar="bhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #ff6600; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
         </div>
         <div style="position: absolute; bottom: 0px; left: 5px; right: 5px; height: 3px; background: rgba(179, 128, 255, 0.3); border-radius: 2px;">
             <div data-progress-bar="countdown" style="position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #b380ff; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
@@ -259,6 +289,10 @@ let deviceId = null;
             cancelAnimationFrame(yHoldBarAnimationId);
             yHoldBarAnimationId = null;
         }
+        if (bHoldBarAnimationId) {
+            cancelAnimationFrame(bHoldBarAnimationId);
+            bHoldBarAnimationId = null;
+        }
         if (dialogDismissTimeout) {
             clearTimeout(dialogDismissTimeout);
             dialogDismissTimeout = null;
@@ -270,6 +304,7 @@ let deviceId = null;
         dialogDismissStart = null;
         dialogCountdownPaused = false;
         xKeyHoldStart = null;
+        bKeyHoldStart = null;
     }
 
     async function handleSuperSnooze() {
@@ -285,6 +320,22 @@ let deviceId = null;
             }
         } catch (error) {
             console.error('Failed to super snooze channel:', error);
+        }
+    }
+
+    async function handleBlock() {
+        const currentChannel = getUsernameFromUrl();
+        if (!currentChannel) return;
+
+        try {
+            const channelId = await getChannelId(currentChannel);
+            if (channelId) {
+                await sendBlockUserMutation(channelId);
+                console.log(`Blocked user: ${currentChannel}`);
+                snoozeChannel();
+            }
+        } catch (error) {
+            console.error('Failed to block user:', error);
         }
     }
 
@@ -827,6 +878,40 @@ let deviceId = null;
             return;
         }
 
+        // Handle B key for block in dialog
+        if (dialogCreated && event.key.toLowerCase() === 'b') {
+            if (!bKeyHoldStart && !dialogCountdownPaused) {
+                // Pause countdown
+                dialogCountdownPaused = true;
+                bKeyHoldStart = performance.now();
+
+                // Start B hold bar animation
+                function updateBHoldBar() {
+                    if (!superSnoozeDialog || !dialogCreated || !bKeyHoldStart) {
+                        cancelAnimationFrame(bHoldBarAnimationId);
+                        return;
+                    }
+
+                    const bHoldBar = superSnoozeDialog.querySelector('[data-progress-bar="bhold"]');
+                    if (!bHoldBar) return;
+
+                    const elapsed = performance.now() - bKeyHoldStart;
+                    const progress = Math.min(1, elapsed / B_KEY_HOLD_DURATION);
+                    bHoldBar.style.width = `${progress * 100}%`;
+
+                    if (progress >= 1) {
+                        removeSuperSnoozeDialog();
+                        handleBlock();
+                        return;
+                    }
+
+                    bHoldBarAnimationId = requestAnimationFrame(updateBHoldBar);
+                }
+                bHoldBarAnimationId = requestAnimationFrame(updateBHoldBar);
+            }
+            return;
+        }
+
         // Handle other keys in dialog
         if (dialogCreated && event.key.toLowerCase() !== 'x') {
             removeSuperSnoozeDialog();
@@ -877,13 +962,37 @@ let deviceId = null;
             }
 
             // Resume countdown
-            if (dialogCountdownPaused) {
+            if (dialogCountdownPaused && xKeyHoldStart) {
                 dialogCountdownPaused = false;
                 const pausedDuration = performance.now() - xKeyHoldStart;
                 dialogDismissStart += pausedDuration;
             }
 
             xKeyHoldStart = null;
+            return;
+        }
+
+        // Handle B release in dialog
+        if (dialogCreated && event.key.toLowerCase() === 'b') {
+            if (bHoldBarAnimationId) {
+                cancelAnimationFrame(bHoldBarAnimationId);
+                bHoldBarAnimationId = null;
+            }
+
+            // Reset B hold bar
+            const bHoldBar = superSnoozeDialog?.querySelector('[data-progress-bar="bhold"]');
+            if (bHoldBar) {
+                bHoldBar.style.width = '0%';
+            }
+
+            // Resume countdown
+            if (dialogCountdownPaused && bKeyHoldStart) {
+                dialogCountdownPaused = false;
+                const pausedDuration = performance.now() - bKeyHoldStart;
+                dialogDismissStart += pausedDuration;
+            }
+
+            bKeyHoldStart = null;
             return;
         }
 
@@ -909,4 +1018,3 @@ let deviceId = null;
     }, true);
 
 })();
-
