@@ -206,6 +206,10 @@ let deviceId = null;
         let cursor = null;
         const LIMIT = 100;
 
+        console.log('[Shuffle] fetchNotInterestedList() starting...');
+        console.log('[Shuffle] Auth header present:', !!authorizationHeader);
+        console.log('[Shuffle] Headers:', JSON.stringify(getGqlHeaders(), null, 2));
+
         try {
             do {
                 const query = {
@@ -230,6 +234,7 @@ let deviceId = null;
                     }`
                 };
 
+                console.log('[Shuffle] Sending GraphQL query for not interested list...');
                 const response = await fetch('https://gql.twitch.tv/gql', {
                     method: 'POST',
                     headers: getGqlHeaders(),
@@ -237,9 +242,16 @@ let deviceId = null;
                 });
 
                 const data = await response.json();
+                console.log('[Shuffle] GraphQL response:', JSON.stringify(data, null, 2));
+
                 const feedback = data.data?.currentUser?.recommendationFeedback;
 
-                if (!feedback?.edges) break;
+                if (!feedback?.edges) {
+                    console.log('[Shuffle] No feedback edges found, breaking');
+                    break;
+                }
+
+                console.log(`[Shuffle] Got ${feedback.edges.length} edges in this page`);
 
                 for (const edge of feedback.edges) {
                     const channelId = edge.node?.content?.id;
@@ -249,10 +261,14 @@ let deviceId = null;
                     cursor = edge.cursor;
                 }
 
-                if (!feedback.pageInfo?.hasNextPage) break;
+                if (!feedback.pageInfo?.hasNextPage) {
+                    console.log('[Shuffle] No more pages');
+                    break;
+                }
             } while (cursor);
 
             console.log(`[Shuffle] Loaded ${results.size} channels from not interested list`);
+            console.log('[Shuffle] Channel IDs:', [...results]);
         } catch (error) {
             console.error('[Shuffle] Failed to fetch not interested list:', error);
         }
@@ -262,12 +278,15 @@ let deviceId = null;
 
     // Check if a channel ID is in the not interested list
     function isChannelNotInterested(channelId) {
-        return notInterestedChannelIds.has(channelId);
+        const result = notInterestedChannelIds.has(channelId);
+        console.log(`[Shuffle] isChannelNotInterested(${channelId}): ${result} (list has ${notInterestedChannelIds.size} channels)`);
+        return result;
     }
 
     // Add function to create super snooze dialog
     // isAlreadyNotInterested: if true, the channel is already on the not interested list, so Y will block instead
     function createSuperSnoozeDialog(isAlreadyNotInterested = false) {
+        console.log(`[Shuffle] createSuperSnoozeDialog(isAlreadyNotInterested=${isAlreadyNotInterested})`);
         if (superSnoozeDialog) return;
 
         const dialog = document.createElement('div');
@@ -1019,10 +1038,13 @@ let deviceId = null;
                         let isAlreadyNotInterested = false;
                         try {
                             const currentChannel = getUsernameFromUrl();
+                            console.log(`[Shuffle] X hold complete, checking channel: ${currentChannel}`);
                             if (currentChannel) {
                                 const channelId = await getChannelId(currentChannel);
+                                console.log(`[Shuffle] Got channel ID: ${channelId}`);
                                 if (channelId) {
                                     isAlreadyNotInterested = isChannelNotInterested(channelId);
+                                    console.log(`[Shuffle] Channel ${currentChannel} (${channelId}) isAlreadyNotInterested: ${isAlreadyNotInterested}`);
                                 }
                             }
                         } catch (error) {
@@ -1123,26 +1145,30 @@ let deviceId = null;
 
     // Initialize: Load the not interested list once auth headers are available
     async function initNotInterestedList() {
+        console.log('[Shuffle] initNotInterestedList() called');
         // Wait for auth headers to be captured (they're set by hookFetch when Twitch makes API calls)
         const maxAttempts = 30;
         let attempts = 0;
 
         while (!authorizationHeader && attempts < maxAttempts) {
+            console.log(`[Shuffle] Waiting for auth headers... attempt ${attempts + 1}/${maxAttempts}`);
             await new Promise(resolve => setTimeout(resolve, 1000));
             attempts++;
         }
 
         if (!authorizationHeader) {
-            console.log('[Shuffle] Auth headers not available, skipping not interested list load');
+            console.log('[Shuffle] Auth headers not available after 30 seconds, skipping not interested list load');
             return;
         }
 
-        console.log('[Shuffle] Loading not interested list...');
+        console.log('[Shuffle] Auth headers available! Loading not interested list...');
         notInterestedChannelIds = await fetchNotInterestedList();
         notInterestedListLoaded = true;
+        console.log(`[Shuffle] Not interested list loaded. Total: ${notInterestedChannelIds.size} channels. Loaded: ${notInterestedListLoaded}`);
     }
 
     // Start loading the not interested list
+    console.log('[Shuffle] Script loaded, starting initNotInterestedList()');
     initNotInterestedList();
 
 })();
