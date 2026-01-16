@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.18
+// @version      3.19
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -265,6 +265,68 @@ let deviceId = null;
     // Check if a channel ID is in the not interested list
     function isChannelNotInterested(channelId) {
         return notInterestedChannelIds.has(channelId);
+    }
+
+    // Show orange border around viewport when on a not interested channel
+    let notInterestedBorderElement = null;
+    function showNotInterestedBorder() {
+        // Remove existing border if any
+        if (notInterestedBorderElement) {
+            notInterestedBorderElement.remove();
+            notInterestedBorderElement = null;
+        }
+
+        const border = document.createElement('div');
+        border.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 4px solid #ff6600;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 2s ease-out;
+        `;
+        document.body.appendChild(border);
+        notInterestedBorderElement = border;
+
+        // Start fade after a brief moment
+        setTimeout(() => {
+            border.style.opacity = '0';
+        }, 1000);
+
+        // Remove element after fade completes
+        setTimeout(() => {
+            if (border.parentNode) {
+                border.remove();
+            }
+            if (notInterestedBorderElement === border) {
+                notInterestedBorderElement = null;
+            }
+        }, 3000);
+    }
+
+    // Check if current channel is on not interested list and show border
+    async function checkAndShowNotInterestedBorder() {
+        const channelLogin = getUsernameFromUrl();
+        if (!channelLogin || !notInterestedListLoaded) return;
+
+        try {
+            let channelId;
+            if (currentChannelId && currentChannelLogin === channelLogin) {
+                channelId = currentChannelId;
+            } else {
+                channelId = await getChannelId(channelLogin);
+            }
+
+            if (channelId && isChannelNotInterested(channelId)) {
+                showNotInterestedBorder();
+            }
+        } catch (error) {
+            // Silently fail
+        }
     }
 
     // Pre-fetch channel ID for current page (called on navigation)
@@ -694,6 +756,10 @@ let deviceId = null;
             getChannelId(newChannelName).then(id => {
                 if (currentChannelLogin === newChannelName) {
                     currentChannelId = id;
+                    // Check if channel is on not interested list and show border
+                    if (id && isChannelNotInterested(id)) {
+                        showNotInterestedBorder();
+                    }
                 }
             }).catch(() => {});
         }
@@ -938,6 +1004,9 @@ let deviceId = null;
 
             // Pre-fetch the channel ID for the new channel
             prefetchCurrentChannelId();
+
+            // Check if channel is on not interested list and show border
+            checkAndShowNotInterestedBorder();
         }
     }, 500);
 
@@ -1046,13 +1115,11 @@ let deviceId = null;
                 if (!xKeyHoldTimer && !event.ctrlKey) {
                     xKeyHoldStart = performance.now();
                     xKeyHoldTimer = setTimeout(async () => {
-                        console.log('[Shuffle] X hold timeout fired');
                         channelRotationTimer('disable');
                         // Check if channel is already on the not interested list
                         let isAlreadyNotInterested = false;
                         try {
                             const currentChannel = getUsernameFromUrl();
-                            console.log('[Shuffle] currentChannel:', currentChannel, 'currentChannelLogin:', currentChannelLogin, 'currentChannelId:', currentChannelId);
                             let channelId;
                             // Use pre-fetched ID if available and matches current channel
                             if (currentChannelId && currentChannelLogin === currentChannel) {
@@ -1060,15 +1127,12 @@ let deviceId = null;
                             } else if (currentChannel) {
                                 channelId = await getChannelId(currentChannel);
                             }
-                            console.log('[Shuffle] channelId:', channelId);
                             if (channelId) {
                                 isAlreadyNotInterested = isChannelNotInterested(channelId);
                             }
-                            console.log('[Shuffle] isAlreadyNotInterested:', isAlreadyNotInterested);
                         } catch (error) {
-                            console.error('[Shuffle] X hold error:', error);
+                            // Silently fail - will just show default dialog
                         }
-                        console.log('[Shuffle] Calling createSuperSnoozeDialog');
                         createSuperSnoozeDialog(isAlreadyNotInterested);
                         xKeyHoldTimer = null;
                     }, X_KEY_HOLD_DURATION);
