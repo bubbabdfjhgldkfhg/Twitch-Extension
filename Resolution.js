@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.29
+// @version      1.30
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -16,7 +16,7 @@
     const CHECK_INTERVAL = 10000; // Check every 10 seconds during normal operation
     const FAST_CHECK_INTERVAL = 25; // Check very fast in the critical first 500ms
     const FAST_CHECK_WINDOW = 500; // Fast checking for first 500ms
-    const NORMAL_CHECK_INTERVAL = 150; // Normal checking after fast window
+    const NORMAL_CHECK_INTERVAL = 100; // Normal checking after fast window
     const PAGE_CHANGE_WINDOW = 8000; // Monitor for 8 seconds after page change
     const DEBUG = true;
     let lastPageChange = 0;
