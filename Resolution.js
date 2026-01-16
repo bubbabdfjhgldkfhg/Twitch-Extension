@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.12
+// @version      1.13
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -99,7 +99,6 @@
 
         videoPlayer = videoPlayer || getPlayer();
         if (!videoPlayer) {
-            log(`[${timeSincePageChange}ms] No player yet`);
             return false;
         }
 
@@ -108,12 +107,10 @@
             const currentQuality = videoPlayer.getQuality?.();
 
             if (!qualities || qualities.length === 0) {
-                log(`[${timeSincePageChange}ms] Player found, but no qualities available yet`);
                 return false;
             }
 
             if (!currentQuality) {
-                log(`[${timeSincePageChange}ms] Qualities available (${qualities.length}), but no current quality set yet`);
                 return false;
             }
 
@@ -136,21 +133,18 @@
             }
 
             if (isBestQuality(currentQuality, qualities)) {
-                if (!qualitySetForCurrentStream) {
-                    log(`[${timeSincePageChange}ms] Already at best: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate})`);
+                if (!qualitySetForCurrentStream || qualityCountChanged || betterQualityAvailable) {
+                    log(`[${timeSincePageChange}ms] ✓ At best quality: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate})`);
                     qualitySetForCurrentStream = true;
                 }
-                // Keep checking for a bit in case better qualities appear
+                // Keep checking briefly if quality list just changed
                 return qualityCountChanged || betterQualityAvailable ? false : true;
             }
 
-            // Only set quality if: forced, or if video is loading/buffering (not actively playing)
+            // Need to switch quality - only do it if video is loading or not playing
             const video = getVideoElement();
             const isLoading = isVideoLoading(video);
             const isPlaying = isVideoPlaying(video);
-            const videoState = video ? `readyState=${video.readyState}, networkState=${video.networkState}, paused=${video.paused}` : 'no video element';
-
-            log(`[${timeSincePageChange}ms] Video state: ${videoState}`);
 
             if (force || isLoading || !isPlaying) {
                 log(`[${timeSincePageChange}ms] ✓ Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate}) [loading: ${isLoading}, playing: ${isPlaying}]`);
@@ -158,7 +152,7 @@
                 qualitySetForCurrentStream = true;
                 return true;
             } else {
-                log(`[${timeSincePageChange}ms] ✗ Delaying quality change - video is playing (will retry when buffering)`);
+                log(`[${timeSincePageChange}ms] ⏸ Waiting to switch (video playing) - will retry when buffering`);
                 return false;
             }
         } catch (e) {
@@ -178,19 +172,18 @@
         let checkCount = 0;
         loadingCheckTimer = setInterval(() => {
             checkCount++;
-            log(`--- Check ${checkCount}/${Math.ceil(PAGE_CHANGE_WINDOW / LOADING_CHECK_INTERVAL)} ---`);
-            const success = checkAndSetQuality();
+            checkAndSetQuality();
             checksRemaining--;
 
             // Only stop when time runs out - don't stop on first success since qualities may still be loading
             if (checksRemaining <= 0) {
                 clearInterval(loadingCheckTimer);
                 loadingCheckTimer = null;
-                log(`Stopped aggressive loading checks after ${checkCount} attempts (checked full window)`);
+                log(`Checked ${checkCount} times over ${PAGE_CHANGE_WINDOW}ms window`);
             }
         }, LOADING_CHECK_INTERVAL);
 
-        log(`Started aggressive loading checks (every ${LOADING_CHECK_INTERVAL}ms for ${PAGE_CHANGE_WINDOW}ms)`);
+        log(`Starting quality monitoring (every ${LOADING_CHECK_INTERVAL}ms for ${PAGE_CHANGE_WINDOW}ms)`);
     }
 
     function handlePageChange() {
