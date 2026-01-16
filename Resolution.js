@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.23
+// @version      1.24
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -235,6 +235,18 @@
                         log(`[${Date.now() - lastPageChange}ms] 🔍 Quality after setQuality: empty/invalid ✗ FAILED`);
                     }
                 }, 100);
+
+                // Check again 1 second later to make sure it stuck
+                setTimeout(() => {
+                    const finalQuality = videoPlayer?.getQuality?.();
+                    if (finalQuality && finalQuality.name) {
+                        if (finalQuality.group !== expectedQualityGroup) {
+                            log(`[${Date.now() - lastPageChange}ms] 👀 Quality changed after 1s: now ${finalQuality.name} (was ${expectedQualityName})`);
+                        } else {
+                            log(`[${Date.now() - lastPageChange}ms] 👀 Quality still ${finalQuality.name} after 1s ✓`);
+                        }
+                    }
+                }, 1000);
 
                 // Reset playback tracking since we're causing a rebuffer
                 hasLoggedPlaybackStart = false;
