@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.21
+// @version      1.22
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -187,6 +187,12 @@
                 const recheck = videoPlayer.getQuality?.();
                 if (!recheck || !recheck.name || recheck.name === '') {
                     log(`[${timeSincePageChange}ms] ⚠️  Skipping switch - player not ready (recheck failed)`);
+                    return false;
+                }
+
+                // Check if video element is ready (readyState >= 1 means HAVE_METADATA or better)
+                if (video && video.readyState === 0) {
+                    log(`[${timeSincePageChange}ms] ⚠️  Skipping switch - video readyState=0 (HAVE_NOTHING), need to wait for metadata`);
                     return false;
                 }
 
