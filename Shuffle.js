@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.16
+// @version      3.17
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -208,10 +208,6 @@ let deviceId = null;
         let cursor = null;
         const LIMIT = 100;
 
-        console.log('[Shuffle] fetchNotInterestedList() starting...');
-        console.log('[Shuffle] Auth header present:', !!authorizationHeader);
-        console.log('[Shuffle] Headers:', JSON.stringify(getGqlHeaders(), null, 2));
-
         try {
             do {
                 const query = {
@@ -236,7 +232,6 @@ let deviceId = null;
                     }`
                 };
 
-                console.log('[Shuffle] Sending GraphQL query for not interested list...');
                 const response = await fetch('https://gql.twitch.tv/gql', {
                     method: 'POST',
                     headers: getGqlHeaders(),
@@ -244,16 +239,9 @@ let deviceId = null;
                 });
 
                 const data = await response.json();
-                console.log('[Shuffle] GraphQL response:', JSON.stringify(data, null, 2));
-
                 const feedback = data.data?.currentUser?.recommendationFeedback;
 
-                if (!feedback?.edges) {
-                    console.log('[Shuffle] No feedback edges found, breaking');
-                    break;
-                }
-
-                console.log(`[Shuffle] Got ${feedback.edges.length} edges in this page`);
+                if (!feedback?.edges) break;
 
                 for (const edge of feedback.edges) {
                     const channelId = edge.node?.content?.id;
@@ -263,14 +251,10 @@ let deviceId = null;
                     cursor = edge.cursor;
                 }
 
-                if (!feedback.pageInfo?.hasNextPage) {
-                    console.log('[Shuffle] No more pages');
-                    break;
-                }
+                if (!feedback.pageInfo?.hasNextPage) break;
             } while (cursor);
 
             console.log(`[Shuffle] Loaded ${results.size} channels from not interested list`);
-            console.log('[Shuffle] Channel IDs:', [...results]);
         } catch (error) {
             console.error('[Shuffle] Failed to fetch not interested list:', error);
         }
@@ -280,36 +264,19 @@ let deviceId = null;
 
     // Check if a channel ID is in the not interested list
     function isChannelNotInterested(channelId) {
-        const result = notInterestedChannelIds.has(channelId);
-        console.log(`[Shuffle] isChannelNotInterested(${channelId}): ${result} (list has ${notInterestedChannelIds.size} channels)`);
-        return result;
+        return notInterestedChannelIds.has(channelId);
     }
 
     // Pre-fetch channel ID for current page (called on navigation)
     async function prefetchCurrentChannelId() {
         const channelLogin = getUsernameFromUrl();
-        console.log(`[Shuffle] prefetchCurrentChannelId() called - channelLogin: ${channelLogin}, currentChannelLogin: ${currentChannelLogin}`);
-        if (!channelLogin) {
-            console.log(`[Shuffle] No channel login found, skipping prefetch`);
-            return;
-        }
-        if (channelLogin === currentChannelLogin) {
-            console.log(`[Shuffle] Channel ${channelLogin} already cached, skipping prefetch`);
-            return;
-        }
-
-        console.log(`[Shuffle] Pre-fetching channel ID for: ${channelLogin}`);
-        const startTime = performance.now();
+        if (!channelLogin || channelLogin === currentChannelLogin) return;
 
         try {
             const channelId = await getChannelId(channelLogin);
-            const elapsed = (performance.now() - startTime).toFixed(0);
-            console.log(`[Shuffle] Pre-fetched channel ID: ${channelId} for ${channelLogin} (took ${elapsed}ms)`);
-
             currentChannelId = channelId;
             currentChannelLogin = channelLogin;
         } catch (error) {
-            console.error(`[Shuffle] Failed to pre-fetch channel ID:`, error);
             currentChannelId = null;
             currentChannelLogin = null;
         }
@@ -318,7 +285,6 @@ let deviceId = null;
     // Add function to create super snooze dialog
     // isAlreadyNotInterested: if true, the channel is already on the not interested list, so Y will block instead
     function createSuperSnoozeDialog(isAlreadyNotInterested = false) {
-        console.log(`[Shuffle] createSuperSnoozeDialog(isAlreadyNotInterested=${isAlreadyNotInterested})`);
         if (superSnoozeDialog) return;
 
         const dialog = document.createElement('div');
@@ -723,16 +689,13 @@ let deviceId = null;
         // Pre-fetch the channel ID for the new channel (extract name from href like "/channelname")
         const newChannelName = newHref.replace(/^\//, '').split('/')[0];
         if (newChannelName && newChannelName !== currentChannelLogin) {
-            console.log(`[Shuffle] clickRandomChannel: Pre-fetching for ${newChannelName}`);
-            // Update tracking vars and fetch
             currentChannelLogin = newChannelName;
-            currentChannelId = null; // Clear until fetch completes
+            currentChannelId = null;
             getChannelId(newChannelName).then(id => {
-                if (currentChannelLogin === newChannelName) { // Still on same channel
+                if (currentChannelLogin === newChannelName) {
                     currentChannelId = id;
-                    console.log(`[Shuffle] clickRandomChannel: Pre-fetched ${newChannelName} -> ${id}`);
                 }
-            }).catch(err => console.error('[Shuffle] clickRandomChannel prefetch failed:', err));
+            }).catch(() => {});
         }
     }
 
@@ -968,14 +931,12 @@ let deviceId = null;
 
         // Manually clicking channels resets the timer and adds them to the recently clicked queue
         if (lastClickedHrefs[lastClickedHrefs.length - 1] !== window.location.pathname) {
-            console.log(`[Shuffle] Navigation detected: ${lastClickedHrefs[lastClickedHrefs.length - 1]} -> ${window.location.pathname}`);
             lastClickedHrefs.push(window.location.pathname);
             cancelXHoldTimer();
             channelRotationTimer('disable');
             // resetChannelRotationTimer();
 
             // Pre-fetch the channel ID for the new channel
-            console.log(`[Shuffle] Calling prefetchCurrentChannelId()...`);
             prefetchCurrentChannelId();
         }
     }, 500);
@@ -1085,36 +1046,24 @@ let deviceId = null;
                 if (!xKeyHoldTimer && !event.ctrlKey) {
                     xKeyHoldStart = performance.now();
                     xKeyHoldTimer = setTimeout(async () => {
-                        const dialogStartTime = performance.now();
                         channelRotationTimer('disable');
                         // Check if channel is already on the not interested list
                         let isAlreadyNotInterested = false;
                         try {
                             const currentChannel = getUsernameFromUrl();
-                            console.log(`[Shuffle] X hold complete, checking channel: ${currentChannel}`);
-
                             let channelId;
                             // Use pre-fetched ID if available and matches current channel
                             if (currentChannelId && currentChannelLogin === currentChannel) {
                                 channelId = currentChannelId;
-                                console.log(`[Shuffle] Using pre-fetched channel ID: ${channelId} (instant)`);
                             } else if (currentChannel) {
-                                // Fallback to fetching if not pre-cached
-                                const fetchStartTime = performance.now();
                                 channelId = await getChannelId(currentChannel);
-                                const fetchElapsed = (performance.now() - fetchStartTime).toFixed(0);
-                                console.log(`[Shuffle] Fetched channel ID: ${channelId} (took ${fetchElapsed}ms - NOT pre-cached)`);
                             }
-
                             if (channelId) {
                                 isAlreadyNotInterested = isChannelNotInterested(channelId);
-                                console.log(`[Shuffle] Channel ${currentChannel} (${channelId}) isAlreadyNotInterested: ${isAlreadyNotInterested}`);
                             }
                         } catch (error) {
-                            console.error('[Shuffle] Failed to check not interested status:', error);
+                            // Silently fail - will just show default dialog
                         }
-                        const totalElapsed = (performance.now() - dialogStartTime).toFixed(0);
-                        console.log(`[Shuffle] Total time to open dialog: ${totalElapsed}ms`);
                         createSuperSnoozeDialog(isAlreadyNotInterested);
                         xKeyHoldTimer = null;
                     }, X_KEY_HOLD_DURATION);
@@ -1210,30 +1159,22 @@ let deviceId = null;
 
     // Initialize: Load the not interested list once auth headers are available
     async function initNotInterestedList() {
-        console.log('[Shuffle] initNotInterestedList() called');
         // Wait for auth headers to be captured (they're set by hookFetch when Twitch makes API calls)
         const maxAttempts = 30;
         let attempts = 0;
 
         while (!authorizationHeader && attempts < maxAttempts) {
-            console.log(`[Shuffle] Waiting for auth headers... attempt ${attempts + 1}/${maxAttempts}`);
             await new Promise(resolve => setTimeout(resolve, 1000));
             attempts++;
         }
 
-        if (!authorizationHeader) {
-            console.log('[Shuffle] Auth headers not available after 30 seconds, skipping not interested list load');
-            return;
-        }
+        if (!authorizationHeader) return;
 
-        console.log('[Shuffle] Auth headers available! Loading not interested list...');
         notInterestedChannelIds = await fetchNotInterestedList();
         notInterestedListLoaded = true;
-        console.log(`[Shuffle] Not interested list loaded. Total: ${notInterestedChannelIds.size} channels. Loaded: ${notInterestedListLoaded}`);
     }
 
     // Start loading the not interested list
-    console.log('[Shuffle] Script loaded, starting initNotInterestedList()');
     initNotInterestedList();
 
 })();
