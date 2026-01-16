@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.10
+// @version      3.11
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -66,6 +66,8 @@ let deviceId = null;
     let lastClickedHrefs = [];
     let snoozedList = [];
     let cooldownActive = false;
+    let notInterestedChannelIds = new Set(); // Cache of channel IDs already marked as "not interested"
+    let notInterestedListLoaded = false;
     let coolDownTimerId;
     let rotationTimerId = null;
     let rotationTimerStart = null;
@@ -198,16 +200,89 @@ let deviceId = null;
         });
     }
 
+    // Fetch the "not interested" list from Twitch API
+    async function fetchNotInterestedList() {
+        const results = new Set();
+        let cursor = null;
+        const LIMIT = 100;
+
+        try {
+            do {
+                const query = {
+                    query: `query GetNotInterestedChannels {
+                        currentUser {
+                            recommendationFeedback(type: "CHANNEL", first: ${LIMIT}${cursor ? `, after: "${cursor}"` : ''}) {
+                                edges {
+                                    node {
+                                        content {
+                                            ... on Channel {
+                                                id
+                                            }
+                                        }
+                                    }
+                                    cursor
+                                }
+                                pageInfo {
+                                    hasNextPage
+                                }
+                            }
+                        }
+                    }`
+                };
+
+                const response = await fetch('https://gql.twitch.tv/gql', {
+                    method: 'POST',
+                    headers: getGqlHeaders(),
+                    body: JSON.stringify(query)
+                });
+
+                const data = await response.json();
+                const feedback = data.data?.currentUser?.recommendationFeedback;
+
+                if (!feedback?.edges) break;
+
+                for (const edge of feedback.edges) {
+                    const channelId = edge.node?.content?.id;
+                    if (channelId) {
+                        results.add(channelId);
+                    }
+                    cursor = edge.cursor;
+                }
+
+                if (!feedback.pageInfo?.hasNextPage) break;
+            } while (cursor);
+
+            console.log(`[Shuffle] Loaded ${results.size} channels from not interested list`);
+        } catch (error) {
+            console.error('[Shuffle] Failed to fetch not interested list:', error);
+        }
+
+        return results;
+    }
+
+    // Check if a channel ID is in the not interested list
+    function isChannelNotInterested(channelId) {
+        return notInterestedChannelIds.has(channelId);
+    }
+
     // Add function to create super snooze dialog
-    function createSuperSnoozeDialog() {
+    // isAlreadyNotInterested: if true, the channel is already on the not interested list, so Y will block instead
+    function createSuperSnoozeDialog(isAlreadyNotInterested = false) {
         if (superSnoozeDialog) return;
 
         const dialog = document.createElement('div');
         const showDepthMessage = similarChannelClickCount >= 2;
-        const borderColor = showDepthMessage ? '#ff0000' : '#b380ff';
+        const borderColor = isAlreadyNotInterested ? '#ff6600' : (showDepthMessage ? '#ff0000' : '#b380ff');
         const depthMessage = showDepthMessage
             ? `<div style="color: #ff4d4d; margin-top: 8px;">You are ${similarChannelClickCount} channels deep</div>`
             : '';
+        const alreadyNotInterestedMessage = isAlreadyNotInterested
+            ? `<div style="color: #ff6600; margin-top: 8px;">Already on not interested list - Y will block</div>`
+            : '';
+
+        // If already on not interested list, Y will block instead of adding to not interested
+        const yActionText = isAlreadyNotInterested ? 'block' : 'not interested';
+        const yColor = isAlreadyNotInterested ? '#ff6600' : '#ff0000';
 
         dialog.style.cssText = `
         position: fixed;
@@ -227,19 +302,23 @@ let deviceId = null;
         dialog.innerHTML = `
         <div>Permanently snooze this channel?</div>
         ${depthMessage}
+        ${alreadyNotInterestedMessage}
         <div style="margin-top: 10px; font-size: 14px; color: #888;">
-            Hold <span style="color: #ff0000;">Y</span> for not interested, <span style="color: #ff6600;">B</span> to block, any other key to cancel
+            Hold <span style="color: ${yColor};">Y</span> for ${yActionText}${isAlreadyNotInterested ? '' : ', <span style="color: #ff6600;">B</span> to block'}, any other key to cancel
         </div>
-        <div style="position: absolute; bottom: 10px; left: 5px; right: 5px; height: 3px; background: rgba(255, 0, 0, 0.3); border-radius: 2px;">
-            <div data-progress-bar="yhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #ff0000; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
+        <div style="position: absolute; bottom: 10px; left: 5px; right: 5px; height: 3px; background: rgba(255, ${isAlreadyNotInterested ? '102' : '0'}, 0, 0.3); border-radius: 2px;">
+            <div data-progress-bar="yhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: ${yColor}; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
         </div>
-        <div style="position: absolute; bottom: 5px; left: 5px; right: 5px; height: 3px; background: rgba(255, 102, 0, 0.3); border-radius: 2px;">
+        ${isAlreadyNotInterested ? '' : `<div style="position: absolute; bottom: 5px; left: 5px; right: 5px; height: 3px; background: rgba(255, 102, 0, 0.3); border-radius: 2px;">
             <div data-progress-bar="bhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #ff6600; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
-        </div>
+        </div>`}
         <div style="position: absolute; bottom: 0px; left: 5px; right: 5px; height: 3px; background: rgba(179, 128, 255, 0.3); border-radius: 2px;">
             <div data-progress-bar="countdown" style="position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #b380ff; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
         </div>
     `;
+
+        // Store the state for later use by key handlers
+        dialog.dataset.alreadyNotInterested = isAlreadyNotInterested ? 'true' : 'false';
 
         document.body.appendChild(dialog);
         superSnoozeDialog = dialog;
@@ -314,12 +393,20 @@ let deviceId = null;
         try {
             const channelId = await getChannelId(currentChannel);
             if (channelId) {
-                await sendNotInterestedMutation(channelId);
-                console.log(`Permanently snoozed channel: ${currentChannel}`);
+                // Check if already on not interested list - if so, block instead
+                if (isChannelNotInterested(channelId)) {
+                    await sendBlockUserMutation(channelId);
+                    console.log(`[Shuffle] Blocked channel (was already on not interested list): ${currentChannel}`);
+                } else {
+                    await sendNotInterestedMutation(channelId);
+                    // Add to local cache so we know it's now on the list
+                    notInterestedChannelIds.add(channelId);
+                    console.log(`[Shuffle] Added to not interested: ${currentChannel}`);
+                }
                 snoozeChannel();
             }
         } catch (error) {
-            console.error('Failed to super snooze channel:', error);
+            console.error('[Shuffle] Failed to super snooze channel:', error);
         }
     }
 
@@ -878,8 +965,12 @@ let deviceId = null;
             return;
         }
 
-        // Handle B key for block in dialog
+        // Handle B key for block in dialog (only if not already on not interested list)
         if (dialogCreated && event.key.toLowerCase() === 'b') {
+            // If already on not interested list, B key is disabled (Y already does block)
+            if (superSnoozeDialog?.dataset.alreadyNotInterested === 'true') {
+                return;
+            }
             if (!bKeyHoldStart && !dialogCountdownPaused) {
                 // Pause countdown
                 dialogCountdownPaused = true;
@@ -922,9 +1013,22 @@ let deviceId = null;
             case 'x':
                 if (!xKeyHoldTimer && !event.ctrlKey) {
                     xKeyHoldStart = performance.now();
-                    xKeyHoldTimer = setTimeout(() => {
+                    xKeyHoldTimer = setTimeout(async () => {
                         channelRotationTimer('disable');
-                        createSuperSnoozeDialog();
+                        // Check if channel is already on the not interested list
+                        let isAlreadyNotInterested = false;
+                        try {
+                            const currentChannel = getUsernameFromUrl();
+                            if (currentChannel) {
+                                const channelId = await getChannelId(currentChannel);
+                                if (channelId) {
+                                    isAlreadyNotInterested = isChannelNotInterested(channelId);
+                                }
+                            }
+                        } catch (error) {
+                            console.error('[Shuffle] Failed to check not interested status:', error);
+                        }
+                        createSuperSnoozeDialog(isAlreadyNotInterested);
                         xKeyHoldTimer = null;
                     }, X_KEY_HOLD_DURATION);
                 }
@@ -1016,5 +1120,29 @@ let deviceId = null;
 
         cancelXHoldTimer();
     }, true);
+
+    // Initialize: Load the not interested list once auth headers are available
+    async function initNotInterestedList() {
+        // Wait for auth headers to be captured (they're set by hookFetch when Twitch makes API calls)
+        const maxAttempts = 30;
+        let attempts = 0;
+
+        while (!authorizationHeader && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+        }
+
+        if (!authorizationHeader) {
+            console.log('[Shuffle] Auth headers not available, skipping not interested list load');
+            return;
+        }
+
+        console.log('[Shuffle] Loading not interested list...');
+        notInterestedChannelIds = await fetchNotInterestedList();
+        notInterestedListLoaded = true;
+    }
+
+    // Start loading the not interested list
+    initNotInterestedList();
 
 })();
