@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.25
+// @version      1.26
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -25,6 +25,7 @@
     let qualitySetForCurrentStream = false;
     let lastSeenQualityCount = 0;
     let bestQualityHeight = 0;
+    let bestQualityFramerate = 0;
     let firstQualityDetectionTime = null;
     let streamStartedPlayingTime = null;
     let hasLoggedPlaybackStart = false;
@@ -144,14 +145,17 @@
 
             // Check if quality list has expanded (new transcodes available)
             const qualityCountChanged = qualities.length !== lastSeenQualityCount;
-            const betterQualityAvailable = bestQuality.height > bestQualityHeight;
+            const betterQualityAvailable = bestQuality.height > bestQualityHeight || bestQuality.framerate > bestQualityFramerate;
 
             if (qualityCountChanged || betterQualityAvailable) {
                 const qualityList = qualities.map(q => `${q.name} (${q.height}p${q.framerate || '?'})`).join(', ');
-                log(`[${timeSincePageChange}ms] ${qualityCountChanged ? 'NEW' : 'BETTER'} qualities detected: [${qualityList}]`);
+                const changeType = qualityCountChanged ? 'NEW' :
+                                  (bestQuality.height > bestQualityHeight ? 'BETTER' : 'FRAMERATE UPGRADE');
+                log(`[${timeSincePageChange}ms] ${changeType} qualities detected: [${qualityList}]`);
                 log(`[${timeSincePageChange}ms] Current quality: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate || '?'})`);
                 lastSeenQualityCount = qualities.length;
                 bestQualityHeight = bestQuality.height;
+                bestQualityFramerate = bestQuality.framerate;
             }
 
             // Check video playback state for timing analysis
@@ -351,6 +355,7 @@
         qualitySetForCurrentStream = false;
         lastSeenQualityCount = 0;
         bestQualityHeight = 0;
+        bestQualityFramerate = 0;
         firstQualityDetectionTime = null;
         streamStartedPlayingTime = null;
         hasLoggedPlaybackStart = false;
