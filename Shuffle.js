@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.17
+// @version      3.18
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -1046,11 +1046,13 @@ let deviceId = null;
                 if (!xKeyHoldTimer && !event.ctrlKey) {
                     xKeyHoldStart = performance.now();
                     xKeyHoldTimer = setTimeout(async () => {
+                        console.log('[Shuffle] X hold timeout fired');
                         channelRotationTimer('disable');
                         // Check if channel is already on the not interested list
                         let isAlreadyNotInterested = false;
                         try {
                             const currentChannel = getUsernameFromUrl();
+                            console.log('[Shuffle] currentChannel:', currentChannel, 'currentChannelLogin:', currentChannelLogin, 'currentChannelId:', currentChannelId);
                             let channelId;
                             // Use pre-fetched ID if available and matches current channel
                             if (currentChannelId && currentChannelLogin === currentChannel) {
@@ -1058,12 +1060,15 @@ let deviceId = null;
                             } else if (currentChannel) {
                                 channelId = await getChannelId(currentChannel);
                             }
+                            console.log('[Shuffle] channelId:', channelId);
                             if (channelId) {
                                 isAlreadyNotInterested = isChannelNotInterested(channelId);
                             }
+                            console.log('[Shuffle] isAlreadyNotInterested:', isAlreadyNotInterested);
                         } catch (error) {
-                            // Silently fail - will just show default dialog
+                            console.error('[Shuffle] X hold error:', error);
                         }
+                        console.log('[Shuffle] Calling createSuperSnoozeDialog');
                         createSuperSnoozeDialog(isAlreadyNotInterested);
                         xKeyHoldTimer = null;
                     }, X_KEY_HOLD_DURATION);
