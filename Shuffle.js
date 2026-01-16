@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.13
+// @version      3.14
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -68,6 +68,8 @@ let deviceId = null;
     let cooldownActive = false;
     let notInterestedChannelIds = new Set(); // Cache of channel IDs already marked as "not interested"
     let notInterestedListLoaded = false;
+    let currentChannelId = null; // Pre-fetched channel ID for current page
+    let currentChannelLogin = null; // Track which channel the cached ID is for
     let coolDownTimerId;
     let rotationTimerId = null;
     let rotationTimerStart = null;
@@ -281,6 +283,30 @@ let deviceId = null;
         const result = notInterestedChannelIds.has(channelId);
         console.log(`[Shuffle] isChannelNotInterested(${channelId}): ${result} (list has ${notInterestedChannelIds.size} channels)`);
         return result;
+    }
+
+    // Pre-fetch channel ID for current page (called on navigation)
+    async function prefetchCurrentChannelId() {
+        const channelLogin = getUsernameFromUrl();
+        if (!channelLogin || channelLogin === currentChannelLogin) {
+            return; // Already have it or no channel
+        }
+
+        console.log(`[Shuffle] Pre-fetching channel ID for: ${channelLogin}`);
+        const startTime = performance.now();
+
+        try {
+            const channelId = await getChannelId(channelLogin);
+            const elapsed = (performance.now() - startTime).toFixed(0);
+            console.log(`[Shuffle] Pre-fetched channel ID: ${channelId} for ${channelLogin} (took ${elapsed}ms)`);
+
+            currentChannelId = channelId;
+            currentChannelLogin = channelLogin;
+        } catch (error) {
+            console.error(`[Shuffle] Failed to pre-fetch channel ID:`, error);
+            currentChannelId = null;
+            currentChannelLogin = null;
+        }
     }
 
     // Add function to create super snooze dialog
@@ -925,6 +951,9 @@ let deviceId = null;
             cancelXHoldTimer();
             channelRotationTimer('disable');
             // resetChannelRotationTimer();
+
+            // Pre-fetch the channel ID for the new channel
+            prefetchCurrentChannelId();
         }
     }, 500);
 
@@ -1033,23 +1062,36 @@ let deviceId = null;
                 if (!xKeyHoldTimer && !event.ctrlKey) {
                     xKeyHoldStart = performance.now();
                     xKeyHoldTimer = setTimeout(async () => {
+                        const dialogStartTime = performance.now();
                         channelRotationTimer('disable');
                         // Check if channel is already on the not interested list
                         let isAlreadyNotInterested = false;
                         try {
                             const currentChannel = getUsernameFromUrl();
                             console.log(`[Shuffle] X hold complete, checking channel: ${currentChannel}`);
-                            if (currentChannel) {
-                                const channelId = await getChannelId(currentChannel);
-                                console.log(`[Shuffle] Got channel ID: ${channelId}`);
-                                if (channelId) {
-                                    isAlreadyNotInterested = isChannelNotInterested(channelId);
-                                    console.log(`[Shuffle] Channel ${currentChannel} (${channelId}) isAlreadyNotInterested: ${isAlreadyNotInterested}`);
-                                }
+
+                            let channelId;
+                            // Use pre-fetched ID if available and matches current channel
+                            if (currentChannelId && currentChannelLogin === currentChannel) {
+                                channelId = currentChannelId;
+                                console.log(`[Shuffle] Using pre-fetched channel ID: ${channelId} (instant)`);
+                            } else if (currentChannel) {
+                                // Fallback to fetching if not pre-cached
+                                const fetchStartTime = performance.now();
+                                channelId = await getChannelId(currentChannel);
+                                const fetchElapsed = (performance.now() - fetchStartTime).toFixed(0);
+                                console.log(`[Shuffle] Fetched channel ID: ${channelId} (took ${fetchElapsed}ms - NOT pre-cached)`);
+                            }
+
+                            if (channelId) {
+                                isAlreadyNotInterested = isChannelNotInterested(channelId);
+                                console.log(`[Shuffle] Channel ${currentChannel} (${channelId}) isAlreadyNotInterested: ${isAlreadyNotInterested}`);
                             }
                         } catch (error) {
                             console.error('[Shuffle] Failed to check not interested status:', error);
                         }
+                        const totalElapsed = (performance.now() - dialogStartTime).toFixed(0);
+                        console.log(`[Shuffle] Total time to open dialog: ${totalElapsed}ms`);
                         createSuperSnoozeDialog(isAlreadyNotInterested);
                         xKeyHoldTimer = null;
                     }, X_KEY_HOLD_DURATION);
