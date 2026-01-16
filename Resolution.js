@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.19
+// @version      1.20
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -29,7 +29,6 @@
     let streamStartedPlayingTime = null;
     let hasLoggedPlaybackStart = false;
     let lastSetQualityGroup = null;
-    let lastSeenCurrentQualityName = null;
 
     function log(...args) {
         if (DEBUG) console.log('[Force Source]', ...args);
@@ -128,11 +127,6 @@
                 return false;
             }
 
-            // Track unexpected quality changes
-            if (lastSeenCurrentQualityName && currentQuality.name !== lastSeenCurrentQualityName && currentQuality.group !== lastSetQualityGroup) {
-                log(`[${timeSincePageChange}ms] ⚠️  Quality changed unexpectedly: "${lastSeenCurrentQualityName}" → "${currentQuality.name}" (we didn't set this)`);
-            }
-            lastSeenCurrentQualityName = currentQuality.name;
 
             // Track when we first detect qualities for timing analysis
             if (!firstQualityDetectionTime) {
@@ -305,7 +299,6 @@
         streamStartedPlayingTime = null;
         hasLoggedPlaybackStart = false;
         lastSetQualityGroup = null;
-        lastSeenCurrentQualityName = null;
 
         // Start aggressive checking to catch the stream as it loads
         startLoadingChecks();
