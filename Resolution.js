@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.27
+// @version      1.28
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -33,6 +33,7 @@
     let skippedSwitchCount = 0;
     let hasLoggedSkipping = false;
     let pendingTimeouts = [];
+    let currentStreamPath = null;
 
     function log(...args) {
         if (DEBUG) console.log('[Force Source]', ...args);
@@ -176,6 +177,14 @@
             const isPlaying = isVideoPlaying(video);
 
             // Track when stream actually starts playing (not rebuffering from our quality change)
+            // Only log once per actual stream (pathname), not per quality change rebuffer
+            const isNewStream = currentStreamPath !== window.location.pathname;
+            if (isNewStream) {
+                currentStreamPath = window.location.pathname;
+                hasLoggedPlaybackStart = false;
+                streamStartedPlayingTime = null;
+            }
+
             if (isPlaying && !hasLoggedPlaybackStart && firstQualityDetectionTime) {
                 streamStartedPlayingTime = Date.now();
                 const gapFromQualityDetection = streamStartedPlayingTime - firstQualityDetectionTime;
@@ -289,9 +298,6 @@
                     }
                 }, 1000);
 
-                // Reset playback tracking since we're causing a rebuffer
-                hasLoggedPlaybackStart = false;
-                streamStartedPlayingTime = null;
                 return false; // Keep checking
             } else {
                 log(`[${timeSincePageChange}ms] ⏸ Waiting to switch (video playing) - will retry when buffering`);
@@ -385,6 +391,7 @@
         lastSetQualityGroup = null;
         skippedSwitchCount = 0;
         hasLoggedSkipping = false;
+        currentStreamPath = window.location.pathname;
 
         // Clear all pending timeouts from previous stream
         clearAllTimeouts();
