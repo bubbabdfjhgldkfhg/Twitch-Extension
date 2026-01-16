@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.19
+// @version      3.20
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -284,6 +284,7 @@ let deviceId = null;
             right: 0;
             bottom: 0;
             border: 4px solid #ff6600;
+            box-shadow: inset 0 0 20px rgba(255, 102, 0, 0.5), inset 0 0 60px rgba(255, 102, 0, 0.2);
             pointer-events: none;
             z-index: 9999;
             opacity: 1;
