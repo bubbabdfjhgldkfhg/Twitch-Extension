@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.20
+// @version      3.21
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -287,16 +287,22 @@ let deviceId = null;
             box-shadow: inset 0 0 20px rgba(255, 102, 0, 0.5), inset 0 0 60px rgba(255, 102, 0, 0.2);
             pointer-events: none;
             z-index: 9999;
-            opacity: 1;
-            transition: opacity 2s ease-out;
+            opacity: 0;
+            transition: opacity 0.3s ease-in;
         `;
         document.body.appendChild(border);
         notInterestedBorderElement = border;
 
-        // Start fade after a brief moment
+        // Fade in
+        requestAnimationFrame(() => {
+            border.style.opacity = '1';
+        });
+
+        // Start fade out after 3 seconds
         setTimeout(() => {
+            border.style.transition = 'opacity 2s ease-out';
             border.style.opacity = '0';
-        }, 1000);
+        }, 3000);
 
         // Remove element after fade completes
         setTimeout(() => {
@@ -306,7 +312,7 @@ let deviceId = null;
             if (notInterestedBorderElement === border) {
                 notInterestedBorderElement = null;
             }
-        }, 3000);
+        }, 5000);
     }
 
     // Check if current channel is on not interested list and show border
