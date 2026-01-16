@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.22
+// @version      1.23
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -29,6 +29,8 @@
     let streamStartedPlayingTime = null;
     let hasLoggedPlaybackStart = false;
     let lastSetQualityGroup = null;
+    let skippedSwitchCount = 0;
+    let hasLoggedSkipping = false;
 
     function log(...args) {
         if (DEBUG) console.log('[Force Source]', ...args);
@@ -192,8 +194,17 @@
 
                 // Check if video element is ready (readyState >= 1 means HAVE_METADATA or better)
                 if (video && video.readyState === 0) {
-                    log(`[${timeSincePageChange}ms] ⚠️  Skipping switch - video readyState=0 (HAVE_NOTHING), need to wait for metadata`);
+                    if (!hasLoggedSkipping) {
+                        log(`[${timeSincePageChange}ms] ⚠️  Video not ready (readyState=0), waiting for metadata...`);
+                        hasLoggedSkipping = true;
+                    }
+                    skippedSwitchCount++;
                     return false;
+                }
+
+                // Log skipped count if we had to wait
+                if (skippedSwitchCount > 0) {
+                    log(`[${timeSincePageChange}ms] Skipped ${skippedSwitchCount} attempts while waiting for video to load`);
                 }
 
                 log(`[${timeSincePageChange}ms] ✓ Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate}) [loading: ${isLoading}, playing: ${isPlaying}]`);
@@ -204,6 +215,10 @@
                 }
 
                 log(`[${timeSincePageChange}ms] 🔧 Calling setQuality with group: ${bestQuality.group}, name: ${bestQuality.name}`);
+
+                // Reset skip counters
+                skippedSwitchCount = 0;
+                hasLoggedSkipping = false;
                 videoPlayer.setQuality(bestQuality);
                 lastSetQualityGroup = bestQuality.group;
                 qualitySetForCurrentStream = true;
@@ -314,6 +329,8 @@
         streamStartedPlayingTime = null;
         hasLoggedPlaybackStart = false;
         lastSetQualityGroup = null;
+        skippedSwitchCount = 0;
+        hasLoggedSkipping = false;
 
         // Start aggressive checking to catch the stream as it loads
         startLoadingChecks();
