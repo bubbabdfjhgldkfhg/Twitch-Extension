@@ -3,6 +3,8 @@
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      1.0
 // @description  Clears all channels from your Twitch "not interested" list. Run clearNotInterested() in console.
+// @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/ClearNotInterested.js
+// @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/ClearNotInterested.js
 // @match        *://*.twitch.tv/*
 // @grant        none
 // ==/UserScript==
