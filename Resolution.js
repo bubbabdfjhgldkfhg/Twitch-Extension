@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.8
+// @version      1.9
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -13,11 +13,14 @@
 
 (function() {
     'use strict';
-    const CHECK_INTERVAL = 3000;
-    const PAGE_CHANGE_COOLDOWN = 3000;
+    const CHECK_INTERVAL = 10000; // Check every 10 seconds during normal operation
+    const LOADING_CHECK_INTERVAL = 500; // Check frequently when stream is loading
+    const PAGE_CHANGE_WINDOW = 5000; // Monitor for 5 seconds after page change
     const DEBUG = true;
     let lastPageChange = 0;
     let videoPlayer = null;
+    let loadingCheckTimer = null;
+    let qualitySetForCurrentStream = false;
 
     function log(...args) {
         if (DEBUG) console.log('[Force Source]', ...args);
@@ -74,37 +77,92 @@
         return current.group === best.group;
     }
 
-    function checkAndSetQuality() {
-        const cooldownRemaining = PAGE_CHANGE_COOLDOWN - (Date.now() - lastPageChange);
-        if (cooldownRemaining > 0) return;
+    function getVideoElement() {
+        return document.querySelector('video');
+    }
 
+    function isVideoLoading(video) {
+        if (!video) return false;
+        // Video is loading if: readyState < 3 (HAVE_FUTURE_DATA) or it's explicitly in a loading state
+        return video.readyState < 3 || video.networkState === 2;
+    }
+
+    function isVideoPlaying(video) {
+        if (!video) return false;
+        return !video.paused && !video.ended && video.readyState > 2;
+    }
+
+    function checkAndSetQuality(force = false) {
         videoPlayer = videoPlayer || getPlayer();
-        if (!videoPlayer) return;
+        if (!videoPlayer) return false;
 
         try {
             const qualities = videoPlayer.getQualities?.();
             const currentQuality = videoPlayer.getQuality?.();
 
-            if (!qualities || !currentQuality) return;
+            if (!qualities || !currentQuality) return false;
 
             const bestQuality = getBestQuality(qualities);
-            if (!bestQuality) return;
+            if (!bestQuality) return false;
 
             if (isBestQuality(currentQuality, qualities)) {
-                // log(`Already at best: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate})`);
-                return;
+                if (!qualitySetForCurrentStream) {
+                    log(`Already at best: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate})`);
+                    qualitySetForCurrentStream = true;
+                }
+                return true;
             }
 
-            log(`Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate})`);
-            videoPlayer.setQuality(bestQuality);
+            // Only set quality if: forced, or if video is loading/buffering (not actively playing)
+            const video = getVideoElement();
+            const isLoading = isVideoLoading(video);
+            const isPlaying = isVideoPlaying(video);
+
+            if (force || isLoading || !isPlaying) {
+                log(`Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate}) [loading: ${isLoading}, playing: ${isPlaying}]`);
+                videoPlayer.setQuality(bestQuality);
+                qualitySetForCurrentStream = true;
+                return true;
+            } else {
+                log(`Delaying quality change - video is playing (will retry when buffering)`);
+                return false;
+            }
         } catch (e) {
             log('Error:', e);
+            return false;
         }
+    }
+
+    function startLoadingChecks() {
+        // Clear any existing loading check timer
+        if (loadingCheckTimer) {
+            clearInterval(loadingCheckTimer);
+        }
+
+        // Aggressively check during the page change window
+        let checksRemaining = PAGE_CHANGE_WINDOW / LOADING_CHECK_INTERVAL;
+        loadingCheckTimer = setInterval(() => {
+            const success = checkAndSetQuality();
+            checksRemaining--;
+
+            // Stop aggressive checking if we successfully set quality or time runs out
+            if (success || checksRemaining <= 0) {
+                clearInterval(loadingCheckTimer);
+                loadingCheckTimer = null;
+                log('Stopped aggressive loading checks');
+            }
+        }, LOADING_CHECK_INTERVAL);
+
+        log('Started aggressive loading checks');
     }
 
     function handlePageChange() {
         lastPageChange = Date.now();
         videoPlayer = null;
+        qualitySetForCurrentStream = false;
+
+        // Start aggressive checking to catch the stream as it loads
+        startLoadingChecks();
     }
 
     log('Script loaded');
