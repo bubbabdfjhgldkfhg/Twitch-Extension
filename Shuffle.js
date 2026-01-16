@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.12
+// @version      3.13
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -215,7 +215,7 @@ let deviceId = null;
                 const query = {
                     query: `query GetNotInterestedChannels {
                         currentUser {
-                            recommendationFeedback(type: "CHANNEL", first: ${LIMIT}${cursor ? `, after: "${cursor}"` : ''}) {
+                            recommendationFeedback(type: "CHANNEL", limit: ${LIMIT}${cursor ? `, after: "${cursor}"` : ''}) {
                                 edges {
                                     node {
                                         content {
