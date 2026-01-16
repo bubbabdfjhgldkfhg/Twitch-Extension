@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.26
+// @version      1.27
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -32,9 +32,21 @@
     let lastSetQualityGroup = null;
     let skippedSwitchCount = 0;
     let hasLoggedSkipping = false;
+    let pendingTimeouts = [];
 
     function log(...args) {
         if (DEBUG) console.log('[Force Source]', ...args);
+    }
+
+    function setTrackedTimeout(callback, delay) {
+        const id = setTimeout(callback, delay);
+        pendingTimeouts.push(id);
+        return id;
+    }
+
+    function clearAllTimeouts() {
+        pendingTimeouts.forEach(id => clearTimeout(id));
+        pendingTimeouts = [];
     }
 
     function findReactNode(root, constraint) {
@@ -176,7 +188,11 @@
                 // Check quality 1 second after stream starts to detect if Twitch changes it
                 const qualityAtStart = currentQuality.name;
                 const qualityGroupAtStart = currentQuality.group;
-                setTimeout(() => {
+                const capturedPageChange = lastPageChange;
+                setTrackedTimeout(() => {
+                    // Skip if we've navigated to a different stream
+                    if (capturedPageChange !== lastPageChange) return;
+
                     const qualityAfter1s = videoPlayer?.getQuality?.();
                     if (qualityAfter1s && qualityAfter1s.name) {
                         if (qualityAfter1s.group !== qualityGroupAtStart) {
@@ -244,8 +260,12 @@
                 // Verify the quality was set
                 const expectedQualityName = bestQuality.name;
                 const expectedQualityGroup = bestQuality.group;
-                setTimeout(() => {
-                    const newQuality = videoPlayer.getQuality?.();
+                const capturedPageChange = lastPageChange;
+                setTrackedTimeout(() => {
+                    // Skip if we've navigated to a different stream
+                    if (capturedPageChange !== lastPageChange) return;
+
+                    const newQuality = videoPlayer?.getQuality?.();
                     if (newQuality && newQuality.name) {
                         const success = newQuality.group === expectedQualityGroup;
                         log(`[${Date.now() - lastPageChange}ms] 🔍 Quality after setQuality: ${newQuality.name} (expected: ${expectedQualityName}) ${success ? '✓' : '✗ FAILED'}`);
@@ -255,7 +275,10 @@
                 }, 100);
 
                 // Check again 1 second later to make sure it stuck
-                setTimeout(() => {
+                setTrackedTimeout(() => {
+                    // Skip if we've navigated to a different stream
+                    if (capturedPageChange !== lastPageChange) return;
+
                     const finalQuality = videoPlayer?.getQuality?.();
                     if (finalQuality && finalQuality.name) {
                         if (finalQuality.group !== expectedQualityGroup) {
@@ -362,6 +385,9 @@
         lastSetQualityGroup = null;
         skippedSwitchCount = 0;
         hasLoggedSkipping = false;
+
+        // Clear all pending timeouts from previous stream
+        clearAllTimeouts();
 
         // Start aggressive checking to catch the stream as it loads
         startLoadingChecks();
