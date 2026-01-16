@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.14
+// @version      1.15
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -14,7 +14,9 @@
 (function() {
     'use strict';
     const CHECK_INTERVAL = 10000; // Check every 10 seconds during normal operation
-    const LOADING_CHECK_INTERVAL = 100; // Check very frequently when stream is loading
+    const FAST_CHECK_INTERVAL = 25; // Check very fast in the critical first 500ms
+    const FAST_CHECK_WINDOW = 500; // Fast checking for first 500ms
+    const NORMAL_CHECK_INTERVAL = 150; // Normal checking after fast window
     const PAGE_CHANGE_WINDOW = 5000; // Monitor for 5 seconds after page change
     const DEBUG = true;
     let lastPageChange = 0;
@@ -189,36 +191,67 @@
             clearInterval(loadingCheckTimer);
         }
 
-        // Aggressively check during the page change window
-        let checksRemaining = PAGE_CHANGE_WINDOW / LOADING_CHECK_INTERVAL;
         let checkCount = 0;
-        loadingCheckTimer = setInterval(() => {
-            checkCount++;
-            checkAndSetQuality();
-            checksRemaining--;
+        let isFastPhase = true;
+        const startTime = Date.now();
 
-            // Only stop when time runs out - don't stop on first success since qualities may still be loading
-            if (checksRemaining <= 0) {
+        function doCheck() {
+            checkCount++;
+            const elapsed = Date.now() - startTime;
+
+            // Switch to normal checking after fast window
+            if (isFastPhase && elapsed >= FAST_CHECK_WINDOW) {
+                clearInterval(loadingCheckTimer);
+                isFastPhase = false;
+                log(`📊 Switched to normal checking after ${checkCount} fast checks in ${elapsed}ms`);
+
+                // Start normal checking for the rest of the window
+                const remainingTime = PAGE_CHANGE_WINDOW - elapsed;
+                const remainingChecks = Math.ceil(remainingTime / NORMAL_CHECK_INTERVAL);
+                let normalCheckCount = 0;
+
+                loadingCheckTimer = setInterval(() => {
+                    checkCount++;
+                    normalCheckCount++;
+                    checkAndSetQuality();
+
+                    if (normalCheckCount >= remainingChecks) {
+                        clearInterval(loadingCheckTimer);
+                        loadingCheckTimer = null;
+                        log(`Checked ${checkCount} times total (${checkCount - normalCheckCount} fast + ${normalCheckCount} normal)`);
+                        logTimingSummary();
+                    }
+                }, NORMAL_CHECK_INTERVAL);
+                return;
+            }
+
+            checkAndSetQuality();
+
+            // End fast phase if we've exceeded the total window
+            if (elapsed >= PAGE_CHANGE_WINDOW) {
                 clearInterval(loadingCheckTimer);
                 loadingCheckTimer = null;
-                log(`Checked ${checkCount} times over ${PAGE_CHANGE_WINDOW}ms window`);
-
-                // Log timing summary
-                if (firstQualityDetectionTime && streamStartedPlayingTime) {
-                    const qualityDetectedAt = firstQualityDetectionTime - lastPageChange;
-                    const streamStartedAt = streamStartedPlayingTime - lastPageChange;
-                    const gapBetween = streamStartedPlayingTime - firstQualityDetectionTime;
-                    log(`📊 TIMING SUMMARY: Quality detected at ${qualityDetectedAt}ms, Stream started at ${streamStartedAt}ms, Gap: ${gapBetween}ms`);
-                } else if (firstQualityDetectionTime && !streamStartedPlayingTime) {
-                    const qualityDetectedAt = firstQualityDetectionTime - lastPageChange;
-                    log(`📊 TIMING SUMMARY: Quality detected at ${qualityDetectedAt}ms, Stream never started playing in window`);
-                } else if (!firstQualityDetectionTime) {
-                    log(`📊 TIMING SUMMARY: No qualities detected in window`);
-                }
+                log(`Checked ${checkCount} times total (all fast checks)`);
+                logTimingSummary();
             }
-        }, LOADING_CHECK_INTERVAL);
+        }
 
-        log(`Starting quality monitoring (every ${LOADING_CHECK_INTERVAL}ms for ${PAGE_CHANGE_WINDOW}ms)`);
+        function logTimingSummary() {
+            if (firstQualityDetectionTime && streamStartedPlayingTime) {
+                const qualityDetectedAt = firstQualityDetectionTime - lastPageChange;
+                const streamStartedAt = streamStartedPlayingTime - lastPageChange;
+                const gapBetween = streamStartedPlayingTime - firstQualityDetectionTime;
+                log(`📊 TIMING SUMMARY: Quality detected at ${qualityDetectedAt}ms, Stream started at ${streamStartedAt}ms, Gap: ${gapBetween}ms`);
+            } else if (firstQualityDetectionTime && !streamStartedPlayingTime) {
+                const qualityDetectedAt = firstQualityDetectionTime - lastPageChange;
+                log(`📊 TIMING SUMMARY: Quality detected at ${qualityDetectedAt}ms, Stream never started playing in window`);
+            } else if (!firstQualityDetectionTime) {
+                log(`📊 TIMING SUMMARY: No qualities detected in window`);
+            }
+        }
+
+        log(`Starting quality monitoring (${FAST_CHECK_INTERVAL}ms for first ${FAST_CHECK_WINDOW}ms, then ${NORMAL_CHECK_INTERVAL}ms)`);
+        loadingCheckTimer = setInterval(doCheck, FAST_CHECK_INTERVAL);
     }
 
     function handlePageChange() {
