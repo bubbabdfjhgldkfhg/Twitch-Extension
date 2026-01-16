@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.28
+// @version      1.29
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -116,6 +116,12 @@
         return !video.paused && !video.ended && video.readyState > 2;
     }
 
+    function isStreamPlaying() {
+        if (!videoPlayer) return false;
+        const state = videoPlayer.getState?.();
+        return state === 'Playing';
+    }
+
     function checkAndSetQuality(force = false) {
         const timeSincePageChange = Date.now() - lastPageChange;
 
@@ -174,7 +180,7 @@
             // Check video playback state for timing analysis
             const video = getVideoElement();
             const isLoading = isVideoLoading(video);
-            const isPlaying = isVideoPlaying(video);
+            const isPlaying = isStreamPlaying();
 
             // Track when stream actually starts playing (not rebuffering from our quality change)
             // Only log once per actual stream (pathname), not per quality change rebuffer
