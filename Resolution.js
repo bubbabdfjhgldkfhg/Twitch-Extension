@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.15
+// @version      1.16
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -17,7 +17,7 @@
     const FAST_CHECK_INTERVAL = 25; // Check very fast in the critical first 500ms
     const FAST_CHECK_WINDOW = 500; // Fast checking for first 500ms
     const NORMAL_CHECK_INTERVAL = 150; // Normal checking after fast window
-    const PAGE_CHANGE_WINDOW = 5000; // Monitor for 5 seconds after page change
+    const PAGE_CHANGE_WINDOW = 8000; // Monitor for 8 seconds after page change
     const DEBUG = true;
     let lastPageChange = 0;
     let videoPlayer = null;
@@ -28,6 +28,7 @@
     let firstQualityDetectionTime = null;
     let streamStartedPlayingTime = null;
     let hasLoggedPlaybackStart = false;
+    let lastSetQualityGroup = null;
 
     function log(...args) {
         if (DEBUG) console.log('[Force Source]', ...args);
@@ -162,19 +163,24 @@
                     log(`[${timeSincePageChange}ms] ✓ At best quality: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate})`);
                     qualitySetForCurrentStream = true;
                 }
-                // Keep checking briefly if quality list just changed
-                return qualityCountChanged || betterQualityAvailable ? false : true;
+                return false; // Keep checking in case better qualities appear
+            }
+
+            // Prevent duplicate setQuality calls
+            if (bestQuality.group === lastSetQualityGroup) {
+                return false;
             }
 
             // Need to switch quality - only do it if video is loading or not playing
             if (force || isLoading || !isPlaying) {
                 log(`[${timeSincePageChange}ms] ✓ Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate}) [loading: ${isLoading}, playing: ${isPlaying}]`);
                 videoPlayer.setQuality(bestQuality);
+                lastSetQualityGroup = bestQuality.group;
                 qualitySetForCurrentStream = true;
                 // Reset playback tracking since we're causing a rebuffer
                 hasLoggedPlaybackStart = false;
                 streamStartedPlayingTime = null;
-                return true;
+                return false; // Keep checking
             } else {
                 log(`[${timeSincePageChange}ms] ⏸ Waiting to switch (video playing) - will retry when buffering`);
                 return false;
@@ -263,6 +269,7 @@
         firstQualityDetectionTime = null;
         streamStartedPlayingTime = null;
         hasLoggedPlaybackStart = false;
+        lastSetQualityGroup = null;
 
         // Start aggressive checking to catch the stream as it loads
         startLoadingChecks();
