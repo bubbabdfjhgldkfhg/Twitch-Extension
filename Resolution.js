@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.16
+// @version      1.17
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -154,7 +154,9 @@
                 streamStartedPlayingTime = Date.now();
                 const gapFromQualityDetection = streamStartedPlayingTime - firstQualityDetectionTime;
                 const gapFromPageChange = streamStartedPlayingTime - lastPageChange;
+                const qualityDetectedAt = firstQualityDetectionTime - lastPageChange;
                 log(`[${timeSincePageChange}ms] 📊 Stream started playing (${gapFromQualityDetection}ms after quality detection, ${gapFromPageChange}ms after page change)`);
+                log(`📊 TIMING SUMMARY: Quality detected at ${qualityDetectedAt}ms, Stream started at ${gapFromPageChange}ms, Gap: ${gapFromQualityDetection}ms`);
                 hasLoggedPlaybackStart = true;
             }
 
