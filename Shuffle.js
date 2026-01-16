@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.26
+// @version      3.27
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -67,7 +67,6 @@ let deviceId = null;
     let snoozedList = [];
     let cooldownActive = false;
     let notInterestedChannelIds = new Set(); // Cache of channel IDs already marked as "not interested"
-    let notInterestedFeedbackMap = new Map(); // channelId -> feedbackId (for removal)
     let notInterestedListLoaded = false;
     let currentChannelId = null; // Pre-fetched channel ID for current page
     let currentChannelLogin = null; // Track which channel the cached ID is for
@@ -256,8 +255,6 @@ let deviceId = null;
                     const channelId = node?.content?.id;
                     if (channelId) {
                         results.add(channelId);
-                        // Store feedback ID for potential removal later
-                        notInterestedFeedbackMap.set(channelId, node.id);
                         channelDetails.push({
                             feedbackId: node.id,
                             category: node.category,
@@ -296,123 +293,6 @@ let deviceId = null;
     function isChannelNotInterested(channelId) {
         return notInterestedChannelIds.has(channelId);
     }
-
-    // Remove a channel from the not interested list
-    async function removeFromNotInterested(channelId) {
-        const feedbackId = notInterestedFeedbackMap.get(channelId);
-        if (!feedbackId) {
-            console.error(`[Shuffle] No feedback ID found for channel ${channelId}`);
-            return false;
-        }
-
-        const body = [{
-            operationName: 'UndoRecommendationFeedback',
-            query: `mutation UndoRecommendationFeedback($input: UndoRecommendationFeedbackInput!) {
-                undoRecommendationFeedback(input: $input) {
-                    feedbackID
-                }
-            }`,
-            variables: {
-                input: {
-                    feedbackID: feedbackId,
-                    sourceItemPage: 'twitch_home',
-                    sourceItemRequestID: 'JIRA-VXP-2397',
-                    sourceItemTrackingID: ''
-                }
-            }
-        }];
-
-        try {
-            const response = await fetch('https://gql.twitch.tv/gql#origin=twilight', {
-                method: 'POST',
-                headers: getGqlHeaders(),
-                body: JSON.stringify(body)
-            });
-
-            const data = await response.json();
-            if (data[0]?.data?.undoRecommendationFeedback?.feedbackID) {
-                // Remove from local cache
-                notInterestedChannelIds.delete(channelId);
-                notInterestedFeedbackMap.delete(channelId);
-                console.log(`[Shuffle] Removed channel ${channelId} from not interested list`);
-                return true;
-            }
-        } catch (error) {
-            console.error('[Shuffle] Failed to remove from not interested:', error);
-        }
-        return false;
-    }
-
-    // Expose functions globally for console use
-    window.removeFromNotInterested = async (channelName) => {
-        const channelId = await getChannelId(channelName);
-        if (!channelId) {
-            console.error(`[Shuffle] Could not find channel ID for ${channelName}`);
-            return;
-        }
-        return removeFromNotInterested(channelId);
-    };
-
-    window.getNotInterestedList = () => {
-        return {
-            channelIds: notInterestedChannelIds,
-            feedbackMap: notInterestedFeedbackMap
-        };
-    };
-
-    window.clearAllNotInterested = async () => {
-        const entries = [...notInterestedFeedbackMap.entries()];
-        console.log(`Removing ${entries.length} channels from not interested list...`);
-
-        let success = 0, failed = 0;
-
-        for (const [channelId, feedbackId] of entries) {
-            try {
-                const body = [{
-                    operationName: 'UndoRecommendationFeedback',
-                    query: `mutation UndoRecommendationFeedback($input: UndoRecommendationFeedbackInput!) {
-                        undoRecommendationFeedback(input: $input) { feedbackID }
-                    }`,
-                    variables: {
-                        input: {
-                            feedbackID: feedbackId,
-                            sourceItemPage: 'twitch_home',
-                            sourceItemRequestID: 'JIRA-VXP-2397',
-                            sourceItemTrackingID: ''
-                        }
-                    }
-                }];
-
-                const response = await fetch('https://gql.twitch.tv/gql#origin=twilight', {
-                    method: 'POST',
-                    headers: getGqlHeaders(),
-                    body: JSON.stringify(body)
-                });
-
-                const data = await response.json();
-                if (data[0]?.data?.undoRecommendationFeedback?.feedbackID) {
-                    success++;
-                    notInterestedChannelIds.delete(channelId);
-                    notInterestedFeedbackMap.delete(channelId);
-                } else {
-                    failed++;
-                }
-            } catch (e) {
-                failed++;
-            }
-
-            // Progress update every 50
-            if ((success + failed) % 50 === 0) {
-                console.log(`Progress: ${success + failed}/${entries.length} (${success} success, ${failed} failed)`);
-            }
-
-            // Small delay to avoid rate limiting
-            await new Promise(r => setTimeout(r, 50));
-        }
-
-        console.log(`Done! Removed ${success} channels, ${failed} failed.`);
-        return { success, failed };
-    };
 
     // Show orange border around viewport when on a not interested channel
     let notInterestedBorderElement = null;
