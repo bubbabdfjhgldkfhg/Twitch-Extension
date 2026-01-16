@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.15
+// @version      3.16
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -719,6 +719,21 @@ let deviceId = null;
         newChannel.click();
         channelRotationTimer('enable');
         resetChannelRotationTimerWithCooldown();
+
+        // Pre-fetch the channel ID for the new channel (extract name from href like "/channelname")
+        const newChannelName = newHref.replace(/^\//, '').split('/')[0];
+        if (newChannelName && newChannelName !== currentChannelLogin) {
+            console.log(`[Shuffle] clickRandomChannel: Pre-fetching for ${newChannelName}`);
+            // Update tracking vars and fetch
+            currentChannelLogin = newChannelName;
+            currentChannelId = null; // Clear until fetch completes
+            getChannelId(newChannelName).then(id => {
+                if (currentChannelLogin === newChannelName) { // Still on same channel
+                    currentChannelId = id;
+                    console.log(`[Shuffle] clickRandomChannel: Pre-fetched ${newChannelName} -> ${id}`);
+                }
+            }).catch(err => console.error('[Shuffle] clickRandomChannel prefetch failed:', err));
+        }
     }
 
     function findReactNode(root, constraint) {
