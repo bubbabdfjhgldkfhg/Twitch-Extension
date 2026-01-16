@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.18
+// @version      1.19
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -118,6 +118,13 @@
             }
 
             if (!currentQuality) {
+                log(`[${timeSincePageChange}ms] ⚠️  Qualities available but currentQuality is null/undefined`);
+                return false;
+            }
+
+            // Check if currentQuality is valid (not empty/undefined name)
+            if (!currentQuality.name || currentQuality.name === '') {
+                log(`[${timeSincePageChange}ms] ⚠️  currentQuality has empty name - player not ready (height: ${currentQuality.height}, group: ${currentQuality.group})`);
                 return false;
             }
 
@@ -182,6 +189,13 @@
 
             // Need to switch quality - only do it if video is loading or not playing
             if (force || isLoading || !isPlaying) {
+                // Double-check currentQuality is still valid before switching
+                const recheck = videoPlayer.getQuality?.();
+                if (!recheck || !recheck.name || recheck.name === '') {
+                    log(`[${timeSincePageChange}ms] ⚠️  Skipping switch - player not ready (recheck failed)`);
+                    return false;
+                }
+
                 log(`[${timeSincePageChange}ms] ✓ Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate}) [loading: ${isLoading}, playing: ${isPlaying}]`);
                 log(`[${timeSincePageChange}ms] 🔧 Calling setQuality with group: ${bestQuality.group}, name: ${bestQuality.name}`);
                 videoPlayer.setQuality(bestQuality);
@@ -191,8 +205,10 @@
                 // Verify the quality was set
                 setTimeout(() => {
                     const newQuality = videoPlayer.getQuality?.();
-                    if (newQuality) {
+                    if (newQuality && newQuality.name) {
                         log(`[${Date.now() - lastPageChange}ms] 🔍 Quality after setQuality: ${newQuality.name} (expected: ${bestQuality.name})`);
+                    } else {
+                        log(`[${Date.now() - lastPageChange}ms] 🔍 Quality after setQuality: empty/invalid`);
                     }
                 }, 100);
 
