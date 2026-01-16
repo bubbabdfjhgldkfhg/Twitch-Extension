@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.21
+// @version      3.22
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -205,6 +205,7 @@ let deviceId = null;
     // Fetch the "not interested" list from Twitch API
     async function fetchNotInterestedList() {
         const results = new Set();
+        const channelDetails = []; // Store full details for logging
         let cursor = null;
         const LIMIT = 100;
 
@@ -216,9 +217,19 @@ let deviceId = null;
                             recommendationFeedback(type: "CHANNEL", limit: ${LIMIT}${cursor ? `, after: "${cursor}"` : ''}) {
                                 edges {
                                     node {
+                                        id
+                                        category
+                                        type
+                                        lastUpdated
                                         content {
                                             ... on Channel {
                                                 id
+                                                login
+                                                displayName
+                                                profileImageURL(width: 50)
+                                                description
+                                                createdAt
+                                                primaryColorHex
                                             }
                                         }
                                     }
@@ -244,9 +255,25 @@ let deviceId = null;
                 if (!feedback?.edges) break;
 
                 for (const edge of feedback.edges) {
-                    const channelId = edge.node?.content?.id;
+                    const node = edge.node;
+                    const channelId = node?.content?.id;
                     if (channelId) {
                         results.add(channelId);
+                        channelDetails.push({
+                            feedbackId: node.id,
+                            category: node.category,
+                            type: node.type,
+                            lastUpdated: node.lastUpdated,
+                            channel: {
+                                id: node.content.id,
+                                login: node.content.login,
+                                displayName: node.content.displayName,
+                                profileImage: node.content.profileImageURL,
+                                description: node.content.description,
+                                createdAt: node.content.createdAt,
+                                color: node.content.primaryColorHex
+                            }
+                        });
                     }
                     cursor = edge.cursor;
                 }
@@ -254,7 +281,16 @@ let deviceId = null;
                 if (!feedback.pageInfo?.hasNextPage) break;
             } while (cursor);
 
-            console.log(`[Shuffle] Loaded ${results.size} channels from not interested list`);
+            // Log formatted results
+            console.log(`[Shuffle] Loaded ${results.size} channels from not interested list:`);
+            console.table(channelDetails.map(d => ({
+                login: d.channel.login,
+                displayName: d.channel.displayName,
+                id: d.channel.id,
+                category: d.category,
+                lastUpdated: new Date(d.lastUpdated).toLocaleDateString(),
+                color: d.channel.color ? `#${d.channel.color}` : null
+            })));
         } catch (error) {
             console.error('[Shuffle] Failed to fetch not interested list:', error);
         }
