@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.9
+// @version      1.10
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -14,7 +14,7 @@
 (function() {
     'use strict';
     const CHECK_INTERVAL = 10000; // Check every 10 seconds during normal operation
-    const LOADING_CHECK_INTERVAL = 500; // Check frequently when stream is loading
+    const LOADING_CHECK_INTERVAL = 100; // Check very frequently when stream is loading
     const PAGE_CHANGE_WINDOW = 5000; // Monitor for 5 seconds after page change
     const DEBUG = true;
     let lastPageChange = 0;
