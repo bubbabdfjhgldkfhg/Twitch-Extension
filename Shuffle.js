@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.14
+// @version      3.15
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -288,8 +288,14 @@ let deviceId = null;
     // Pre-fetch channel ID for current page (called on navigation)
     async function prefetchCurrentChannelId() {
         const channelLogin = getUsernameFromUrl();
-        if (!channelLogin || channelLogin === currentChannelLogin) {
-            return; // Already have it or no channel
+        console.log(`[Shuffle] prefetchCurrentChannelId() called - channelLogin: ${channelLogin}, currentChannelLogin: ${currentChannelLogin}`);
+        if (!channelLogin) {
+            console.log(`[Shuffle] No channel login found, skipping prefetch`);
+            return;
+        }
+        if (channelLogin === currentChannelLogin) {
+            console.log(`[Shuffle] Channel ${channelLogin} already cached, skipping prefetch`);
+            return;
         }
 
         console.log(`[Shuffle] Pre-fetching channel ID for: ${channelLogin}`);
@@ -947,12 +953,14 @@ let deviceId = null;
 
         // Manually clicking channels resets the timer and adds them to the recently clicked queue
         if (lastClickedHrefs[lastClickedHrefs.length - 1] !== window.location.pathname) {
+            console.log(`[Shuffle] Navigation detected: ${lastClickedHrefs[lastClickedHrefs.length - 1]} -> ${window.location.pathname}`);
             lastClickedHrefs.push(window.location.pathname);
             cancelXHoldTimer();
             channelRotationTimer('disable');
             // resetChannelRotationTimer();
 
             // Pre-fetch the channel ID for the new channel
+            console.log(`[Shuffle] Calling prefetchCurrentChannelId()...`);
             prefetchCurrentChannelId();
         }
     }, 500);
