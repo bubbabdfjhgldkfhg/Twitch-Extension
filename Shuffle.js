@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.22
+// @version      3.23
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -250,9 +250,13 @@ let deviceId = null;
                 });
 
                 const data = await response.json();
+                console.log('[Shuffle] GraphQL response:', data);
                 const feedback = data.data?.currentUser?.recommendationFeedback;
 
-                if (!feedback?.edges) break;
+                if (!feedback?.edges) {
+                    console.log('[Shuffle] No edges found, breaking. Feedback:', feedback);
+                    break;
+                }
 
                 for (const edge of feedback.edges) {
                     const node = edge.node;
