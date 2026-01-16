@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.20
+// @version      1.21
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -191,18 +191,27 @@
                 }
 
                 log(`[${timeSincePageChange}ms] ✓ Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate}) [loading: ${isLoading}, playing: ${isPlaying}]`);
+
+                // Log detailed video element state
+                if (video) {
+                    log(`[${timeSincePageChange}ms] 📹 Video state: readyState=${video.readyState}, networkState=${video.networkState}, paused=${video.paused}, seeking=${video.seeking}, buffered=${video.buffered.length > 0 ? video.buffered.end(0).toFixed(1) : 0}s`);
+                }
+
                 log(`[${timeSincePageChange}ms] 🔧 Calling setQuality with group: ${bestQuality.group}, name: ${bestQuality.name}`);
                 videoPlayer.setQuality(bestQuality);
                 lastSetQualityGroup = bestQuality.group;
                 qualitySetForCurrentStream = true;
 
                 // Verify the quality was set
+                const expectedQualityName = bestQuality.name;
+                const expectedQualityGroup = bestQuality.group;
                 setTimeout(() => {
                     const newQuality = videoPlayer.getQuality?.();
                     if (newQuality && newQuality.name) {
-                        log(`[${Date.now() - lastPageChange}ms] 🔍 Quality after setQuality: ${newQuality.name} (expected: ${bestQuality.name})`);
+                        const success = newQuality.group === expectedQualityGroup;
+                        log(`[${Date.now() - lastPageChange}ms] 🔍 Quality after setQuality: ${newQuality.name} (expected: ${expectedQualityName}) ${success ? '✓' : '✗ FAILED'}`);
                     } else {
-                        log(`[${Date.now() - lastPageChange}ms] 🔍 Quality after setQuality: empty/invalid`);
+                        log(`[${Date.now() - lastPageChange}ms] 🔍 Quality after setQuality: empty/invalid ✗ FAILED`);
                     }
                 }, 100);
 
