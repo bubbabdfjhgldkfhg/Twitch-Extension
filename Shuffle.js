@@ -54,7 +54,7 @@ let deviceId = null;
 
     const X_KEY_HOLD_DURATION = 400; // How long to hold X
     const Y_KEY_HOLD_DURATION = 800; // How long to hold Y
-    const B_KEY_HOLD_DURATION = 800; // How long to hold B to block
+    const B_KEY_HOLD_DURATION = 1500; // How long to hold B to block
     const removeSuperSnoozeDialogTimeout = 1000 * 3.5; // How long before the Not Interested dialogue disappears
 
     // ===========================
