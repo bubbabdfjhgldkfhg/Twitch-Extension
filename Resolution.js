@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.24
+// @version      1.25
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -168,6 +168,20 @@
                 log(`[${timeSincePageChange}ms] 📊 Stream started playing (${gapFromQualityDetection}ms after quality detection, ${gapFromPageChange}ms after page change)`);
                 log(`📊 TIMING SUMMARY: Quality detected at ${qualityDetectedAt}ms, Stream started at ${gapFromPageChange}ms, Gap: ${gapFromQualityDetection}ms`);
                 hasLoggedPlaybackStart = true;
+
+                // Check quality 1 second after stream starts to detect if Twitch changes it
+                const qualityAtStart = currentQuality.name;
+                const qualityGroupAtStart = currentQuality.group;
+                setTimeout(() => {
+                    const qualityAfter1s = videoPlayer?.getQuality?.();
+                    if (qualityAfter1s && qualityAfter1s.name) {
+                        if (qualityAfter1s.group !== qualityGroupAtStart) {
+                            log(`[${Date.now() - lastPageChange}ms] 👀 Quality changed 1s after stream start: ${qualityAtStart} → ${qualityAfter1s.name}`);
+                        } else {
+                            log(`[${Date.now() - lastPageChange}ms] 👀 Quality still ${qualityAfter1s.name} 1s after stream start ✓`);
+                        }
+                    }
+                }, 1000);
             }
 
             if (isBestQuality(currentQuality, qualities)) {
