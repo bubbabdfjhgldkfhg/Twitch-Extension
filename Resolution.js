@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.13
+// @version      2.0
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -14,15 +14,18 @@
 (function() {
     'use strict';
     const CHECK_INTERVAL = 10000; // Check every 10 seconds during normal operation
-    const LOADING_CHECK_INTERVAL = 100; // Check very frequently when stream is loading
+    const LOADING_CHECK_INTERVAL = 150; // Check frequently when stream is loading
     const PAGE_CHANGE_WINDOW = 5000; // Monitor for 5 seconds after page change
-    const DEBUG = true;
+    const EARLY_EXIT_AFTER_STABLE_CHECKS = 10; // Exit early after this many stable checks (~1.5s)
+    const DEBUG = false;
     let lastPageChange = 0;
     let videoPlayer = null;
     let loadingCheckTimer = null;
     let qualitySetForCurrentStream = false;
     let lastSeenQualityCount = 0;
     let bestQualityHeight = 0;
+    let consecutiveStableChecks = 0;
+    let lastSetQualityGroup = null;
 
     function log(...args) {
         if (DEBUG) console.log('[Force Source]', ...args);
@@ -126,19 +129,31 @@
 
             if (qualityCountChanged || betterQualityAvailable) {
                 const qualityList = qualities.map(q => `${q.name} (${q.height}p${q.framerate || '?'})`).join(', ');
-                log(`[${timeSincePageChange}ms] ${qualityCountChanged ? 'NEW' : 'BETTER'} qualities detected: [${qualityList}]`);
-                log(`[${timeSincePageChange}ms] Current quality: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate || '?'})`);
+                log(`[${timeSincePageChange}ms] ${qualityCountChanged ? 'NEW' : 'BETTER'} qualities: [${qualityList}]`);
                 lastSeenQualityCount = qualities.length;
                 bestQualityHeight = bestQuality.height;
+                consecutiveStableChecks = 0; // Reset stability counter when quality list changes
             }
 
             if (isBestQuality(currentQuality, qualities)) {
+                consecutiveStableChecks++;
                 if (!qualitySetForCurrentStream || qualityCountChanged || betterQualityAvailable) {
-                    log(`[${timeSincePageChange}ms] ✓ At best quality: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate})`);
+                    log(`[${timeSincePageChange}ms] ✓ At best: ${currentQuality.name} (${currentQuality.height}p${currentQuality.framerate})`);
                     qualitySetForCurrentStream = true;
                 }
-                // Keep checking briefly if quality list just changed
-                return qualityCountChanged || betterQualityAvailable ? false : true;
+                // Early exit if stable for long enough
+                if (consecutiveStableChecks >= EARLY_EXIT_AFTER_STABLE_CHECKS) {
+                    return 'stop'; // Signal to stop checking
+                }
+                return false; // Keep checking but don't stop yet
+            }
+
+            // Reset stability counter when we need to switch
+            consecutiveStableChecks = 0;
+
+            // Prevent duplicate setQuality calls
+            if (bestQuality.group === lastSetQualityGroup) {
+                return false;
             }
 
             // Need to switch quality - only do it if video is loading or not playing
@@ -147,12 +162,13 @@
             const isPlaying = isVideoPlaying(video);
 
             if (force || isLoading || !isPlaying) {
-                log(`[${timeSincePageChange}ms] ✓ Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate}) [loading: ${isLoading}, playing: ${isPlaying}]`);
+                log(`[${timeSincePageChange}ms] ✓ Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate})`);
                 videoPlayer.setQuality(bestQuality);
+                lastSetQualityGroup = bestQuality.group;
                 qualitySetForCurrentStream = true;
-                return true;
+                return false; // Keep checking in case better qualities appear
             } else {
-                log(`[${timeSincePageChange}ms] ⏸ Waiting to switch (video playing) - will retry when buffering`);
+                log(`[${timeSincePageChange}ms] ⏸ Waiting (video playing)`);
                 return false;
             }
         } catch (e) {
@@ -172,18 +188,20 @@
         let checkCount = 0;
         loadingCheckTimer = setInterval(() => {
             checkCount++;
-            checkAndSetQuality();
+            const result = checkAndSetQuality();
             checksRemaining--;
 
-            // Only stop when time runs out - don't stop on first success since qualities may still be loading
-            if (checksRemaining <= 0) {
+            // Stop if: quality is stable for long enough, or time runs out
+            if (result === 'stop' || checksRemaining <= 0) {
                 clearInterval(loadingCheckTimer);
                 loadingCheckTimer = null;
-                log(`Checked ${checkCount} times over ${PAGE_CHANGE_WINDOW}ms window`);
+                if (result === 'stop') {
+                    log(`Quality stable after ${checkCount} checks (${checkCount * LOADING_CHECK_INTERVAL}ms)`);
+                }
             }
         }, LOADING_CHECK_INTERVAL);
 
-        log(`Starting quality monitoring (every ${LOADING_CHECK_INTERVAL}ms for ${PAGE_CHANGE_WINDOW}ms)`);
+        log(`Monitoring quality (${LOADING_CHECK_INTERVAL}ms intervals, max ${PAGE_CHANGE_WINDOW}ms)`);
     }
 
     function handlePageChange() {
@@ -192,6 +210,8 @@
         qualitySetForCurrentStream = false;
         lastSeenQualityCount = 0;
         bestQualityHeight = 0;
+        consecutiveStableChecks = 0;
+        lastSetQualityGroup = null;
 
         // Start aggressive checking to catch the stream as it loads
         startLoadingChecks();
