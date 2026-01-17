@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.30
+// @version      1.31
 // @description  Automatically sets Twitch streams to source/max quality
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
@@ -18,7 +18,7 @@
     const FAST_CHECK_WINDOW = 500; // Fast checking for first 500ms
     const NORMAL_CHECK_INTERVAL = 100; // Normal checking after fast window
     const PAGE_CHANGE_WINDOW = 8000; // Monitor for 8 seconds after page change
-    const DEBUG = true;
+    const DEBUG = false;
     let lastPageChange = 0;
     let videoPlayer = null;
     let loadingCheckTimer = null;
@@ -36,7 +36,11 @@
     let currentStreamPath = null;
 
     function log(...args) {
-        if (DEBUG) console.log('[Force Source]', ...args);
+        if (DEBUG) console.log('[Resolution]', ...args);
+    }
+
+    function logAlways(...args) {
+        console.log('[Resolution]', ...args);
     }
 
     function setTrackedTimeout(callback, delay) {
@@ -256,7 +260,7 @@
                     log(`[${timeSincePageChange}ms] Skipped ${skippedSwitchCount} attempts while waiting for video to load`);
                 }
 
-                log(`[${timeSincePageChange}ms] ✓ Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate}) [loading: ${isLoading}, playing: ${isPlaying}]`);
+                logAlways(`Switching: "${currentQuality.name}" → "${bestQuality.name}" (${bestQuality.height}p${bestQuality.framerate})`);
 
                 // Log detailed video element state
                 if (video) {
