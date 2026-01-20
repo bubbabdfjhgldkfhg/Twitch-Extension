@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.27
+// @version      3.28
 // @description  Adds a shuffle button to the Twitch video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -725,10 +725,11 @@ let deviceId = null;
         // Get all channels on screen
         let followedChannels = getChannelsBySection("Followed Channels");
         let recommendedChannels = getChannelsBySection("Live Channels");
+        let popularChannels = getChannelsBySection("Popular Channels");
         let similarChannels = getChannelsBySection("Viewers Also Watch");
 
         // Check if any channels were found
-        if (!followedChannels.length && !recommendedChannels.length && !similarChannels.length) {
+        if (!followedChannels.length && !recommendedChannels.length && !popularChannels.length && !similarChannels.length) {
             console.log('No channels found.');
             return;
         }
@@ -740,11 +741,11 @@ let deviceId = null;
                 allChannels = [...followedChannels];
                 break;
             case 'recommended':
-                allChannels = [...followedChannels, ...recommendedChannels];
+                allChannels = [...followedChannels, ...recommendedChannels, ...popularChannels];
                 break;
             case 'discover': // Force selection from followedChannels if too many similarChannels have been clicked in a row
                 allChannels = (similarChannelClickCount >= maxSimilarChannelClicks) ?
-                    [...followedChannels, ...recommendedChannels] : [...followedChannels, ...recommendedChannels, ...similarChannels];
+                    [...followedChannels, ...recommendedChannels, ...popularChannels] : [...followedChannels, ...recommendedChannels, ...popularChannels, ...similarChannels];
                 break;
         }
 
