@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.1
+// @version      1.2
 // @description  Remember and restore per-channel volume settings
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js

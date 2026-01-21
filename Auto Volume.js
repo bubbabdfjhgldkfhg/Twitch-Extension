@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.7
+// @version      0.8
 // @description  Automatically adjust volume based on real-time LUFS loudness analysis
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js

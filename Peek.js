@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Peek
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.6
+// @version      0.7
 // @description  Preview live streams by hovering over channel links
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
