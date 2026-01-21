@@ -39,6 +39,7 @@
 
     const BLOCK_SIZE = 4096;
     const LUFS_WINDOW = 1500;
+    const MAX_DB_CHECK_WINDOW = 700; // ~1 minute window for checking if max dB was exceeded before allowing volume up
 
     let shortTermLUFSWindow = 5; // Smaller window is more reactive to sharp spikes.
 
@@ -438,8 +439,9 @@
 
 
                     if (Date.now() - lastVolumeAdjustment > VOLUME_UP_COOLDOWN) {
-                        if (Math.max(...lufsBuffer) < MIN_DB_THRESHOLD) {
-                            let adjustment = Math.min(0.01, ((MAX_DB_THRESHOLD) - Math.max(...lufsBuffer))/VOLUME_CHANGER_MODIFIER);
+                        const recentLufs = lufsBuffer.slice(-MAX_DB_CHECK_WINDOW);
+                        if (Math.max(...recentLufs) < MIN_DB_THRESHOLD) {
+                            let adjustment = Math.min(0.01, ((MAX_DB_THRESHOLD) - Math.max(...recentLufs))/VOLUME_CHANGER_MODIFIER);
                             adjustment = parseFloat(adjustment.toFixed(2));
                             if (adjustment) {
                                 debug('Volume up adjustment', {
