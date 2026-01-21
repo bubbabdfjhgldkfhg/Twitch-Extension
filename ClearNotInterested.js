@@ -2,7 +2,7 @@
 // @name         Clear Twitch Not Interested
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      1.0
-// @description  Bulk clear your "Not Interested" channel list via console
+// @description  Bulk clear your "Not Interested" list - run clearNotInterested() in console
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/ClearNotInterested.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/ClearNotInterested.js
 // @match        *://*.twitch.tv/*
