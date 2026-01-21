@@ -2,7 +2,7 @@
 // @name         Resolution
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      1.31
-// @description  Automatically sets Twitch streams to source/max quality
+// @description  Auto-select highest quality when switching streams
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Resolution.js
 // @match        *://*.twitch.tv/*

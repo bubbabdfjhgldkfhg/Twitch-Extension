@@ -2,7 +2,7 @@
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      3.28
-// @description  Adds a shuffle button to the Twitch video player
+// @description  Shuffle to random followed channels from the video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @match        *://*.twitch.tv/*

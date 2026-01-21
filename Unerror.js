@@ -2,7 +2,7 @@
 // @name         Unerror
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      1.0
-// @description  Automatically click reload button when Twitch player errors occur
+// @description  Auto-reload streams when player errors occur
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Unerror.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Unerror.js
 // @match        *://*.twitch.tv/*

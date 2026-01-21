@@ -2,7 +2,7 @@
 // @name         Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      1.1
-// @description  Automatically set channel specific volume on Twitch
+// @description  Remember and restore per-channel volume settings
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @match        *://*.twitch.tv/*

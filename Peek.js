@@ -2,7 +2,7 @@
 // @name         Peek
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      0.6
-// @description  Preview a Twitch channel stream when hovering channel links
+// @description  Preview live streams by hovering over channel links
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Peek.js
 // @match        *://*.twitch.tv/*

@@ -2,7 +2,7 @@
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
 // @version      2.16
-// @description  Cleanup clutter from twitch chat
+// @description  Fade old messages and reduce chat clutter
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @match        *://*.twitch.tv/*
