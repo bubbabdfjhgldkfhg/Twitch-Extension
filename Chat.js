@@ -28,7 +28,7 @@
         if (document.getElementById('chat-filter-style')) return;
         const style = document.createElement('style');
         style.id = 'chat-filter-style';
-        style.textContent = \`
+        style.textContent = `
             .filtered-chat-line {
                 background-image: repeating-linear-gradient(
                     45deg,
@@ -39,7 +39,7 @@
                 );
                 padding-left: 4px;
             }
-        \`;
+        `;
         document.head.appendChild(style);
     }
     injectStyles();
@@ -56,7 +56,7 @@
                     message.style.opacity = brightness;
                 });
             }
-        } else if (event.key === '\`') {
+        } else if (event.key === '`') {
             event.preventDefault();
             editor?.focus();
         } else if (event.key === 'Enter' && !event.shiftKey) {
@@ -102,13 +102,13 @@
         let rightColumn = document.querySelector('.channel-root__right-column');
         if (rightColumn) {
             rightColumn.style.transition = 'all 0.25s ease-in-out';
-            rightColumn.style.background = \`linear-gradient(90deg, rgba(0,0,0,\${brightness/2}) 0%, rgba(0,0,0,0.001) 100%)\`;
+            rightColumn.style.background = `linear-gradient(90deg, rgba(0,0,0,${brightness/2}) 0%, rgba(0,0,0,0.001) 100%)`;
         }
     }
 
     function getCookie(key) {
-        let value = \`; \${document.cookie}\`;
-        let parts = value.split(\`; \${key}=\`);
+        let value = `; ${document.cookie}`;
+        let parts = value.split(`; ${key}=`);
         if (parts.length === 2) {
             return parts.pop().split(';').shift();
         }
@@ -315,7 +315,7 @@
         return null;
     }
 
-    // Get the React component that contains the \`props\`
+    // Get the React component that contains the `props`
     function getMessageProps(element) {
         try {
             const node = searchReactParents(
