@@ -52,18 +52,9 @@
                 tildeHeld = true;
                 const messages = document.querySelectorAll('.chat-line__message, .chat-line__status');
                 messages.forEach(message => {
-                    message.style.removeProperty('display');
-                    message.style.opacity = brightness;
-                    // Also restore parent containers that may have been hidden
-                    let parent = message.parentElement;
-                    while (parent && parent.closest('.chat-scrollable-area__message-container')) {
-                        parent.style.removeProperty('display');
-                        parent.style.opacity = brightness;
-                        if (parent.parentElement?.classList.contains('chat-scrollable-area__message-container')) {
-                            break;
-                        }
-                        parent = parent.parentElement;
-                    }
+                    let outer = getOuterContainer(message);
+                    outer.style.removeProperty('display');
+                    outer.style.opacity = brightness;
                 });
             }
         } else if (event.key === '`') {
@@ -104,7 +95,8 @@
 
     function messageBrightness() {
         getVisibleMessages().forEach(message => {
-            message.style.opacity = brightness;
+            let outer = getOuterContainer(message);
+            outer.style.opacity = brightness;
         });
     }
 
@@ -156,17 +148,39 @@
         setTimeout(() => { // Needs to run slightly after fadeInScheduleFadeOut so the opacity doesnt get overridden
             for (let i = 0; i < numMessagesToFade; i++) {
                 let oldestMessage = visibleMessages[i];
-                oldestMessage.style.transition = 'opacity .5s ease-in-out';
-                oldestMessage.style.opacity = '0';
+                let outer = getOuterContainer(oldestMessage);
+                outer.style.transition = 'opacity .5s ease-in-out';
+                outer.style.opacity = '0';
             }
         }, 10);
+    }
+
+    // Find the outermost wrapper for special message types (highlights, rewards, etc.)
+    function getOuterContainer(message) {
+        let target = message;
+        let parent = message.parentElement;
+        while (parent && parent.closest('.chat-scrollable-area__message-container')) {
+            let container = parent.closest('[data-test-selector="user-notice-line"]')?.parentElement?.parentElement?.parentElement;
+            if (container && container.parentElement?.classList.contains('chat-scrollable-area__message-container')) {
+                return container;
+            }
+            if (parent.parentElement?.classList.contains('chat-scrollable-area__message-container')) {
+                return parent;
+            }
+            parent = parent.parentElement;
+        }
+        return target;
     }
 
     function getVisibleMessages(container = observer?.targetElement) {
         if (!container) return [];
         let chatMessages = container.querySelectorAll('.chat-line__message, .chat-line__status');
-        return Array.from(chatMessages).filter(message => message.style.opacity !== '0' && message.style.display !== 'none');
+        return Array.from(chatMessages).filter(message => {
+            let outer = getOuterContainer(message);
+            return outer.style.opacity !== '0' && outer.style.display !== 'none';
+        });
     }
+
     function fadeInScheduleFadeOut(element, paddingElement = element) {
         // Fade in
         element.style.opacity = '0';
@@ -345,22 +359,7 @@
     }
 
     function newMessageHandler(message) {
-        // Find the outermost wrapper for special message types (highlights, rewards, etc.)
-        let target = message;
-        let parent = message.parentElement;
-        while (parent && parent.closest('.chat-scrollable-area__message-container')) {
-            let container = parent.closest('[data-test-selector="user-notice-line"]')?.parentElement?.parentElement?.parentElement;
-            if (container && container.parentElement?.classList.contains('chat-scrollable-area__message-container')) {
-                target = container;
-                break;
-            }
-            // Also catch other wrapper types
-            if (parent.parentElement?.classList.contains('chat-scrollable-area__message-container')) {
-                target = parent;
-                break;
-            }
-            parent = parent.parentElement;
-        }
+        let target = getOuterContainer(message);
 
         hideBadgesAndColorNames(message);
         fadeInScheduleFadeOut(target, message); // Apply fade to outermost container, padding to message
