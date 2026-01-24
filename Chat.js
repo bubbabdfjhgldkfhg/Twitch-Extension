@@ -54,6 +54,16 @@
                 messages.forEach(message => {
                     message.style.removeProperty('display');
                     message.style.opacity = brightness;
+                    // Also restore parent containers that may have been hidden
+                    let parent = message.parentElement;
+                    while (parent && parent.closest('.chat-scrollable-area__message-container')) {
+                        parent.style.removeProperty('display');
+                        parent.style.opacity = brightness;
+                        if (parent.parentElement?.classList.contains('chat-scrollable-area__message-container')) {
+                            break;
+                        }
+                        parent = parent.parentElement;
+                    }
                 });
             }
         } else if (event.key === '`') {
