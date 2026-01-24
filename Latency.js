@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.13
+// @version      3.14
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -51,6 +51,7 @@
     // let LATENCY_PROBLEM_COUNTER = 0;
     // let MAX_LATENCY_PROBLEMS = 3;
     let LAST_LATENCY_PROBLEM;
+    let FPS_PROBLEM = false;
     let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 minutes in ms
     let SEEK_COOLDOWN = false;
     let SEEK_BACKWARD_SECONDS = 1.25;
@@ -453,10 +454,13 @@
     function setLatencyTextColor(latencyTextElement) {
         if (!latencyTextElement.node || !bufferData.latest || !latencyData.latest) return;
 
+        // Check for FPS drop to 0
+        FPS_PROBLEM = graphValues.latestFps === 0;
+
         if (bufferData.latest > latencyData.latest + UNSTABLE_BUFFER_SEPARATION) {
             // latencyTextElement.node.style.color = 'orange';
             // latencyTextElement.node.style.opacity = '.8';
-        } else if (LATENCY_PROBLEM) {
+        } else if (LATENCY_PROBLEM || FPS_PROBLEM) {
             latencyTextElement.node.style.color = 'red';
             latencyTextElement.node.style.opacity = '1';
             temporarilyShowElement(screenElement.graph);
