@@ -157,13 +157,13 @@
         let chatMessages = container.querySelectorAll('.chat-line__message, .chat-line__status');
         return Array.from(chatMessages).filter(message => message.style.opacity !== '0' && message.style.display !== 'none');
     }
-    function fadeInScheduleFadeOut(message) {
+    function fadeInScheduleFadeOut(element, paddingElement = element) {
         // Fade in
-        message.style.opacity = '0';
+        element.style.opacity = '0';
         setTimeout(() => {
-            message.style.transition = 'opacity .5s ease-in-out, background .5s ease-in-out';
-            message.style.opacity = brightness;
-            message.style.setProperty('padding', '.5rem 1.3rem', 'important');
+            element.style.transition = 'opacity .5s ease-in-out, background .5s ease-in-out';
+            element.style.opacity = brightness;
+            paddingElement.style.setProperty('padding', '.5rem 1.3rem', 'important');
         }, 0);
 
         // Schedule fade out respecting tilde-held state
@@ -353,7 +353,7 @@
         }
 
         hideBadgesAndColorNames(message);
-        fadeInScheduleFadeOut(target); // Apply fade to outermost container
+        fadeInScheduleFadeOut(target, message); // Apply fade to outermost container, padding to message
         message.classList.remove('filtered-chat-line');
 
         if (tildeHeld) return;
