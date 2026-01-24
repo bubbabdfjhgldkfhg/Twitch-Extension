@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chat
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      2.17
+// @version      2.18
 // @description  Fade old messages and reduce chat clutter
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Chat.js
@@ -28,7 +28,7 @@
         if (document.getElementById('chat-filter-style')) return;
         const style = document.createElement('style');
         style.id = 'chat-filter-style';
-        style.textContent = `
+        style.textContent = \`
             .filtered-chat-line {
                 background-image: repeating-linear-gradient(
                     45deg,
@@ -39,7 +39,7 @@
                 );
                 padding-left: 4px;
             }
-        `;
+        \`;
         document.head.appendChild(style);
     }
     injectStyles();
@@ -56,7 +56,7 @@
                     message.style.opacity = brightness;
                 });
             }
-        } else if (event.key === '`') {
+        } else if (event.key === '\`') {
             event.preventDefault();
             editor?.focus();
         } else if (event.key === 'Enter' && !event.shiftKey) {
@@ -102,13 +102,13 @@
         let rightColumn = document.querySelector('.channel-root__right-column');
         if (rightColumn) {
             rightColumn.style.transition = 'all 0.25s ease-in-out';
-            rightColumn.style.background = `linear-gradient(90deg, rgba(0,0,0,${brightness/2}) 0%, rgba(0,0,0,0.001) 100%)`;
+            rightColumn.style.background = \`linear-gradient(90deg, rgba(0,0,0,\${brightness/2}) 0%, rgba(0,0,0,0.001) 100%)\`;
         }
     }
 
     function getCookie(key) {
-        let value = `; ${document.cookie}`;
-        let parts = value.split(`; ${key}=`);
+        let value = \`; \${document.cookie}\`;
+        let parts = value.split(\`; \${key}=\`);
         if (parts.length === 2) {
             return parts.pop().split(';').shift();
         }
@@ -315,7 +315,7 @@
         return null;
     }
 
-    // Get the React component that contains the `props`
+    // Get the React component that contains the \`props\`
     function getMessageProps(element) {
         try {
             const node = searchReactParents(
@@ -335,8 +335,25 @@
     }
 
     function newMessageHandler(message) {
+        // Find the outermost wrapper for special message types (highlights, rewards, etc.)
+        let target = message;
+        let parent = message.parentElement;
+        while (parent && parent.closest('.chat-scrollable-area__message-container')) {
+            let container = parent.closest('[data-test-selector="user-notice-line"]')?.parentElement?.parentElement?.parentElement;
+            if (container && container.parentElement?.classList.contains('chat-scrollable-area__message-container')) {
+                target = container;
+                break;
+            }
+            // Also catch other wrapper types
+            if (parent.parentElement?.classList.contains('chat-scrollable-area__message-container')) {
+                target = parent;
+                break;
+            }
+            parent = parent.parentElement;
+        }
+
         hideBadgesAndColorNames(message);
-        fadeInScheduleFadeOut(message);
+        fadeInScheduleFadeOut(target); // Apply fade to outermost container
         message.classList.remove('filtered-chat-line');
 
         if (tildeHeld) return;
@@ -360,7 +377,7 @@
         if (message.querySelector('.live-message-separator-line__hr') ||
             message.querySelector('.chat-line__message--cheer-amount')) {
             message.classList.add('filtered-chat-line');
-            message.style.setProperty('display', 'none', 'important');
+            target.style.setProperty('display', 'none', 'important');
             return;
         }
 
@@ -370,7 +387,7 @@
         if (username?.toLowerCase().includes(streamer?.toLowerCase()) && linkElement) {
             // console.log('Hid streamer bot message', linkElement);
             message.classList.add('filtered-chat-line');
-            message.style.display = 'none';
+            target.style.display = 'none';
             return;
         }
 
@@ -378,7 +395,7 @@
 
         if (isSideConversation(message) || hasUnwantedEmote(message)) {
             message.classList.add('filtered-chat-line');
-            message.style.display = 'none';
+            target.style.display = 'none';
             return;
         }
 
@@ -391,7 +408,7 @@
         // Hide chat commands (Messages that start with '!')
         if (text?.startsWith('!')) {
             message.classList.add('filtered-chat-line');
-            message.style.display = 'none';
+            target.style.display = 'none';
             return;
         }
 
