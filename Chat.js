@@ -182,8 +182,8 @@
                 setTimeout(fadeOut, 200);
                 return;
             }
-            message.style.transition = 'opacity 1s ease-in-out';
-            message.style.opacity = '0';
+            element.style.transition = 'opacity 1s ease-in-out';
+            element.style.opacity = '0';
         };
 
         setTimeout(fadeOut, fadeoutDuration);
