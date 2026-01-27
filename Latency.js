@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.14
+// @version      3.15
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -10,6 +10,7 @@
 // @exclude      *://*.twitch.tv/*/clip/*
 // @grant        none
 // @require      https://cdn.jsdelivr.net/npm/chart.js
+// @require      https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation
 // ==/UserScript==
 
 
@@ -52,6 +53,7 @@
     // let MAX_LATENCY_PROBLEMS = 3;
     let LAST_LATENCY_PROBLEM;
     let FPS_PROBLEM = false;
+    let PREV_FPS_PROBLEM = false;
     let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 minutes in ms
     let SEEK_COOLDOWN = false;
     let SEEK_BACKWARD_SECONDS = 1.25;
@@ -91,6 +93,10 @@
 
     const graphValues = { smoothedLatency: null, smoothedBufferSize: null, latestFps: null, latestBitrate: null };
 
+    // Track timer reset events for graph annotations
+    let resetEvents = []; // Array of data point indices where resets occurred
+    let currentDataIndex = 0;
+
     // Graph setup
     const canvas = document.createElement('canvas');
     canvas.width = GRAPH_WIDTH;
@@ -120,9 +126,38 @@
                 'bitrate': { type: 'logarithmic', beginAtZero: true, display: false },
                 x: { display: false }
             },
-            plugins: { legend: { display: false } }
+            plugins: {
+                legend: { display: false },
+                annotation: { annotations: {} }
+            }
         }
     });
+
+    function recordResetEvent() {
+        resetEvents.push(currentDataIndex);
+    }
+
+    function updateAnnotations() {
+        const annotations = {};
+        resetEvents.forEach((eventIndex, i) => {
+            // Calculate position relative to current visible window
+            const relativeIndex = eventIndex - (currentDataIndex - chart.data.labels.length);
+            if (relativeIndex >= 0 && relativeIndex < chart.data.labels.length) {
+                annotations[`reset-${i}`] = {
+                    type: 'line',
+                    xMin: relativeIndex,
+                    xMax: relativeIndex,
+                    borderColor: 'rgba(0, 255, 255, 0.7)',
+                    borderWidth: 1,
+                    borderDash: [2, 2]
+                };
+            }
+        });
+        chart.options.plugins.annotation.annotations = annotations;
+        // Clean up old events that are no longer visible
+        const oldestVisibleIndex = currentDataIndex - MAX_DATA_POINTS;
+        resetEvents = resetEvents.filter(idx => idx > oldestVisibleIndex);
+    }
 
     function setSpeed(newRate) {
         // return; // Test script without interfering with speed
@@ -299,6 +334,8 @@
         chart.data.datasets[1].data.push(graphValues.smoothedBufferSize);
         chart.data.datasets[2].data.push(graphValues.latestFps);
         chart.data.datasets[3].data.push(graphValues.latestBitrate);
+        currentDataIndex++;
+        updateAnnotations();
         chart.update();
     }
 
@@ -349,6 +386,7 @@
             // Buffer is too far below latency, doesn't work above 30 seconds.
             LATENCY_PROBLEM = true;
             LAST_LATENCY_PROBLEM = now;
+            recordResetEvent();
             // LATENCY_PROBLEM_COUNTER = 0;
             // return latestBuffer;
             return latestLatency;
@@ -363,6 +401,7 @@
             // }
 
             LAST_LATENCY_PROBLEM = now;
+            recordResetEvent();
 
             // if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && !SEEK_COOLDOWN) {
             //     // Go back a couple seconds to avoid buffering and raise target latency
@@ -444,6 +483,10 @@
         // Assume a new video player instance was created
         videoPlayer = null;
         PREVIOUS_PLAYER_STATE = null;
+        // Clear graph annotations
+        resetEvents = [];
+        currentDataIndex = 0;
+        PREV_FPS_PROBLEM = false;
     }
 
     function isStreamPlaying() {
@@ -456,6 +499,13 @@
 
         // Check for FPS drop to 0
         FPS_PROBLEM = graphValues.latestFps === 0;
+
+        // Reset timer on FPS drop (only on transition to problem state)
+        if (FPS_PROBLEM && !PREV_FPS_PROBLEM) {
+            LAST_LATENCY_PROBLEM = Date.now();
+            recordResetEvent();
+        }
+        PREV_FPS_PROBLEM = FPS_PROBLEM;
 
         if (bufferData.latest > latencyData.latest + UNSTABLE_BUFFER_SEPARATION) {
             // latencyTextElement.node.style.color = 'orange';
