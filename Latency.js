@@ -94,8 +94,8 @@
     const graphValues = { smoothedLatency: null, smoothedBufferSize: null, latestFps: null, latestBitrate: null };
 
     // Track timer reset events for graph annotations
-    let resetEvents = []; // Array of data point indices where resets occurred
-    let currentDataIndex = 0;
+    let resetEventLabels = []; // Array of label strings where resets occurred
+    let pendingResetEvent = false; // Flag to record event on next graph update
 
     // Graph setup
     const canvas = document.createElement('canvas');
@@ -116,7 +116,9 @@
         },
         options: {
             animation: {
-                duration: 0
+                duration: MAIN_POLLING_INTERVAL,
+                x: { type: 'number', easing: 'linear', duration: MAIN_POLLING_INTERVAL },
+                y: { duration: 0 }
             },
             scales: {
                 'latency': { beginAtZero: false, min: 0.25, display: false },
@@ -135,31 +137,35 @@
     });
 
     function recordResetEvent() {
-        resetEvents.push(currentDataIndex);
+        pendingResetEvent = true;
     }
 
-    function updateAnnotations() {
+    function updateAnnotations(newLabel) {
+        // Record pending event with the current label
+        if (pendingResetEvent && newLabel) {
+            resetEventLabels.push(newLabel);
+            pendingResetEvent = false;
+        }
+
         const annotations = {};
-        resetEvents.forEach((eventIndex, i) => {
-            // Calculate position relative to current visible window
-            const relativeIndex = eventIndex - (currentDataIndex - chart.data.labels.length);
-            if (relativeIndex >= 0 && relativeIndex < chart.data.labels.length) {
+        const currentLabels = chart.data.labels;
+
+        resetEventLabels.forEach((label, i) => {
+            if (currentLabels.includes(label)) {
                 annotations[`reset-${i}`] = {
                     type: 'line',
-                    xMin: relativeIndex,
-                    xMax: relativeIndex,
-                    yMin: 0,
-                    yMax: 1000,
+                    scaleID: 'x',
+                    value: label,
                     borderColor: 'rgba(0, 255, 255, 0.7)',
                     borderWidth: 1,
                     borderDash: [2, 2]
                 };
             }
         });
+
         chart.options.plugins.annotation.annotations = annotations;
-        // Clean up old events that are no longer visible
-        const oldestVisibleIndex = currentDataIndex - MAX_DATA_POINTS;
-        resetEvents = resetEvents.filter(idx => idx > oldestVisibleIndex);
+        // Clean up labels that are no longer in the chart
+        resetEventLabels = resetEventLabels.filter(label => currentLabels.includes(label));
     }
 
     function setSpeed(newRate) {
@@ -332,13 +338,13 @@
             chart.data.labels.shift();
         }
 
-        chart.data.labels.push(new Date().toLocaleTimeString());
+        const newLabel = new Date().toLocaleTimeString();
+        chart.data.labels.push(newLabel);
         chart.data.datasets[0].data.push(graphValues.smoothedLatency);
         chart.data.datasets[1].data.push(graphValues.smoothedBufferSize);
         chart.data.datasets[2].data.push(graphValues.latestFps);
         chart.data.datasets[3].data.push(graphValues.latestBitrate);
-        currentDataIndex++;
-        updateAnnotations();
+        updateAnnotations(newLabel);
         chart.update();
     }
 
@@ -487,8 +493,8 @@
         videoPlayer = null;
         PREVIOUS_PLAYER_STATE = null;
         // Clear graph annotations
-        resetEvents = [];
-        currentDataIndex = 0;
+        resetEventLabels = [];
+        pendingResetEvent = false;
         PREV_FPS_PROBLEM = false;
     }
 
