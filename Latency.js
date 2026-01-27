@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.15
+// @version      3.16
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -17,7 +17,7 @@
     'use strict';
 
     let MAIN_POLLING_INTERVAL = 250; // Milliseconds
-    let DESIRED_HISTORY_LENGTH = 20; // Seconds
+    let DESIRED_HISTORY_LENGTH = 15; // Seconds
     let MAX_DATA_POINTS = (DESIRED_HISTORY_LENGTH*1000) / MAIN_POLLING_INTERVAL;
     MAX_DATA_POINTS = parseFloat(MAX_DATA_POINTS.toFixed(0));
 
