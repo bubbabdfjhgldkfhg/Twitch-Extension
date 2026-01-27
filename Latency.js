@@ -10,7 +10,6 @@
 // @exclude      *://*.twitch.tv/*/clip/*
 // @grant        none
 // @require      https://cdn.jsdelivr.net/npm/chart.js
-// @require      https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation
 // ==/UserScript==
 
 
@@ -54,6 +53,7 @@
     let LAST_LATENCY_PROBLEM;
     let FPS_PROBLEM = false;
     let PREV_FPS_PROBLEM = false;
+    let pendingResetEvent = false;
     let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 minutes in ms
     let SEEK_COOLDOWN = false;
     let SEEK_BACKWARD_SECONDS = 1.25;
@@ -93,10 +93,6 @@
 
     const graphValues = { smoothedLatency: null, smoothedBufferSize: null, latestFps: null, latestBitrate: null };
 
-    // Track timer reset events for graph annotations
-    let resetEventLabels = []; // Array of label strings where resets occurred
-    let pendingResetEvent = false; // Flag to record event on next graph update
-
     // Graph setup
     const canvas = document.createElement('canvas');
     canvas.width = GRAPH_WIDTH;
@@ -111,7 +107,8 @@
                 { label: 'Latency', borderColor: 'orange', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'latency' },
                 { label: 'Buffer Size', borderColor: 'red', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'latency' },
                 { label: 'FPS', borderColor: 'yellow', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'frames' },
-                { label: 'Bitrate', borderColor: 'white', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'bitrate' }
+                { label: 'Bitrate', borderColor: 'white', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'bitrate' },
+                { label: 'Reset', type: 'bar', backgroundColor: 'rgba(0, 255, 255, 0.5)', data: [], yAxisID: 'reset', barPercentage: 0.3 }
             ]
         },
         options: {
@@ -124,48 +121,15 @@
                 'latency': { beginAtZero: false, min: 0.25, display: false },
                 'frames': { beginAtZero: true, display: false },
                 'bitrate': { type: 'logarithmic', beginAtZero: true, display: false },
+                'reset': { beginAtZero: true, max: 1, display: false },
                 x: { display: false }
             },
-            plugins: {
-                legend: { display: false },
-                annotation: {
-                    animation: { duration: 0 },
-                    annotations: {}
-                }
-            }
+            plugins: { legend: { display: false } }
         }
     });
 
     function recordResetEvent() {
         pendingResetEvent = true;
-    }
-
-    function updateAnnotations(newLabel) {
-        // Record pending event with the current label
-        if (pendingResetEvent && newLabel) {
-            resetEventLabels.push(newLabel);
-            pendingResetEvent = false;
-        }
-
-        const annotations = {};
-        const currentLabels = chart.data.labels;
-
-        resetEventLabels.forEach((label, i) => {
-            if (currentLabels.includes(label)) {
-                annotations[`reset-${i}`] = {
-                    type: 'line',
-                    scaleID: 'x',
-                    value: label,
-                    borderColor: 'rgba(0, 255, 255, 0.7)',
-                    borderWidth: 1,
-                    borderDash: [2, 2]
-                };
-            }
-        });
-
-        chart.options.plugins.annotation.annotations = annotations;
-        // Clean up labels that are no longer in the chart
-        resetEventLabels = resetEventLabels.filter(label => currentLabels.includes(label));
     }
 
     function setSpeed(newRate) {
@@ -338,13 +302,14 @@
             chart.data.labels.shift();
         }
 
-        const newLabel = new Date().toLocaleTimeString();
-        chart.data.labels.push(newLabel);
+        chart.data.labels.push(new Date().toLocaleTimeString());
         chart.data.datasets[0].data.push(graphValues.smoothedLatency);
         chart.data.datasets[1].data.push(graphValues.smoothedBufferSize);
         chart.data.datasets[2].data.push(graphValues.latestFps);
         chart.data.datasets[3].data.push(graphValues.latestBitrate);
-        updateAnnotations(newLabel);
+        // Push reset event bar (1 = full height bar, null = no bar)
+        chart.data.datasets[4].data.push(pendingResetEvent ? 1 : null);
+        pendingResetEvent = false;
         chart.update();
     }
 
@@ -492,8 +457,7 @@
         // Assume a new video player instance was created
         videoPlayer = null;
         PREVIOUS_PLAYER_STATE = null;
-        // Clear graph annotations
-        resetEventLabels = [];
+        // Reset event tracking
         pendingResetEvent = false;
         PREV_FPS_PROBLEM = false;
     }
