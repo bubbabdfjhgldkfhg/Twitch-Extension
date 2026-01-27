@@ -19,6 +19,7 @@
     let POLLING_INTERVAL = 500; // Check every 500ms
     let wasUserPaused = false;
     let lastKnownVideo = null;
+    let pauseSkipLogged = false;
 
     // Track video pause state
     function setupVideoTracking() {
@@ -30,9 +31,11 @@
 
         video.addEventListener('pause', () => {
             wasUserPaused = true;
+            console.log('[Twitch Error Auto-Reload] Stream paused - auto-reload disabled');
         });
         video.addEventListener('play', () => {
             wasUserPaused = false;
+            console.log('[Twitch Error Auto-Reload] Stream playing - auto-reload enabled');
         });
     }
 
@@ -42,12 +45,21 @@
 
         if (ERROR_DIALOG_COOLDOWN) return;
 
-        // Skip if user had paused the video
-        if (wasUserPaused) return;
-
         // Look for any error dialog
         const errorDialog = document.querySelector('[data-a-target="player-overlay-content-gate"]');
-        if (!errorDialog) return;
+        if (!errorDialog) {
+            pauseSkipLogged = false;
+            return;
+        }
+
+        // Skip if user had paused the video
+        if (wasUserPaused) {
+            if (!pauseSkipLogged) {
+                console.log('[Twitch Error Auto-Reload] Error detected but skipping - stream was paused');
+                pauseSkipLogged = true;
+            }
+            return;
+        }
 
         // Look for the reload button
         const reloadButton = errorDialog.querySelector('[data-a-target="tw-core-button-label-text"]');
