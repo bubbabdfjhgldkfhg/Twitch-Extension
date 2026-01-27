@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shuffle
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.29
+// @version      3.30
 // @description  Shuffle to random followed channels from the video player
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Shuffle.js
@@ -54,7 +54,7 @@ let deviceId = null;
 
     const X_KEY_HOLD_DURATION = 400; // How long to hold X
     const Y_KEY_HOLD_DURATION = 800; // How long to hold Y
-    const B_KEY_HOLD_DURATION = 1500; // How long to hold B to block
+    const B_KEY_HOLD_DURATION = 800; // How long to hold B to block
     const removeSuperSnoozeDialogTimeout = 1000 * 3.5; // How long before the Not Interested dialogue disappears
 
     // ===========================
@@ -417,14 +417,14 @@ let deviceId = null;
         ${depthMessage}
         ${alreadyNotInterestedMessage}
         <div style="margin-top: 10px; font-size: 14px; color: #888;">
-            Hold <span style="color: ${yColor};">Y</span> for ${yActionText}${isAlreadyNotInterested ? '' : ', <span style="color: #ff6600;">B</span> to block'}, any other key to cancel
+            Hold <span style="color: ${yColor};">Y</span> for ${yActionText}, <span style="color: #ff6600;">B</span> to block, any other key to cancel
         </div>
         <div style="position: absolute; bottom: 10px; left: 5px; right: 5px; height: 3px; background: rgba(255, ${isAlreadyNotInterested ? '102' : '0'}, 0, 0.3); border-radius: 2px;">
             <div data-progress-bar="yhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: ${yColor}; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
         </div>
-        ${isAlreadyNotInterested ? '' : `<div style="position: absolute; bottom: 5px; left: 5px; right: 5px; height: 3px; background: rgba(255, 102, 0, 0.3); border-radius: 2px;">
+        <div style="position: absolute; bottom: 5px; left: 5px; right: 5px; height: 3px; background: rgba(255, 102, 0, 0.3); border-radius: 2px;">
             <div data-progress-bar="bhold" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #ff6600; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
-        </div>`}
+        </div>
         <div style="position: absolute; bottom: 0px; left: 5px; right: 5px; height: 3px; background: rgba(179, 128, 255, 0.3); border-radius: 2px;">
             <div data-progress-bar="countdown" style="position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #b380ff; border-radius: 2px; transition: width 0.05s linear; will-change: width;"></div>
         </div>
@@ -1101,12 +1101,8 @@ let deviceId = null;
             return;
         }
 
-        // Handle B key for block in dialog (only if not already on not interested list)
+        // Handle B key for block in dialog
         if (dialogCreated && event.key.toLowerCase() === 'b') {
-            // If already on not interested list, B key is disabled (Y already does block)
-            if (superSnoozeDialog?.dataset.alreadyNotInterested === 'true') {
-                return;
-            }
             if (!bKeyHoldStart && !dialogCountdownPaused) {
                 // Pause countdown
                 dialogCountdownPaused = true;
