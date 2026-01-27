@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.16
+// @version      3.17
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -108,7 +108,7 @@
                 { label: 'Buffer Size', borderColor: 'red', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'latency' },
                 { label: 'FPS', borderColor: 'yellow', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'frames' },
                 { label: 'Bitrate', borderColor: 'white', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'bitrate' },
-                { label: 'Reset', type: 'bar', backgroundColor: 'rgba(0, 255, 255, 0.5)', data: [], yAxisID: 'reset', barPercentage: 0.3 }
+                { label: 'Reset', type: 'bar', backgroundColor: 'rgba(0, 255, 255, 0.85)', data: [], yAxisID: 'reset', barPercentage: 0.5 }
             ]
         },
         options: {
