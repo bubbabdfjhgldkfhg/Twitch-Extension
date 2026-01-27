@@ -116,9 +116,7 @@
         },
         options: {
             animation: {
-                duration: MAIN_POLLING_INTERVAL,
-                x: { type: 'number', easing: 'linear', duration: MAIN_POLLING_INTERVAL },
-                y: { duration: 0 }
+                duration: 0
             },
             scales: {
                 'latency': { beginAtZero: false, min: 0.25, display: false },
@@ -128,7 +126,10 @@
             },
             plugins: {
                 legend: { display: false },
-                annotation: { annotations: {} }
+                annotation: {
+                    animation: { duration: 0 },
+                    annotations: {}
+                }
             }
         }
     });
@@ -147,6 +148,8 @@
                     type: 'line',
                     xMin: relativeIndex,
                     xMax: relativeIndex,
+                    yMin: 0,
+                    yMax: 1000,
                     borderColor: 'rgba(0, 255, 255, 0.7)',
                     borderWidth: 1,
                     borderDash: [2, 2]
