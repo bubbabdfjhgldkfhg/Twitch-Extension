@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Unerror
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.2
+// @version      1.3
 // @description  Auto-reload streams when player errors occur
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Unerror.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Unerror.js
@@ -30,8 +30,22 @@
         wasUserPaused = video.paused;
 
         video.addEventListener('pause', () => {
-            wasUserPaused = true;
-            console.log('[Twitch Error Auto-Reload] Stream paused - auto-reload disabled');
+            // Check if an error dialog is present - if so, this is an error-caused pause, not user pause
+            const errorDialog = document.querySelector('[data-a-target="player-overlay-content-gate"]');
+            if (errorDialog) {
+                console.log('[Twitch Error Auto-Reload] Pause detected but error dialog present - ignoring (error-caused pause)');
+                return;
+            }
+            // Delay slightly to allow error dialog to appear (error might cause pause before dialog renders)
+            setTimeout(() => {
+                const errorDialogDelayed = document.querySelector('[data-a-target="player-overlay-content-gate"]');
+                if (errorDialogDelayed) {
+                    console.log('[Twitch Error Auto-Reload] Error dialog appeared after pause - ignoring (error-caused pause)');
+                    return;
+                }
+                wasUserPaused = true;
+                console.log('[Twitch Error Auto-Reload] Stream paused by user - auto-reload disabled');
+            }, 200);
         });
         video.addEventListener('play', () => {
             wasUserPaused = false;
