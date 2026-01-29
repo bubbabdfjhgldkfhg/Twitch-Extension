@@ -131,6 +131,8 @@
     function recordResetEvent() {
         // Don't show reset bars if already at minimum latency target
         if (TARGET_LATENCY <= TARGET_LATENCY_MIN) return;
+        // No point accelerating playback when buffer is running low
+        if (playbackRate > 1) setSpeed(1);
         pendingResetEvent = true;
     }
 
@@ -423,7 +425,8 @@
         // Adjust speed if needed
         if (Math.abs(latencyDelta) >= TARGET_LATENCY_TOLERANCE) {
             let newSpeed = ((latencyDelta / SPEED_ADJUSTMENT_FACTOR) + 1).toFixed(2);
-            setSpeed(Math.min(Math.max(parseFloat(newSpeed), SPEED_MIN), SPEED_MAX));
+            let maxSpeed = pendingResetEvent ? 1 : SPEED_MAX; // Don't accelerate when buffer is draining
+            setSpeed(Math.min(Math.max(parseFloat(newSpeed), SPEED_MIN), maxSpeed));
         } else {
             setSpeed(1);
         }
