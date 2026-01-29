@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.35
+// @version      3.36
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -503,8 +503,8 @@
             return latestLatency;
         }
 
-        // CASE 3: Buffer critically low
-        else if (latestBuffer < MINIMUM_BUFFER) {
+        // CASE 3: Buffer critically low (below default threshold)
+        else if (latestBuffer < MINIMUM_BUFFER_DEFAULT) {
             // Buffer dangerously low - likely to cause buffering soon
             LAST_LATENCY_PROBLEM = now;
             recordResetEvent();
