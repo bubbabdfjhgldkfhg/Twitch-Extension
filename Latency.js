@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.28
+// @version      3.29
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -59,17 +59,17 @@
     // =========================================================================
     // CONFIGURATION - Latency Targets
     // =========================================================================
-    let latencyTargetLow = 1.00;    // Default target for low latency streams
+    let latencyTargetLow = 0.50;    // Default target for low latency streams
     let latencyTargetNormal = 4.00; // Default target for normal latency streams
     let unstableBufferSeparationLowLatency = 2;   // Max allowed buffer-latency gap (low latency)
     let unstableBufferSeparationNormalLatency = 10; // Max allowed buffer-latency gap (normal)
     let UNSTABLE_BUFFER_SEPARATION; // Active threshold (set based on stream type)
-    let MINIMUM_BUFFER_DEFAULT = 0.75; // Default minimum buffer threshold
-    let MINIMUM_BUFFER = 0.75;      // Active minimum buffer (may be raised per-channel)
+    let MINIMUM_BUFFER_DEFAULT = 0.25; // Default minimum buffer threshold
+    let MINIMUM_BUFFER = 0.25;      // Active minimum buffer (may be raised per-channel)
     let BUFFER_SETTINGS = {};       // Per-channel minimum buffer {pathname: minBuffer}
     let TARGET_LATENCY;             // Current target latency (dynamically set)
     let LATENCY_SETTINGS = {};      // Per-channel latency settings {pathname: target}
-    let TARGET_LATENCY_MIN = 0.75;  // Absolute minimum latency target allowed
+    let TARGET_LATENCY_MIN = 0.25;  // Absolute minimum latency target allowed
     let TARGET_LATENCY_TOLERANCE = 0.13; // Latency jitter to ignore before adjusting speed
     let NUM_LATENCY_VALS_TO_AVG = 3;     // Number of latency samples to average for smoothing
 
