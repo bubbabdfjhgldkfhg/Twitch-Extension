@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.18
+// @version      3.19
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -12,12 +12,41 @@
 // @require      https://cdn.jsdelivr.net/npm/chart.js
 // ==/UserScript==
 
+// =============================================================================
+// ULTRA LOW LATENCY TWITCH EXTENSION
+// =============================================================================
+//
+// This script dynamically adjusts video playback speed to maintain a target
+// latency while avoiding buffer underruns. It displays a real-time graph of
+// stream statistics and provides keyboard controls for manual latency adjustment.
+//
+// KEY FEATURES:
+// - Automatically adjusts playback speed to reach/maintain target latency
+// - Displays live graph showing latency, buffer, FPS, and bitrate
+// - Keyboard controls: '[' to increase target, ']' to decrease target
+// - Per-channel latency settings (remembered during session)
+// - Buffer health monitoring with automatic recovery actions
+//
+// SPEED ADJUSTMENT BEHAVIOR:
+// - When latency > target: speeds up playback (up to SPEED_MAX) to catch up
+// - When latency < target: slows down playback (down to SPEED_MIN)
+// - When buffer issues detected: caps speed at 1x to prevent buffer drain
+// - Speed cap is released on the very next tick if buffer becomes healthy
+//
+// RESET EVENTS (blue bars in graph):
+// - Indicate buffer health issues that triggered protective actions
+// - Not shown when already at minimum latency (0.75s) since user can't go lower
+// - When triggered, immediately caps playback speed at 1x
+// =============================================================================
 
 (function() {
     'use strict';
 
-    let MAIN_POLLING_INTERVAL = 250; // Milliseconds
-    let DESIRED_HISTORY_LENGTH = 15; // Seconds
+    // =========================================================================
+    // CONFIGURATION - Polling & Graph Display
+    // =========================================================================
+    let MAIN_POLLING_INTERVAL = 250; // Milliseconds between each update tick
+    let DESIRED_HISTORY_LENGTH = 15; // Seconds of history to show in graph
     let MAX_DATA_POINTS = (DESIRED_HISTORY_LENGTH*1000) / MAIN_POLLING_INTERVAL;
     MAX_DATA_POINTS = parseFloat(MAX_DATA_POINTS.toFixed(0));
 
@@ -26,49 +55,83 @@
     let GRAPH_LINE_THICKNESS = 2.0;
     let NUMBER_COLOR_OPACITY_TRANSITION_DURATION = 300; // ms
 
-    let latencyTargetLow = 1.00; // Low latency default
-    let latencyTargetNormal = 4.00; // Normal latency default
-    let unstableBufferSeparationLowLatency = 2; // Low latency default
-    let unstableBufferSeparationNormalLatency = 10; // Normal latency default
-    let UNSTABLE_BUFFER_SEPARATION; // Buffer shouldn't be this far below latency
-    let MINIMUM_BUFFER = 0.75;
-    let TARGET_LATENCY;
-    let LATENCY_SETTINGS = {}; // Dictionary to store pathname and target latency
-    let TARGET_LATENCY_MIN = 0.75;
-    let TARGET_LATENCY_TOLERANCE = 0.13; // Latency jitter to ignore
-    let NUM_LATENCY_VALS_TO_AVG = 3; // Average the previous x latencies together
-    let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.2; // Lower number is more aggresive
-    let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
-    let SPEED_MIN = 0.07;
-    let SPEED_MAX = 1.15;
+    // =========================================================================
+    // CONFIGURATION - Latency Targets
+    // =========================================================================
+    let latencyTargetLow = 1.00;    // Default target for low latency streams
+    let latencyTargetNormal = 4.00; // Default target for normal latency streams
+    let unstableBufferSeparationLowLatency = 2;   // Max allowed buffer-latency gap (low latency)
+    let unstableBufferSeparationNormalLatency = 10; // Max allowed buffer-latency gap (normal)
+    let UNSTABLE_BUFFER_SEPARATION; // Active threshold (set based on stream type)
+    let MINIMUM_BUFFER = 0.75;      // Buffer below this triggers protective actions
+    let TARGET_LATENCY;             // Current target latency (dynamically set)
+    let LATENCY_SETTINGS = {};      // Per-channel latency settings {pathname: target}
+    let TARGET_LATENCY_MIN = 0.75;  // Absolute minimum latency target allowed
+    let TARGET_LATENCY_TOLERANCE = 0.13; // Latency jitter to ignore before adjusting speed
+    let NUM_LATENCY_VALS_TO_AVG = 3;     // Number of latency samples to average for smoothing
 
-    let waitingForStreamPlayback = true;
-    const playbackStateCheckCooldown = 1500;
+    // =========================================================================
+    // CONFIGURATION - Speed Adjustment
+    // =========================================================================
+    let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.2; // Higher = gentler speed changes
+    let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
+    let SPEED_MIN = 0.07;  // Minimum playback speed (slow down limit)
+    let SPEED_MAX = 1.15;  // Maximum playback speed (speed up limit)
+
+    // =========================================================================
+    // STATE - Playback Initialization
+    // =========================================================================
+    let waitingForStreamPlayback = true;      // True until stream starts playing
+    const playbackStateCheckCooldown = 1500;  // Delay before checking playback state
     let playbackStateCheckTimerId = null;
     let playbackStateCheckReady = false;
 
-    let LATENCY_PROBLEM = false;
-    // let LATENCY_PROBLEM_COUNTER = 0;
-    // let MAX_LATENCY_PROBLEMS = 3;
-    let LAST_LATENCY_PROBLEM;
-    let FPS_PROBLEM = false;
-    let PREV_FPS_PROBLEM = false;
+    // =========================================================================
+    // STATE - Problem Detection & Recovery
+    // =========================================================================
+    let LATENCY_PROBLEM = false;        // True when buffer is unhealthy
+    let LAST_LATENCY_PROBLEM;           // Timestamp of last detected problem
+    let FPS_PROBLEM = false;            // True when FPS drops to 0
+    let PREV_FPS_PROBLEM = false;       // Previous tick's FPS problem state
+    let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 min - auto-lower target if no problems
+    let SEEK_COOLDOWN = false;          // Prevents repeated seek-back attempts
+    let SEEK_BACKWARD_SECONDS = 1.25;   // How far to seek back on buffer issues
+
+    // =========================================================================
+    // STATE - Reset Events (Blue Bars in Graph)
+    // =========================================================================
+    // pendingResetEvent serves two purposes:
+    // 1. Shows a blue vertical bar in the graph to indicate a buffer issue occurred
+    // 2. Caps playback speed at 1x to prevent further buffer drain
+    //
+    // IMPORTANT: This flag is reset to false at the end of each tick in updateGraph().
+    // This means the speed cap is automatically released on the very next tick if the
+    // buffer is healthy (i.e., recordResetEvent() is not called again). This prevents
+    // a brief hiccup from forcing 3+ minutes of above-target latency.
+    //
+    // At minimum latency (0.75s), reset events are not recorded since:
+    // - User can't lower the target any further
+    // - Showing blue bars would be pointless
+    // - We want to maintain lowest possible latency even with some risk
     let pendingResetEvent = false;
-    let LATENCY_PROBLEM_COOLDOWN = 180000; // 3 minutes in ms
-    let SEEK_COOLDOWN = false;
-    let SEEK_BACKWARD_SECONDS = 1.25;
 
-    let BUFFER_COUNT = 0;
-    let MAX_BUFFER_COUNT = 20;
-    let BUFFER_STATE;
+    // =========================================================================
+    // STATE - Buffering Detection
+    // =========================================================================
+    let BUFFER_COUNT = 0;       // Consecutive ticks in Buffering state
+    let MAX_BUFFER_COUNT = 20;  // Trigger recovery after this many ticks
+    let BUFFER_STATE;           // 'Filling' or 'Draining'
 
-    let READY_COUNT = 0;
-    let MAX_READY_COUNT = 20;
+    let READY_COUNT = 0;        // Consecutive ticks in Ready state (stuck)
+    let MAX_READY_COUNT = 20;   // Trigger recovery after this many ticks
 
-    let playbackRate = 1.0;
-    let videoPlayer;
-    let PLAYER_STATE;
-    let PREVIOUS_PLAYER_STATE;
+    // =========================================================================
+    // STATE - Player References
+    // =========================================================================
+    let playbackRate = 1.0;     // Current playback speed
+    let videoPlayer;            // Twitch video player instance
+    let PLAYER_STATE;           // Current player state (Playing, Buffering, etc.)
+    let PREVIOUS_PLAYER_STATE;  // Previous tick's player state
 
     let screenElement = {
         videoContainer: { node: null, className: 'video-player__overlay' },
@@ -128,22 +191,53 @@
         }
     });
 
+    // =========================================================================
+    // recordResetEvent - Record a buffer health issue
+    // =========================================================================
+    // Called when buffer problems are detected (buffer too low, buffer-latency
+    // mismatch, or FPS drop). This function:
+    //
+    // 1. Shows a blue vertical bar in the graph as a visual indicator
+    // 2. Immediately caps playback speed at 1x if currently above 1x
+    // 3. Prevents speed from going above 1x until the next tick (via pendingResetEvent)
+    //
+    // The speed cap is automatically released on the NEXT tick if buffer is healthy.
+    // This is because pendingResetEvent is reset to false in updateGraph() at the
+    // end of each tick. If recordResetEvent() isn't called again next tick (meaning
+    // buffer is healthy), pendingResetEvent stays false and speed can exceed 1x.
+    //
+    // At minimum latency target (0.75s), this function returns early without action
+    // because there's no point suggesting the user lower their target further.
+    // =========================================================================
     function recordResetEvent() {
-        // Don't show reset bars if already at minimum latency target
+        // At minimum latency, don't show reset bars or cap speed - user is already
+        // at the lowest possible target and accepts the risk of buffer issues
         if (TARGET_LATENCY <= TARGET_LATENCY_MIN) return;
-        // No point accelerating playback when buffer is running low
+
+        // Immediately drop to 1x speed - no point draining the buffer faster
         if (playbackRate > 1) setSpeed(1);
+
+        // Flag for graph display AND speed cap in evaluateSpeedAdjustment()
+        // This flag is cleared at end of tick in updateGraph(), so speed cap
+        // is released next tick if buffer becomes healthy
         pendingResetEvent = true;
     }
 
+    // =========================================================================
+    // setSpeed - Apply playback rate to all media elements
+    // =========================================================================
+    // Overrides the native playbackRate property to maintain control over speed.
+    // This prevents Twitch's player from resetting our speed adjustments.
+    // =========================================================================
     function setSpeed(newRate) {
-        // return; // Test script without interfering with speed
+        // return; // Uncomment to test script without interfering with speed
 
         if (playbackRate == newRate) return;
         playbackRate = newRate;
-        // console.log('playbackRate', playbackRate);
+
         const mediaElements = document.querySelectorAll('video, audio');
         mediaElements.forEach(media => {
+            // Override playbackRate property if not already done
             if (!media._rateControlApplied) {
                 const nativeSetter = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'playbackRate').set;
                 Object.defineProperty(media, 'playbackRate', {
@@ -156,18 +250,24 @@
         });
     }
 
-    // Listener for adjusting stream speed
+    // =========================================================================
+    // Keyboard Controls
+    // =========================================================================
+    // '[' key: Increase target latency by 0.25s (more buffer room, less aggressive)
+    // ']' key: Decrease target latency by 0.25s (lower latency, more aggressive)
+    // =========================================================================
     document.addEventListener("keydown", async function(event) {
+        // Ignore when typing in input fields
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) return;
 
         switch (event.key) {
             case '[':
                 event.preventDefault();
-                changeTargetLatency(0.25);
+                changeTargetLatency(0.25);  // Increase target (safer)
                 break;
             case ']':
                 event.preventDefault();
-                changeTargetLatency(-0.25);
+                changeTargetLatency(-0.25); // Decrease target (lower latency)
                 break;
         }
     });
@@ -300,20 +400,36 @@
         screenElement.graph.node = streamStatsGraph;
     }
 
+    // =========================================================================
+    // updateGraph - Push new data points to the chart
+    // =========================================================================
+    // Called at end of each tick to update the visual graph with latest stats.
+    //
+    // IMPORTANT: This function resets pendingResetEvent to false after pushing
+    // the bar data. This is what allows the speed cap to be released on the next
+    // tick if buffer is healthy - evaluateSpeedAdjustment() checks pendingResetEvent
+    // and if it's false (because recordResetEvent wasn't called this tick), it
+    // allows speed to exceed 1x again.
+    // =========================================================================
     function updateGraph() {
+        // Remove oldest data point if at max capacity
         if (chart.data.labels.length >= MAX_DATA_POINTS) {
             chart.data.datasets.forEach(dataset => dataset.data.shift());
             chart.data.labels.shift();
         }
 
+        // Push new data points
         chart.data.labels.push(new Date().toLocaleTimeString());
-        chart.data.datasets[0].data.push(graphValues.smoothedLatency);
-        chart.data.datasets[1].data.push(graphValues.smoothedBufferSize);
-        chart.data.datasets[2].data.push(graphValues.latestFps);
-        chart.data.datasets[3].data.push(graphValues.latestBitrate);
-        // Push reset event bar (1 = full height bar, null = no bar)
-        chart.data.datasets[4].data.push(pendingResetEvent ? 1 : null);
+        chart.data.datasets[0].data.push(graphValues.smoothedLatency);  // Orange line
+        chart.data.datasets[1].data.push(graphValues.smoothedBufferSize); // Red line
+        chart.data.datasets[2].data.push(graphValues.latestFps);        // Yellow line
+        chart.data.datasets[3].data.push(graphValues.latestBitrate);    // White line
+        chart.data.datasets[4].data.push(pendingResetEvent ? 1 : null); // Blue bar (reset event)
+
+        // CRITICAL: Reset the flag here so speed cap is released next tick if healthy.
+        // If buffer issues persist, recordResetEvent() will set it true again next tick.
         pendingResetEvent = false;
+
         chart.update();
     }
 
@@ -345,41 +461,48 @@
         }
     }
 
+    // =========================================================================
+    // estimateLatency - Analyze buffer health and return best latency estimate
+    // =========================================================================
+    // Examines the relationship between reported latency and buffer size to
+    // determine the actual latency and detect buffer health issues.
+    //
+    // Buffer issues trigger recordResetEvent() which:
+    // - Shows blue bar in graph
+    // - Caps speed at 1x (released next tick if healthy)
+    //
+    // Also auto-lowers target latency if no problems for LATENCY_PROBLEM_COOLDOWN (3 min)
+    // =========================================================================
     function estimateLatency(latestLatency, latestBuffer) {
         if (!latestLatency || !latestBuffer || isNaN(latestLatency) || isNaN(latestBuffer)) return;
 
         let now = Date.now();
-        // Lower latency if last problem hasn't happened in a while
+
+        // Auto-lower target if stream has been stable for 3+ minutes
         if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN) {
             changeTargetLatency(-0.25)
             LAST_LATENCY_PROBLEM = now;
         }
 
+        // CASE 1: Buffer larger than latency (unusual but possible)
         if (latestBuffer > latestLatency + UNSTABLE_BUFFER_SEPARATION) {
-            // Buffer is larger than latency, slight concern but might be more accurate than latency
             LATENCY_PROBLEM = false;
-            // LATENCY_PROBLEM_COUNTER = 0;
-            return latestBuffer;
-        } else if (latestBuffer < latestLatency - UNSTABLE_BUFFER_SEPARATION && latestLatency < 30) {
-            // Buffer is too far below latency, doesn't work above 30 seconds.
+            return latestBuffer; // Use buffer as more accurate estimate
+        }
+
+        // CASE 2: Buffer too far below latency (buffer draining fast)
+        else if (latestBuffer < latestLatency - UNSTABLE_BUFFER_SEPARATION && latestLatency < 30) {
             LATENCY_PROBLEM = true;
             LAST_LATENCY_PROBLEM = now;
-            recordResetEvent();
-            // LATENCY_PROBLEM_COUNTER = 0;
-            // return latestBuffer;
+            recordResetEvent(); // Show blue bar + cap speed at 1x
             return latestLatency;
+        }
 
-        } else if (latestBuffer < MINIMUM_BUFFER) {
-            // Buffer too low
-            // LATENCY_PROBLEM_COUNTER += 1;
-
-            // Raise the target if the buffer gets too low even if its not buffering yet.
-            // if (playbackRate >= 1 && !SEEK_COOLDOWN) {
-            //     changeTargetLatency(+0.25)
-            // }
-
+        // CASE 3: Buffer critically low
+        else if (latestBuffer < MINIMUM_BUFFER) {
+            // Buffer dangerously low - likely to cause buffering soon
             LAST_LATENCY_PROBLEM = now;
-            recordResetEvent();
+            recordResetEvent(); // Show blue bar + cap speed at 1x
 
             // if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && !SEEK_COOLDOWN) {
             //     // Go back a couple seconds to avoid buffering and raise target latency
@@ -406,28 +529,49 @@
             //     return TARGET_LATENCY;
             // }
 
-            // Try NOT returning latestBuffer if it's too low; this changes speed too much. We'll handle it if it actually buffers.
-            // return latestBuffer;
+            // Return latency (not buffer) to avoid overcorrecting speed
             return latestLatency;
+        }
 
-        } else {
+        // CASE 4: Buffer is healthy
+        else {
             LATENCY_PROBLEM = false;
-            // LATENCY_PROBLEM_COUNTER = 0;
             return latestLatency;
         }
     }
 
+    // =========================================================================
+    // evaluateSpeedAdjustment - Calculate and apply playback speed
+    // =========================================================================
+    // Adjusts playback speed based on how far current latency is from target.
+    // Speed is proportional to the latency delta - larger gaps = faster adjustment.
+    //
+    // SPEED CAPPING BEHAVIOR:
+    // When pendingResetEvent is true (buffer issue detected this tick), max speed
+    // is capped at 1x to prevent further buffer drain. This cap is automatically
+    // released on the next tick if buffer is healthy, because pendingResetEvent
+    // is reset to false at the end of each tick in updateGraph().
+    //
+    // This means a brief buffer hiccup won't force the user to sit at above-target
+    // latency for an extended period - speed can resume >1x as soon as buffer recovers.
+    // =========================================================================
     function evaluateSpeedAdjustment(latencyEstimate) {
         if (!latencyEstimate || isNaN(latencyEstimate)) return;
 
-        // Determine how far off we are from the target
+        // Calculate how far we are from target (positive = too high, need to speed up)
         let latencyDelta = latencyEstimate - TARGET_LATENCY;
-        // Adjust speed if needed
+
+        // Only adjust if delta exceeds tolerance threshold (avoids jitter)
         if (Math.abs(latencyDelta) >= TARGET_LATENCY_TOLERANCE) {
             let newSpeed = ((latencyDelta / SPEED_ADJUSTMENT_FACTOR) + 1).toFixed(2);
-            let maxSpeed = pendingResetEvent ? 1 : SPEED_MAX; // Don't accelerate when buffer is draining
+
+            // Cap max speed at 1x when buffer issues detected (pendingResetEvent=true)
+            // This cap is released next tick if buffer is healthy (pendingResetEvent=false)
+            let maxSpeed = pendingResetEvent ? 1 : SPEED_MAX;
+
             setSpeed(Math.min(Math.max(parseFloat(newSpeed), SPEED_MIN), maxSpeed));
         } else {
+            // Within tolerance - use normal 1x speed
             setSpeed(1);
         }
     }
