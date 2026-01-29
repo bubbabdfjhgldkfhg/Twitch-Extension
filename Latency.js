@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.19
+// @version      3.20
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -197,8 +197,8 @@
     // Called when buffer problems are detected (buffer too low, buffer-latency
     // mismatch, or FPS drop). This function:
     //
-    // 1. Shows a blue vertical bar in the graph as a visual indicator
-    // 2. Immediately caps playback speed at 1x if currently above 1x
+    // 1. Immediately caps playback speed at 1x if currently above 1x
+    // 2. Shows a blue vertical bar in the graph as a visual indicator (unless at min latency)
     // 3. Prevents speed from going above 1x until the next tick (via pendingResetEvent)
     //
     // The speed cap is automatically released on the NEXT tick if buffer is healthy.
@@ -206,16 +206,17 @@
     // end of each tick. If recordResetEvent() isn't called again next tick (meaning
     // buffer is healthy), pendingResetEvent stays false and speed can exceed 1x.
     //
-    // At minimum latency target (0.75s), this function returns early without action
-    // because there's no point suggesting the user lower their target further.
+    // At minimum latency target (0.75s), blue bars are hidden since user can't go
+    // lower anyway, but speed capping still applies to protect the buffer.
     // =========================================================================
     function recordResetEvent() {
-        // At minimum latency, don't show reset bars or cap speed - user is already
-        // at the lowest possible target and accepts the risk of buffer issues
-        if (TARGET_LATENCY <= TARGET_LATENCY_MIN) return;
-
         // Immediately drop to 1x speed - no point draining the buffer faster
+        // This applies even at minimum latency to protect the buffer
         if (playbackRate > 1) setSpeed(1);
+
+        // At minimum latency, skip the blue bar and speed cap flag - user knows
+        // they're living on the edge. But we still capped speed above if needed.
+        if (TARGET_LATENCY <= TARGET_LATENCY_MIN) return;
 
         // Flag for graph display AND speed cap in evaluateSpeedAdjustment()
         // This flag is cleared at end of tick in updateGraph(), so speed cap
