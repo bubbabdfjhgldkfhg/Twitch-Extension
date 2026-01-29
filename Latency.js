@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.32
+// @version      3.33
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -209,13 +209,16 @@
     // =========================================================================
     function recordResetEvent() {
         pendingResetEvent = true;
+    }
 
-        // Raise minimum buffer for this channel to prevent future buffer events (with cap)
+    // Raise minimum buffer for this channel after actual buffering occurs
+    function raiseMinimumBuffer() {
         let pathname = window.location.pathname;
         let currentMin = BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT;
         if (currentMin < MINIMUM_BUFFER_MAX) {
             MINIMUM_BUFFER = Math.min(currentMin + 0.25, MINIMUM_BUFFER_MAX);
             BUFFER_SETTINGS[pathname] = MINIMUM_BUFFER;
+            console.log(`Raised MINIMUM_BUFFER to ${MINIMUM_BUFFER} for ${pathname}`);
         }
     }
 
@@ -753,8 +756,8 @@
         if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && !SEEK_COOLDOWN) {
             videoPlayer?.seekTo(videoPlayer?.getPosition() - SEEK_BACKWARD_SECONDS);
             changeTargetLatency(0.25);
+            raiseMinimumBuffer(); // Raise min buffer after actual buffering occurs
             SEEK_COOLDOWN = true;
-            // console.log('Seeking backwards');
             // SEEK_COOLDOWN can only be set to false if BUFFER_STATE = 'Filling'. That's how we know.
         } else if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && SEEK_COOLDOWN) {
             videoPlayer?.pause();
