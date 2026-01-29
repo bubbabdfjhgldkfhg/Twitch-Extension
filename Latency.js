@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.23
+// @version      3.24
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -79,6 +79,7 @@
     let SPEED_MIN = 0.85;  // Minimum playback speed (slow down limit)
     let SPEED_MAX = 1.15;  // Maximum playback speed (speed up limit)
     let BUFFER_HEADROOM_FOR_FULL_SPEED = 1.0;  // Buffer margin (above MINIMUM_BUFFER) needed for SPEED_MAX
+    let NUM_BUFFER_VALS_TO_AVG = 5;  // Number of buffer samples to average for speed calc
 
     // =========================================================================
     // STATE - Playback Initialization
@@ -444,6 +445,10 @@
         if (bufferData.latest < (latencyData.latest + 10)) {
             graphValues.smoothedBufferSize = bufferData.latest;
         }
+
+        // Track buffer history for averaged buffer health calculation
+        bufferData.history.push(bufferData.latest);
+        if (bufferData.history.length > NUM_BUFFER_VALS_TO_AVG) bufferData.history.shift();
     }
 
     // =========================================================================
@@ -551,10 +556,14 @@
             let newSpeed = ((latencyDelta / SPEED_ADJUSTMENT_FACTOR) + 1).toFixed(2);
 
             // Buffer-proportional max speed: only speed up as much as buffer can afford
+            // Use averaged buffer (last 5 samples) for smoother speed adjustments
             // bufferMargin: how much buffer we have above the minimum (0 = at minimum)
             // bufferHealth: normalized 0-1 (0 = no headroom, 1 = full headroom)
             // maxSpeed: scales from 1.0 (no headroom) to SPEED_MAX (full headroom)
-            let bufferMargin = Math.max(0, bufferData.latest - MINIMUM_BUFFER);
+            let avgBuffer = bufferData.history.length > 0
+                ? bufferData.history.reduce((sum, val) => sum + val, 0) / bufferData.history.length
+                : bufferData.latest;
+            let bufferMargin = Math.max(0, avgBuffer - MINIMUM_BUFFER);
             let bufferHealth = Math.min(1, bufferMargin / BUFFER_HEADROOM_FOR_FULL_SPEED);
             let maxSpeed = 1 + (SPEED_MAX - 1) * bufferHealth;
 
