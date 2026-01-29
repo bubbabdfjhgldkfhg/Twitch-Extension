@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.30
+// @version      3.31
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -491,6 +491,7 @@
         else if (latestBuffer < latestLatency - UNSTABLE_BUFFER_SEPARATION && latestLatency < 30) {
             LATENCY_PROBLEM = true;
             LAST_LATENCY_PROBLEM = now;
+            console.log(`CASE 2: buffer=${latestBuffer} < latency=${latestLatency} - separation=${UNSTABLE_BUFFER_SEPARATION} (${latestLatency - UNSTABLE_BUFFER_SEPARATION})`);
             recordResetEvent(); // Show blue bar + cap speed at 1x
             return latestLatency;
         }
@@ -499,6 +500,7 @@
         else if (latestBuffer < MINIMUM_BUFFER) {
             // Buffer dangerously low - likely to cause buffering soon
             LAST_LATENCY_PROBLEM = now;
+            console.log(`CASE 3: buffer=${latestBuffer} < MINIMUM_BUFFER=${MINIMUM_BUFFER}`);
             recordResetEvent(); // Show blue bar + cap speed at 1x
 
             // if (LATENCY_PROBLEM_COUNTER >= MAX_LATENCY_PROBLEMS && !SEEK_COOLDOWN) {
