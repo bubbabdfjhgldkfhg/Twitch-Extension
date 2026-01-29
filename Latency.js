@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.26
+// @version      3.27
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -464,7 +464,7 @@
     // Also auto-lowers target latency if no problems for LATENCY_PROBLEM_COOLDOWN (3 min)
     // =========================================================================
     function estimateLatency(latestLatency, latestBuffer) {
-        if (!latestLatency || !latestBuffer || isNaN(latestLatency) || isNaN(latestBuffer)) return;
+        if (latestLatency == null || latestBuffer == null || isNaN(latestLatency) || isNaN(latestBuffer)) return;
 
         let now = Date.now();
 
