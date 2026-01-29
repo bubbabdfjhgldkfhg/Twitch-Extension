@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.37
+// @version      3.38
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -64,9 +64,7 @@
     let unstableBufferSeparationLowLatency = 2;   // Max allowed buffer-latency gap (low latency)
     let unstableBufferSeparationNormalLatency = 10; // Max allowed buffer-latency gap (normal)
     let UNSTABLE_BUFFER_SEPARATION; // Active threshold (set based on stream type)
-    let MINIMUM_BUFFER_DEFAULT = 0.75; // Absolute minimum buffer (used for problem detection)
-    let TARGET_BUFFER = 0.75;       // Target buffer threshold (raised per-channel after buffering)
-    let TARGET_BUFFER_SETTINGS = {}; // Per-channel target buffer {pathname: targetBuffer}
+    let MINIMUM_BUFFER = 0.75;      // Absolute minimum buffer (used for problem detection)
     let TARGET_LATENCY;             // Current target latency (dynamically set)
     let LATENCY_SETTINGS = {};      // Per-channel latency settings {pathname: target}
     let TARGET_LATENCY_MIN = 0.25;  // Absolute minimum latency target allowed
@@ -80,7 +78,7 @@
     let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
     let SPEED_MIN = 0.85;  // Minimum playback speed (slow down limit)
     let SPEED_MAX = 1.15;  // Maximum playback speed (speed up limit)
-    let BUFFER_HEADROOM_FOR_FULL_SPEED = 1.0;  // Buffer margin (above TARGET_BUFFER) needed for SPEED_MAX
+    let BUFFER_HEADROOM_FOR_FULL_SPEED = 1.0;  // Buffer margin above target buffer (TARGET_LATENCY - 0.25) needed for SPEED_MAX
     let NUM_BUFFER_VALS_TO_AVG = 15;  // Number of buffer samples to average for speed calc
 
     // =========================================================================
@@ -210,12 +208,6 @@
         pendingResetEvent = true;
     }
 
-    // Raise minimum buffer for this channel after actual buffering occurs
-    function raiseMinimumBuffer() {
-        let pathname = window.location.pathname;
-        TARGET_BUFFER = (TARGET_BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT) + 0.25;
-        TARGET_BUFFER_SETTINGS[pathname] = TARGET_BUFFER;
-    }
 
     // =========================================================================
     // setSpeed - Apply playback rate to all media elements
@@ -470,22 +462,16 @@
     // - Shows blue bar in graph
     // - Caps speed at 1x (released next tick if healthy)
     //
-    // Also auto-lowers target latency and minimum buffer if no problems for 3 min
+    // Also auto-lowers target latency if no problems for 3 min
     // =========================================================================
     function estimateLatency(latestLatency, latestBuffer) {
         if (latestLatency == null || latestBuffer == null || isNaN(latestLatency) || isNaN(latestBuffer)) return;
 
         let now = Date.now();
 
-        // Auto-lower target latency and minimum buffer if stream has been stable for 3+ minutes
+        // Auto-lower target latency if stream has been stable for 3+ minutes
         if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN) {
             changeTargetLatency(-0.25);
-            // Also lower minimum buffer (but not below default)
-            if (TARGET_BUFFER > MINIMUM_BUFFER_DEFAULT) {
-                let pathname = window.location.pathname;
-                TARGET_BUFFER = Math.max(TARGET_BUFFER - 0.25, MINIMUM_BUFFER_DEFAULT);
-                TARGET_BUFFER_SETTINGS[pathname] = TARGET_BUFFER;
-            }
             LAST_LATENCY_PROBLEM = now;
         }
 
@@ -504,7 +490,7 @@
         }
 
         // CASE 3: Buffer critically low (below default threshold)
-        else if (latestBuffer < MINIMUM_BUFFER_DEFAULT) {
+        else if (latestBuffer < MINIMUM_BUFFER) {
             // Buffer dangerously low - likely to cause buffering soon
             LAST_LATENCY_PROBLEM = now;
             recordResetEvent();
@@ -553,7 +539,7 @@
     //
     // BUFFER-PROPORTIONAL MAX SPEED:
     // Instead of a hard cap when buffer issues are detected, max speed scales
-    // smoothly based on buffer headroom above TARGET_BUFFER:
+    // smoothly based on buffer headroom above target buffer (TARGET_LATENCY - 0.25):
     //   - Buffer at minimum (0.75s) → max speed = 1.0x (can't afford to speed up)
     //   - Buffer with full headroom → max speed = SPEED_MAX (1.15x)
     //
@@ -578,7 +564,8 @@
             let avgBuffer = bufferData.history.length > 0
                 ? bufferData.history.reduce((sum, val) => sum + val, 0) / bufferData.history.length
                 : bufferData.latest;
-            let bufferMargin = Math.max(0, avgBuffer - TARGET_BUFFER);
+            let targetBuffer = TARGET_LATENCY - 0.25;
+            let bufferMargin = Math.max(0, avgBuffer - targetBuffer);
             let bufferHealth = Math.min(1, bufferMargin / BUFFER_HEADROOM_FOR_FULL_SPEED);
             let maxSpeed = 1 + (SPEED_MAX - 1) * bufferHealth;
 
@@ -664,8 +651,6 @@
         } else {
             TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
         }
-        // Load per-channel minimum buffer (raised when buffer events occur)
-        TARGET_BUFFER = TARGET_BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT;
         UNSTABLE_BUFFER_SEPARATION = videoPlayer?.isLiveLowLatency() ? unstableBufferSeparationLowLatency : unstableBufferSeparationNormalLatency;
         latencyData.latest = twoDecimalPlaces(videoPlayer?.getLiveLatency());
         bufferData.latest = twoDecimalPlaces(videoPlayer?.getBufferDuration());
@@ -755,7 +740,6 @@
         if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && !SEEK_COOLDOWN) {
             videoPlayer?.seekTo(videoPlayer?.getPosition() - SEEK_BACKWARD_SECONDS);
             changeTargetLatency(0.25);
-            raiseMinimumBuffer(); // Raise min buffer after actual buffering occurs
             SEEK_COOLDOWN = true;
             // SEEK_COOLDOWN can only be set to false if BUFFER_STATE = 'Filling'. That's how we know.
         } else if (PLAYER_STATE == 'Buffering' && PREVIOUS_PLAYER_STATE == 'Playing' && SEEK_COOLDOWN) {
