@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.31
+// @version      3.32
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -65,6 +65,7 @@
     let unstableBufferSeparationNormalLatency = 10; // Max allowed buffer-latency gap (normal)
     let UNSTABLE_BUFFER_SEPARATION; // Active threshold (set based on stream type)
     let MINIMUM_BUFFER_DEFAULT = 0.75; // Default minimum buffer threshold
+    let MINIMUM_BUFFER_MAX = 2.0;   // Maximum minimum buffer (cap for per-channel raises)
     let MINIMUM_BUFFER = 0.75;      // Active minimum buffer (may be raised per-channel)
     let BUFFER_SETTINGS = {};       // Per-channel minimum buffer {pathname: minBuffer}
     let TARGET_LATENCY;             // Current target latency (dynamically set)
@@ -209,10 +210,13 @@
     function recordResetEvent() {
         pendingResetEvent = true;
 
-        // Raise minimum buffer for this channel to prevent future buffer events
+        // Raise minimum buffer for this channel to prevent future buffer events (with cap)
         let pathname = window.location.pathname;
-        MINIMUM_BUFFER = (BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT) + 0.25;
-        BUFFER_SETTINGS[pathname] = MINIMUM_BUFFER;
+        let currentMin = BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT;
+        if (currentMin < MINIMUM_BUFFER_MAX) {
+            MINIMUM_BUFFER = Math.min(currentMin + 0.25, MINIMUM_BUFFER_MAX);
+            BUFFER_SETTINGS[pathname] = MINIMUM_BUFFER;
+        }
     }
 
     // =========================================================================
