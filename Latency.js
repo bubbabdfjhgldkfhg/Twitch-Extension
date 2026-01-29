@@ -129,6 +129,8 @@
     });
 
     function recordResetEvent() {
+        // Don't show reset bars if already at minimum latency target
+        if (TARGET_LATENCY <= TARGET_LATENCY_MIN) return;
         pendingResetEvent = true;
     }
 
