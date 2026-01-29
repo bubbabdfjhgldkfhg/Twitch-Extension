@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.36
+// @version      3.37
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -64,9 +64,9 @@
     let unstableBufferSeparationLowLatency = 2;   // Max allowed buffer-latency gap (low latency)
     let unstableBufferSeparationNormalLatency = 10; // Max allowed buffer-latency gap (normal)
     let UNSTABLE_BUFFER_SEPARATION; // Active threshold (set based on stream type)
-    let MINIMUM_BUFFER_DEFAULT = 0.75; // Default minimum buffer threshold
-    let MINIMUM_BUFFER = 0.75;      // Active minimum buffer (may be raised per-channel)
-    let BUFFER_SETTINGS = {};       // Per-channel minimum buffer {pathname: minBuffer}
+    let MINIMUM_BUFFER_DEFAULT = 0.75; // Absolute minimum buffer (used for problem detection)
+    let TARGET_BUFFER = 0.75;       // Target buffer threshold (raised per-channel after buffering)
+    let TARGET_BUFFER_SETTINGS = {}; // Per-channel target buffer {pathname: targetBuffer}
     let TARGET_LATENCY;             // Current target latency (dynamically set)
     let LATENCY_SETTINGS = {};      // Per-channel latency settings {pathname: target}
     let TARGET_LATENCY_MIN = 0.25;  // Absolute minimum latency target allowed
@@ -80,7 +80,7 @@
     let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
     let SPEED_MIN = 0.85;  // Minimum playback speed (slow down limit)
     let SPEED_MAX = 1.15;  // Maximum playback speed (speed up limit)
-    let BUFFER_HEADROOM_FOR_FULL_SPEED = 1.0;  // Buffer margin (above MINIMUM_BUFFER) needed for SPEED_MAX
+    let BUFFER_HEADROOM_FOR_FULL_SPEED = 1.0;  // Buffer margin (above TARGET_BUFFER) needed for SPEED_MAX
     let NUM_BUFFER_VALS_TO_AVG = 15;  // Number of buffer samples to average for speed calc
 
     // =========================================================================
@@ -213,8 +213,8 @@
     // Raise minimum buffer for this channel after actual buffering occurs
     function raiseMinimumBuffer() {
         let pathname = window.location.pathname;
-        MINIMUM_BUFFER = (BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT) + 0.25;
-        BUFFER_SETTINGS[pathname] = MINIMUM_BUFFER;
+        TARGET_BUFFER = (TARGET_BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT) + 0.25;
+        TARGET_BUFFER_SETTINGS[pathname] = TARGET_BUFFER;
     }
 
     // =========================================================================
@@ -481,10 +481,10 @@
         if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN) {
             changeTargetLatency(-0.25);
             // Also lower minimum buffer (but not below default)
-            if (MINIMUM_BUFFER > MINIMUM_BUFFER_DEFAULT) {
+            if (TARGET_BUFFER > MINIMUM_BUFFER_DEFAULT) {
                 let pathname = window.location.pathname;
-                MINIMUM_BUFFER = Math.max(MINIMUM_BUFFER - 0.25, MINIMUM_BUFFER_DEFAULT);
-                BUFFER_SETTINGS[pathname] = MINIMUM_BUFFER;
+                TARGET_BUFFER = Math.max(TARGET_BUFFER - 0.25, MINIMUM_BUFFER_DEFAULT);
+                TARGET_BUFFER_SETTINGS[pathname] = TARGET_BUFFER;
             }
             LAST_LATENCY_PROBLEM = now;
         }
@@ -553,7 +553,7 @@
     //
     // BUFFER-PROPORTIONAL MAX SPEED:
     // Instead of a hard cap when buffer issues are detected, max speed scales
-    // smoothly based on buffer headroom above MINIMUM_BUFFER:
+    // smoothly based on buffer headroom above TARGET_BUFFER:
     //   - Buffer at minimum (0.75s) → max speed = 1.0x (can't afford to speed up)
     //   - Buffer with full headroom → max speed = SPEED_MAX (1.15x)
     //
@@ -578,7 +578,7 @@
             let avgBuffer = bufferData.history.length > 0
                 ? bufferData.history.reduce((sum, val) => sum + val, 0) / bufferData.history.length
                 : bufferData.latest;
-            let bufferMargin = Math.max(0, avgBuffer - MINIMUM_BUFFER);
+            let bufferMargin = Math.max(0, avgBuffer - TARGET_BUFFER);
             let bufferHealth = Math.min(1, bufferMargin / BUFFER_HEADROOM_FOR_FULL_SPEED);
             let maxSpeed = 1 + (SPEED_MAX - 1) * bufferHealth;
 
@@ -665,7 +665,7 @@
             TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
         }
         // Load per-channel minimum buffer (raised when buffer events occur)
-        MINIMUM_BUFFER = BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT;
+        TARGET_BUFFER = TARGET_BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT;
         UNSTABLE_BUFFER_SEPARATION = videoPlayer?.isLiveLowLatency() ? unstableBufferSeparationLowLatency : unstableBufferSeparationNormalLatency;
         latencyData.latest = twoDecimalPlaces(videoPlayer?.getLiveLatency());
         bufferData.latest = twoDecimalPlaces(videoPlayer?.getBufferDuration());
