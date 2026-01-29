@@ -75,7 +75,7 @@
     // =========================================================================
     let SPEED_ADJUSTMENT_FACTOR_DEFAULT = 7.2; // Higher = gentler speed changes
     let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
-    let SPEED_MIN = 0.07;  // Minimum playback speed (slow down limit)
+    let SPEED_MIN = 0.80;  // Minimum playback speed (slow down limit)
     let SPEED_MAX = 1.15;  // Maximum playback speed (speed up limit)
 
     // =========================================================================
