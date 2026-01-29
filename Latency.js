@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.27
+// @version      3.28
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -64,7 +64,9 @@
     let unstableBufferSeparationLowLatency = 2;   // Max allowed buffer-latency gap (low latency)
     let unstableBufferSeparationNormalLatency = 10; // Max allowed buffer-latency gap (normal)
     let UNSTABLE_BUFFER_SEPARATION; // Active threshold (set based on stream type)
-    let MINIMUM_BUFFER = 0.75;      // Buffer below this triggers protective actions
+    let MINIMUM_BUFFER_DEFAULT = 0.75; // Default minimum buffer threshold
+    let MINIMUM_BUFFER = 0.75;      // Active minimum buffer (may be raised per-channel)
+    let BUFFER_SETTINGS = {};       // Per-channel minimum buffer {pathname: minBuffer}
     let TARGET_LATENCY;             // Current target latency (dynamically set)
     let LATENCY_SETTINGS = {};      // Per-channel latency settings {pathname: target}
     let TARGET_LATENCY_MIN = 0.75;  // Absolute minimum latency target allowed
@@ -195,17 +197,22 @@
     });
 
     // =========================================================================
-    // recordResetEvent - Record a buffer health issue (visual indicator only)
+    // recordResetEvent - Record a buffer health issue
     // =========================================================================
     // Called when buffer problems are detected (buffer too low, buffer-latency
-    // mismatch, or FPS drop). Shows a blue vertical bar in the graph.
+    // mismatch, or FPS drop). Shows a blue vertical bar in the graph and raises
+    // the minimum buffer threshold for this channel to prevent future issues.
     //
-    // Note: Speed limiting is now handled by buffer-proportional max speed in
-    // evaluateSpeedAdjustment(), so this function is purely for visual feedback.
-    // Blue bars are hidden at minimum latency (see updateGraph).
+    // Note: Speed limiting is handled by buffer-proportional max speed in
+    // evaluateSpeedAdjustment(). Blue bars are hidden at minimum latency.
     // =========================================================================
     function recordResetEvent() {
         pendingResetEvent = true;
+
+        // Raise minimum buffer for this channel to prevent future buffer events
+        let pathname = window.location.pathname;
+        MINIMUM_BUFFER = (BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT) + 0.25;
+        BUFFER_SETTINGS[pathname] = MINIMUM_BUFFER;
     }
 
     // =========================================================================
@@ -646,10 +653,11 @@
         let pathname = window.location.pathname;
         if (LATENCY_SETTINGS[pathname]) {
             TARGET_LATENCY = LATENCY_SETTINGS[pathname];
-            // console.log('Found', pathname, 'in LATENCY_SETTINGS:', LATENCY_SETTINGS[pathname]);
         } else {
             TARGET_LATENCY = videoPlayer?.isLiveLowLatency() ? latencyTargetLow : latencyTargetNormal;
         }
+        // Load per-channel minimum buffer (raised when buffer events occur)
+        MINIMUM_BUFFER = BUFFER_SETTINGS[pathname] || MINIMUM_BUFFER_DEFAULT;
         UNSTABLE_BUFFER_SEPARATION = videoPlayer?.isLiveLowLatency() ? unstableBufferSeparationLowLatency : unstableBufferSeparationNormalLatency;
         latencyData.latest = twoDecimalPlaces(videoPlayer?.getLiveLatency());
         bufferData.latest = twoDecimalPlaces(videoPlayer?.getBufferDuration());
