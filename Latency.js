@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.21
+// @version      3.22
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -28,15 +28,16 @@
 // - Buffer health monitoring with automatic recovery actions
 //
 // SPEED ADJUSTMENT BEHAVIOR:
-// - When latency > target: speeds up playback (up to SPEED_MAX) to catch up
+// - When latency > target: speeds up playback to catch up
 // - When latency < target: slows down playback (down to SPEED_MIN)
-// - When buffer issues detected: caps speed at 1x to prevent buffer drain
-// - Speed cap is released on the very next tick if buffer becomes healthy
+// - Max speed is proportional to buffer headroom above MINIMUM_BUFFER
+//   - Buffer at minimum → max speed = 1.0x (can't afford to speed up)
+//   - Buffer with full headroom → max speed = SPEED_MAX (1.15x)
+// - This self-limiting approach prevents buffer drain without hard caps
 //
 // RESET EVENTS (blue bars in graph):
-// - Indicate buffer health issues that triggered protective actions
-// - Not shown when already at minimum latency (0.75s) since user can't go lower
-// - When triggered, immediately caps playback speed at 1x
+// - Indicate buffer health issues (visual indicator only)
+// - Not shown when at minimum latency (0.75s) since user knows they're on edge
 // =============================================================================
 
 (function() {
@@ -77,6 +78,7 @@
     let SPEED_ADJUSTMENT_FACTOR = SPEED_ADJUSTMENT_FACTOR_DEFAULT;
     let SPEED_MIN = 0.85;  // Minimum playback speed (slow down limit)
     let SPEED_MAX = 1.15;  // Maximum playback speed (speed up limit)
+    let BUFFER_HEADROOM_FOR_FULL_SPEED = 1.0;  // Buffer margin (above MINIMUM_BUFFER) needed for SPEED_MAX
 
     // =========================================================================
     // STATE - Playback Initialization
@@ -192,27 +194,16 @@
     });
 
     // =========================================================================
-    // recordResetEvent - Record a buffer health issue
+    // recordResetEvent - Record a buffer health issue (visual indicator only)
     // =========================================================================
     // Called when buffer problems are detected (buffer too low, buffer-latency
-    // mismatch, or FPS drop). This function:
+    // mismatch, or FPS drop). Shows a blue vertical bar in the graph.
     //
-    // 1. Immediately caps playback speed at 1x if currently above 1x
-    // 2. Sets pendingResetEvent to cap speed at 1x in evaluateSpeedAdjustment()
-    // 3. Blue bar is shown in graph (unless at min latency - see updateGraph)
-    //
-    // The speed cap is automatically released on the NEXT tick if buffer is healthy.
-    // This is because pendingResetEvent is reset to false in updateGraph() at the
-    // end of each tick. If recordResetEvent() isn't called again next tick (meaning
-    // buffer is healthy), pendingResetEvent stays false and speed can exceed 1x.
+    // Note: Speed limiting is now handled by buffer-proportional max speed in
+    // evaluateSpeedAdjustment(), so this function is purely for visual feedback.
+    // Blue bars are hidden at minimum latency (see updateGraph).
     // =========================================================================
     function recordResetEvent() {
-        // Immediately drop to 1x speed - no point draining the buffer faster
-        if (playbackRate > 1) setSpeed(1);
-
-        // Flag for speed cap in evaluateSpeedAdjustment() - this is critical!
-        // Without this, evaluateSpeedAdjustment() would set speed > 1 right after.
-        // Blue bar display is handled in updateGraph() (hidden at min latency).
         pendingResetEvent = true;
     }
 
@@ -421,8 +412,7 @@
         let showResetBar = pendingResetEvent && TARGET_LATENCY > TARGET_LATENCY_MIN;
         chart.data.datasets[4].data.push(showResetBar ? 1 : null);
 
-        // CRITICAL: Reset the flag here so speed cap is released next tick if healthy.
-        // If buffer issues persist, recordResetEvent() will set it true again next tick.
+        // Reset flag for next tick
         pendingResetEvent = false;
 
         chart.update();
@@ -541,14 +531,14 @@
     // Adjusts playback speed based on how far current latency is from target.
     // Speed is proportional to the latency delta - larger gaps = faster adjustment.
     //
-    // SPEED CAPPING BEHAVIOR:
-    // When pendingResetEvent is true (buffer issue detected this tick), max speed
-    // is capped at 1x to prevent further buffer drain. This cap is automatically
-    // released on the next tick if buffer is healthy, because pendingResetEvent
-    // is reset to false at the end of each tick in updateGraph().
+    // BUFFER-PROPORTIONAL MAX SPEED:
+    // Instead of a hard cap when buffer issues are detected, max speed scales
+    // smoothly based on buffer headroom above MINIMUM_BUFFER:
+    //   - Buffer at minimum (0.75s) → max speed = 1.0x (can't afford to speed up)
+    //   - Buffer with full headroom → max speed = SPEED_MAX (1.15x)
     //
-    // This means a brief buffer hiccup won't force the user to sit at above-target
-    // latency for an extended period - speed can resume >1x as soon as buffer recovers.
+    // This self-limiting approach means we only speed up as much as buffer allows,
+    // preventing drain without reactive hard caps that cause latency to spike.
     // =========================================================================
     function evaluateSpeedAdjustment(latencyEstimate) {
         if (!latencyEstimate || isNaN(latencyEstimate)) return;
@@ -560,9 +550,13 @@
         if (Math.abs(latencyDelta) >= TARGET_LATENCY_TOLERANCE) {
             let newSpeed = ((latencyDelta / SPEED_ADJUSTMENT_FACTOR) + 1).toFixed(2);
 
-            // Cap max speed at 1x when buffer issues detected (pendingResetEvent=true)
-            // This cap is released next tick if buffer is healthy (pendingResetEvent=false)
-            let maxSpeed = pendingResetEvent ? 1 : SPEED_MAX;
+            // Buffer-proportional max speed: only speed up as much as buffer can afford
+            // bufferMargin: how much buffer we have above the minimum (0 = at minimum)
+            // bufferHealth: normalized 0-1 (0 = no headroom, 1 = full headroom)
+            // maxSpeed: scales from 1.0 (no headroom) to SPEED_MAX (full headroom)
+            let bufferMargin = Math.max(0, bufferData.latest - MINIMUM_BUFFER);
+            let bufferHealth = Math.min(1, bufferMargin / BUFFER_HEADROOM_FOR_FULL_SPEED);
+            let maxSpeed = 1 + (SPEED_MAX - 1) * bufferHealth;
 
             setSpeed(Math.min(Math.max(parseFloat(newSpeed), SPEED_MIN), maxSpeed));
         } else {
