@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.34
+// @version      3.35
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -470,16 +470,22 @@
     // - Shows blue bar in graph
     // - Caps speed at 1x (released next tick if healthy)
     //
-    // Also auto-lowers target latency if no problems for LATENCY_PROBLEM_COOLDOWN (3 min)
+    // Also auto-lowers target latency and minimum buffer if no problems for 3 min
     // =========================================================================
     function estimateLatency(latestLatency, latestBuffer) {
         if (latestLatency == null || latestBuffer == null || isNaN(latestLatency) || isNaN(latestBuffer)) return;
 
         let now = Date.now();
 
-        // Auto-lower target if stream has been stable for 3+ minutes
+        // Auto-lower target latency and minimum buffer if stream has been stable for 3+ minutes
         if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN) {
-            changeTargetLatency(-0.25)
+            changeTargetLatency(-0.25);
+            // Also lower minimum buffer (but not below default)
+            if (MINIMUM_BUFFER > MINIMUM_BUFFER_DEFAULT) {
+                let pathname = window.location.pathname;
+                MINIMUM_BUFFER = Math.max(MINIMUM_BUFFER - 0.25, MINIMUM_BUFFER_DEFAULT);
+                BUFFER_SETTINGS[pathname] = MINIMUM_BUFFER;
+            }
             LAST_LATENCY_PROBLEM = now;
         }
 
