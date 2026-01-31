@@ -59,7 +59,7 @@
     // =========================================================================
     // CONFIGURATION - Latency Targets
     // =========================================================================
-    let latencyTargetLow = 0.50;    // Default target for low latency streams
+    let latencyTargetLow = 0.75;    // Default target for low latency streams
     let latencyTargetNormal = 4.00; // Default target for normal latency streams
     let unstableBufferSeparationLowLatency = 2;   // Max allowed buffer-latency gap (low latency)
     let unstableBufferSeparationNormalLatency = 10; // Max allowed buffer-latency gap (normal)
@@ -67,7 +67,7 @@
     let MINIMUM_BUFFER = 0.75;      // Absolute minimum buffer (used for problem detection)
     let TARGET_LATENCY;             // Current target latency (dynamically set)
     let LATENCY_SETTINGS = {};      // Per-channel latency settings {pathname: target}
-    let TARGET_LATENCY_MIN = 0.25;  // Absolute minimum latency target allowed
+    let TARGET_LATENCY_MIN = 0.50;  // Absolute minimum latency target allowed
     let TARGET_LATENCY_TOLERANCE = 0.13; // Latency jitter to ignore before adjusting speed
     let NUM_LATENCY_VALS_TO_AVG = 3;     // Number of latency samples to average for smoothing
 
@@ -564,6 +564,8 @@
             let avgBuffer = bufferData.history.length > 0
                 ? bufferData.history.reduce((sum, val) => sum + val, 0) / bufferData.history.length
                 : bufferData.latest;
+            avgBuffer = avgBuffer.toFixed(2);
+
             let targetBuffer = Math.max(TARGET_LATENCY - 0.25, MINIMUM_BUFFER);
             let bufferMargin = Math.max(0, avgBuffer - targetBuffer);
             let bufferHealth = Math.min(1, bufferMargin / BUFFER_HEADROOM_FOR_FULL_SPEED);
@@ -571,6 +573,9 @@
 
             let finalSpeed = Math.min(Math.max(newSpeed, SPEED_MIN), maxSpeed).toFixed(2);
             setSpeed(finalSpeed);
+
+            // console.log('avgBuf:Speed', avgBuffer, finalSpeed);
+
         } else {
             // Within tolerance - use normal 1x speed
             setSpeed(1);
