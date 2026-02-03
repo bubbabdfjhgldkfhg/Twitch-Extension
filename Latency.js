@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.42
+// @version      3.43
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -189,7 +189,7 @@
                 'latency': { beginAtZero: false, min: 0.25, display: false },
                 'frames': { beginAtZero: true, display: false },
                 'bitrate': { type: 'logarithmic', beginAtZero: true, display: false },
-                'bandwidth': { type: 'logarithmic', beginAtZero: true, display: false },
+                'bandwidth': { beginAtZero: true, display: false },
                 'reset': { beginAtZero: true, max: 1, display: false },
                 x: { display: false }
             },
@@ -665,7 +665,7 @@
         latencyData.latest = twoDecimalPlaces(videoPlayer?.getLiveLatency());
         bufferData.latest = twoDecimalPlaces(videoPlayer?.getBufferDuration());
         graphValues.latestBitrate = Math.round(videoPlayer?.getVideoBitRate()/1000);
-        graphValues.latestBandwidth = Math.round(videoPlayer?.getBandwidthEstimate()/1000000);
+        graphValues.latestBandwidth = videoPlayer?.getBandwidthEstimate()/1000000; // Mbps
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
 
         // Detect buffer filling/draining by tracking buffered end position
