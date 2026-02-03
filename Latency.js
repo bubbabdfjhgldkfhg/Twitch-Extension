@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.41
+// @version      3.42
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -158,7 +158,7 @@
     let latencyData = { latest: null, prev: null, history: [] };
     let bufferData = { latest: null, prev: null, history: [] };
 
-    const graphValues = { smoothedLatency: null, smoothedBufferSize: null, latestFps: null, latestBitrate: null };
+    const graphValues = { smoothedLatency: null, smoothedBufferSize: null, latestFps: null, latestBitrate: null, latestBandwidth: null };
 
     // Graph setup
     const canvas = document.createElement('canvas');
@@ -175,6 +175,7 @@
                 { label: 'Buffer Size', borderColor: 'red', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'latency' },
                 { label: 'FPS', borderColor: 'yellow', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'frames' },
                 { label: 'Bitrate', borderColor: 'white', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'bitrate' },
+                { label: 'Bandwidth', borderColor: 'lime', borderWidth: GRAPH_LINE_THICKNESS, data: [], pointRadius: 0, yAxisID: 'bandwidth' },
                 { label: 'Reset', type: 'bar', backgroundColor: 'rgba(0, 255, 255, 0.85)', data: [], yAxisID: 'reset', barPercentage: 0.5 }
             ]
         },
@@ -188,6 +189,7 @@
                 'latency': { beginAtZero: false, min: 0.25, display: false },
                 'frames': { beginAtZero: true, display: false },
                 'bitrate': { type: 'logarithmic', beginAtZero: true, display: false },
+                'bandwidth': { type: 'logarithmic', beginAtZero: true, display: false },
                 'reset': { beginAtZero: true, max: 1, display: false },
                 x: { display: false }
             },
@@ -411,9 +413,10 @@
         chart.data.datasets[1].data.push(graphValues.smoothedBufferSize); // Red line
         chart.data.datasets[2].data.push(graphValues.latestFps);        // Yellow line
         chart.data.datasets[3].data.push(graphValues.latestBitrate);    // White line
+        chart.data.datasets[4].data.push(graphValues.latestBandwidth); // Lime line
         // Blue bar (reset event) - hidden at minimum latency since user knows they're on the edge
         let showResetBar = pendingResetEvent && TARGET_LATENCY > TARGET_LATENCY_MIN;
-        chart.data.datasets[4].data.push(showResetBar ? 1 : null);
+        chart.data.datasets[5].data.push(showResetBar ? 1 : null);
 
         // Reset flag for next tick
         pendingResetEvent = false;
@@ -662,6 +665,7 @@
         latencyData.latest = twoDecimalPlaces(videoPlayer?.getLiveLatency());
         bufferData.latest = twoDecimalPlaces(videoPlayer?.getBufferDuration());
         graphValues.latestBitrate = Math.round(videoPlayer?.getVideoBitRate()/1000);
+        graphValues.latestBandwidth = Math.round(videoPlayer?.getBandwidthEstimate()/1000000);
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
 
         // Detect buffer filling/draining by tracking buffered end position
