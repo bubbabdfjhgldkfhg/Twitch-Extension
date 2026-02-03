@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.40
+// @version      3.41
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -124,6 +124,7 @@
     let BUFFER_COUNT = 0;       // Consecutive ticks in Buffering state
     let MAX_BUFFER_COUNT = 20;  // Trigger recovery after this many ticks
     let BUFFER_STATE;           // 'Filling' or 'Draining'
+    let _prevBufferedEnd = null; // Track buffered end position for fill/drain detection
 
     let READY_COUNT = 0;        // Consecutive ticks in Ready state (stuck)
     let MAX_READY_COUNT = 20;   // Trigger recovery after this many ticks
@@ -615,6 +616,7 @@
         // Reset event tracking
         pendingResetEvent = false;
         PREV_FPS_PROBLEM = false;
+        _prevBufferedEnd = null;
     }
 
     function isStreamPlaying() {
@@ -662,13 +664,20 @@
         graphValues.latestBitrate = Math.round(videoPlayer?.getVideoBitRate()/1000);
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
 
-        if ((videoPlayer?.getBuffered()?.end - videoPlayer?.getBufferedRanges()?.video[0]?.end) > 0) {
-            BUFFER_STATE = 'Filling';
-            SEEK_COOLDOWN = false;
-            // DRAIN_COUNT = 0;
-        } else {
-            BUFFER_STATE ='Draining';
-            // DRAIN_COUNT += 1;
+        // Detect buffer filling/draining by tracking buffered end position
+        // (getBufferedRanges was removed from Twitch's player API)
+        let buffered = videoPlayer?.getBuffered();
+        if (buffered && buffered.length > 0) {
+            let currentEnd = buffered.end(0);
+            if (_prevBufferedEnd !== null) {
+                if (currentEnd > _prevBufferedEnd) {
+                    BUFFER_STATE = 'Filling';
+                    SEEK_COOLDOWN = false;
+                } else {
+                    BUFFER_STATE = 'Draining';
+                }
+            }
+            _prevBufferedEnd = currentEnd;
         }
         // console.log(BUFFER_STATE);
 
