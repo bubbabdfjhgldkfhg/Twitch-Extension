@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.44
+// @version      3.45
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -667,7 +667,7 @@
         graphValues.latestBitrate = Math.round(videoPlayer?.getVideoBitRate()/1000);
         let rawBandwidth = videoPlayer?.getBandwidthEstimate();
         graphValues.latestBandwidth = rawBandwidth / 1000000; // Mbps
-        console.log('[Latency] Bandwidth raw:', rawBandwidth, 'Mbps:', graphValues.latestBandwidth);
+        console.log('[Latency] Bandwidth:', rawBandwidth, '| Bitrate:', videoPlayer?.getVideoBitRate(), '| Avg:', videoPlayer?.getAverageBitrate());
         graphValues.latestFps = videoPlayer?.getVideoFrameRate();
 
         // Detect buffer filling/draining by tracking buffered end position
