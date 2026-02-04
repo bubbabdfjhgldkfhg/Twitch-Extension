@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Latency
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      3.41
+// @version      3.42
 // @description  Set custom latency targets and graph live playback stats
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Latency.js
@@ -571,6 +571,11 @@
             let bufferMargin = Math.max(0, avgBuffer - targetBuffer);
             let bufferHealth = Math.min(1, bufferMargin / BUFFER_HEADROOM_FOR_FULL_SPEED);
             let maxSpeed = 1 + (SPEED_MAX - 1) * bufferHealth;
+
+            // Avoid tiny speedups (1.01) when buffer is low - snap to 1.0 instead
+            if (maxSpeed > 1.0 && maxSpeed < 1.02) {
+                maxSpeed = 1.0;
+            }
 
             let finalSpeed = Math.min(Math.max(newSpeed, SPEED_MIN), maxSpeed).toFixed(2);
             setSpeed(finalSpeed);
