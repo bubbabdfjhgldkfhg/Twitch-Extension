@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      0.8
+// @version      0.9
 // @description  Automatically adjust volume based on real-time LUFS loudness analysis
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/refs/heads/main/Auto%20Volume.js
@@ -310,13 +310,32 @@
         debug('Getting current player');
         const PLAYER_SELECTOR = 'div[data-a-target="player-overlay-click-handler"], .video-player';
         try {
-            const node = searchReactParents(
+            // First try the new structure (mediaPlayerInstance directly has methods)
+            let node = searchReactParents(
+                getReactInstance(document.querySelector(PLAYER_SELECTOR)),
+                n => n.memoizedProps?.mediaPlayerInstance?.getVolume != null,
+                50
+            );
+
+            if (node?.memoizedProps?.mediaPlayerInstance) {
+                debug('Player node found (new structure)');
+                return node.memoizedProps.mediaPlayerInstance;
+            }
+
+            // Fallback to old structure (mediaPlayerInstance.core)
+            node = searchReactParents(
                 getReactInstance(document.querySelector(PLAYER_SELECTOR)),
                 n => n.memoizedProps?.mediaPlayerInstance?.core != null,
-                30
+                50
             );
-            debug('Player node found:', !!node);
-            return node?.memoizedProps.mediaPlayerInstance.core;
+
+            if (node?.memoizedProps?.mediaPlayerInstance?.core) {
+                debug('Player node found (old structure)');
+                return node.memoizedProps.mediaPlayerInstance.core;
+            }
+
+            debug('Player node not found');
+            return null;
         } catch (e) {
             debug('Error getting player:', e);
         }

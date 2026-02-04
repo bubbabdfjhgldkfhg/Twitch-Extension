@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.2
+// @version      1.3
 // @description  Remember and restore per-channel volume settings
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
@@ -83,16 +83,30 @@
             const playerElement = document.querySelector(PLAYER_SELECTOR);
             debug('Found player element:', !!playerElement);
 
-            const node = searchReactParents(
+            // First try the new structure (mediaPlayerInstance directly has methods)
+            let node = searchReactParents(
+                getReactInstance(playerElement),
+                n => n.memoizedProps?.mediaPlayerInstance?.getVolume != null,
+                50
+            );
+
+            if (node?.memoizedProps?.mediaPlayerInstance) {
+                debug('Successfully retrieved player instance (new structure)');
+                return node.memoizedProps.mediaPlayerInstance;
+            }
+
+            // Fallback to old structure (mediaPlayerInstance.core)
+            node = searchReactParents(
                 getReactInstance(playerElement),
                 n => n.memoizedProps?.mediaPlayerInstance?.core != null,
-                30
+                50
             );
 
             if (node?.memoizedProps?.mediaPlayerInstance?.core) {
-                debug('Successfully retrieved player instance');
+                debug('Successfully retrieved player instance (old structure)');
                 return node.memoizedProps.mediaPlayerInstance.core;
             }
+
             debug('Player instance not found in React tree');
             return null;
         } catch (e) {
