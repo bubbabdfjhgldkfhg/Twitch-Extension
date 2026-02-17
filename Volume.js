@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Volume
 // @namespace    https://github.com/bubbabdfjhgldkfhg/Twitch-Extension
-// @version      1.3
+// @version      1.4
 // @description  Remember and restore per-channel volume settings
 // @updateURL    https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
 // @downloadURL  https://raw.githubusercontent.com/bubbabdfjhgldkfhg/Twitch-Extension/main/Volume.js
@@ -141,6 +141,34 @@
         }
     }
 
+    // Purge expired or legacy volume settings (runs once on page load)
+    const VOLUME_EXPIRY_DAYS = 30;
+    (function purgeExpiredSettings() {
+        const now = Date.now();
+        const maxAge = VOLUME_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!key.startsWith('volumeSetting')) continue;
+            const raw = localStorage.getItem(key);
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object' && parsed.timestamp) {
+                    if (now - parsed.timestamp > maxAge) {
+                        keysToRemove.push(key);
+                        debug('Purging expired setting:', key);
+                    }
+                    continue;
+                }
+            } catch (e) {}
+            // Not valid JSON or missing timestamp — legacy entry, remove it
+            keysToRemove.push(key);
+            debug('Purging legacy setting:', key);
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        debug('Purged', keysToRemove.length, 'expired/legacy volume settings');
+    })();
+
     // Local storage handling for volume settings
     function saveVolume(slider, pathname) {
         if (pathname == '/') return;
@@ -148,17 +176,29 @@
         const volume = parseFloat(slider.value);
         debug('Saving volume for path:', pathname, 'Volume:', volume);
         if (volume != defaultVolume) {
-            localStorage.setItem('volumeSetting' + pathname, volume);
+            localStorage.setItem('volumeSetting' + pathname, JSON.stringify({
+                volume: volume,
+                timestamp: Date.now()
+            }));
             debug('Volume saved to localStorage');
         }
     }
 
     function loadVolume(pathname) {
         debug('Loading volume for path:', pathname);
-        const savedVolume = localStorage.getItem('volumeSetting' + pathname);
-        const volume = savedVolume ? parseFloat(savedVolume) : defaultVolume;
-        debug('Loaded volume:', volume);
-        return volume;
+        const raw = localStorage.getItem('volumeSetting' + pathname);
+        if (!raw) return defaultVolume;
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object' && parsed.volume !== undefined) {
+                debug('Loaded volume:', parsed.volume);
+                return parsed.volume;
+            }
+        } catch (e) {}
+        // Legacy plain number format — still usable until purged
+        const volume = parseFloat(raw);
+        debug('Loaded legacy volume:', volume);
+        return isNaN(volume) ? defaultVolume : volume;
     }
 
     function handlePathChange() {
