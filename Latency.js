@@ -498,6 +498,9 @@
         // CASE 3: Buffer critically low (below default threshold)
         else if (latestBuffer < MINIMUM_BUFFER) {
             // Buffer dangerously low - likely to cause buffering soon
+            // Not setting LATENCY_PROBLEM here (no red text) because we're
+            // intentionally riding near minimum buffer. Just reset the
+            // auto-lower timer and record a reset event for the speed cap.
             LAST_LATENCY_PROBLEM = now;
             recordResetEvent();
 
