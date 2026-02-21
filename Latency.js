@@ -471,8 +471,13 @@
         let now = Date.now();
 
         // Auto-lower target latency if stream has been stable for 3+ minutes
+        // Only lower if we're actually at the target (within tolerance), otherwise
+        // buffer clamping is holding us above target and lowering just widens the
+        // delta, causing speed spikes when buffer briefly fluctuates.
         if (LAST_LATENCY_PROBLEM && now - LAST_LATENCY_PROBLEM > LATENCY_PROBLEM_COOLDOWN) {
-            changeTargetLatency(-0.25);
+            if (Math.abs(latestLatency - TARGET_LATENCY) < TARGET_LATENCY_TOLERANCE) {
+                changeTargetLatency(-0.25);
+            }
             LAST_LATENCY_PROBLEM = now;
         }
 
